@@ -1,6 +1,10 @@
 'use strict';
 const XMPP = require('stanza.io');
-const PUBSUB_HOST = 'firehose.inindca.com';
+const notifications = require('./notifications');
+
+let extensions = {
+    notifications: notifications
+};
 
 function connection (client) {
     let subscribedTopics = [];
@@ -11,19 +15,6 @@ function connection (client) {
         on: client.on.bind(client),
         connect: client.connect.bind(client),
         disconnect: client.disconnect.bind(client),
-
-        subscribe(topic) {
-            return new Promise((resolve, reject) => {
-                client.subscribeToNode(PUBSUB_HOST, topic, (err) => {
-                    if (err) {
-                        reject(err);
-                    } else {
-                        subscribedTopics.push(topic);
-                        resolve();
-                    }
-                });
-            });
-        }
     };
 
     client.on('connected', function () {
@@ -38,18 +29,16 @@ function connection (client) {
         connection.streamId = event.resource;
     });
 
-    client.on('pubsub:event', function (msg) {
-        let topic = msg.event.updated.node;
-        let payload = msg.event.updated.published[0].json;
-        client.emit('push:notify', {topic: topic, data: payload});
+    Object.keys(extensions).forEach((extensionName) => {
+        connection[extensionName] = extensions[extensionName](client);
     });
 
     return connection;
 }
 
-let apiMethods = {
+module.exports = {
 
-    stream(host, jid, auth) {
+    connection(host, jid, auth) {
         let wsHost = host.replace(/http:\/\//, 'ws://')
                          .replace(/https:\/\//, 'wss://');
         let wsUrl = `${wsHost}/stream`;
@@ -65,13 +54,13 @@ let apiMethods = {
 
         return connection(client);
 
-    }
-};
+    },
 
-module.exports = function (host) {
-    let api = {};
-    Object.keys(apiMethods).forEach((key) => {
-        api[key] = apiMethods[key].bind(null, host);
-    });
-    return api;
+    extend(namespace, extender) {
+        if (extensions[namespace]) {
+            throw `Cannot register already existing namespace ${namespace}`;
+        }
+        extensions[namespace] = extender;
+    }
+
 };
