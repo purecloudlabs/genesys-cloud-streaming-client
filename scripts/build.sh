@@ -1,3 +1,5 @@
 DIR="$( cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-${DIR}/node_modules/.bin/webpack -p
+pushd ${DIR}/..
+./node_modules/.bin/webpack -p
+popd

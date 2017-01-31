@@ -3,7 +3,7 @@ const path = require('path');
 module.exports = {
     entry: './src/client.js',
     output: {
-        path: path.resolve(__dirname, 'dist'),
+        path: path.resolve(__dirname, 'web'),
         filename: 'pc-streaming-client.js',
         library: 'pc-streaming',
         libraryTarget: 'commonjs2'
