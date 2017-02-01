@@ -1,13 +1,16 @@
 {
   "name": "pc-streaming-client",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "client for the firehose websocket/xmpp interface",
   "main": "src/client.js",
-  "files": ["src", "web/pc-streaming-client.js"],
+  "files": [
+    "src",
+    "web/pc-streaming-client.js"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
- "publishConfig": {
+  "publishConfig": {
     "registry": "https://purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm-dev/"
   },
   "author": "",
