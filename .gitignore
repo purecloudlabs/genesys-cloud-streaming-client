@@ -1,2 +1,12 @@
-node_modules
+# Node Specific Files
+/node_modules
+/npm-debug.log
+
 web
+
+## vscode specific files
+/.vscode
+
+# tap specific files
+/.nyc_output
+/coverage
