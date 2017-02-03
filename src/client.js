@@ -3,64 +3,64 @@ const XMPP = require('stanza.io');
 const notifications = require('./notifications');
 
 let extensions = {
-    notifications: notifications
+  notifications: notifications
 };
 
 function connection (client) {
-    let subscribedTopics = [];
+  let subscribedTopics = [];
 
-    let connection = {
-        connected: false,
-        subscribedTopics: subscribedTopics,
-        on: client.on.bind(client),
-        connect: client.connect.bind(client),
-        disconnect: client.disconnect.bind(client),
-    };
+  let connection = {
+    connected: false,
+    subscribedTopics: subscribedTopics,
+    on: client.on.bind(client),
+    connect: client.connect.bind(client),
+    disconnect: client.disconnect.bind(client)
+  };
 
-    client.on('connected', function () {
-        connection.connected = true;
-    });
+  client.on('connected', function () {
+    connection.connected = true;
+  });
 
-    client.on('disconnected', function () {
-        connection.connected = false;
-    });
+  client.on('disconnected', function () {
+    connection.connected = false;
+  });
 
-    connection.on('session:started', function (event) {
-        connection.streamId = event.resource;
-    });
+  connection.on('session:started', function (event) {
+    connection.streamId = event.resource;
+  });
 
-    Object.keys(extensions).forEach((extensionName) => {
-        connection[extensionName] = extensions[extensionName](client);
-    });
+  Object.keys(extensions).forEach((extensionName) => {
+    connection[extensionName] = extensions[extensionName](client);
+  });
 
-    return connection;
+  return connection;
 }
 
 module.exports = {
 
-    connection(host, jid, auth) {
-        let wsHost = host.replace(/http:\/\//, 'ws://')
+  connection (host, jid, auth) {
+    let wsHost = host.replace(/http:\/\//, 'ws://')
                          .replace(/https:\/\//, 'wss://');
-        let wsUrl = `${wsHost}/stream`;
-        var client = XMPP.createClient({
-            jid: jid,
-            credentials: {
-                username: jid,
-                password: auth
-            },
-            transport: 'websocket',
-            wsURL: wsUrl
-        });
+    let wsUrl = `${wsHost}/stream`;
+    var client = XMPP.createClient({
+      jid: jid,
+      credentials: {
+        username: jid,
+        password: auth
+      },
+      transport: 'websocket',
+      wsURL: wsUrl
+    });
 
-        return connection(client);
+    return connection(client);
+  },
 
-    },
-
-    extend(namespace, extender) {
-        if (extensions[namespace]) {
-            throw `Cannot register already existing namespace ${namespace}`;
-        }
-        extensions[namespace] = extender;
+  extend (namespace, extender) {
+    if (extensions[namespace]) {
+      /* eslint no-throw-literal: "off" */
+      throw `Cannot register already existing namespace ${namespace}`;
     }
+    extensions[namespace] = extender;
+  }
 
 };
