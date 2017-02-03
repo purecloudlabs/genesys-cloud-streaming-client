@@ -1,5 +1,10 @@
 ## Firehost Client
 
+### Overview
+Client library for [firehose-service](https://bitbucket.org/inindca/firehose-service)
+
+![Making firehose easy to manage](http://i.giphy.com/TVJzpTzptvxDi.gif)
+
 ### Installation
 Run `npm install` in order to install all the dependencies
 
