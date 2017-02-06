@@ -1,9 +1,12 @@
 'use strict';
 const XMPP = require('./stanzaio-light');
 const notifications = require('./notifications');
+const webrtc = require('./webrtc');
+const defaultOpts = {};
 
 let extensions = {
-  notifications: notifications
+  notifications: notifications,
+  webrtc: webrtc
 };
 
 function mergeOptions(destination, provided) {
@@ -43,6 +46,7 @@ function client(clientOptions) {
   let subscribedTopics = [];
 
   let client = {
+    _stanzaio: stanzaClient,
     connected: false,
     subscribedTopics: subscribedTopics,
     on: stanzaClient.on.bind(stanzaClient),
@@ -66,7 +70,7 @@ function client(clientOptions) {
   });
 
   Object.keys(extensions).forEach((extensionName) => {
-    client[extensionName] = extensions[extensionName](stanzaClient);
+    client[extensionName] = extensions[extensionName](stanzaClient, clientOptions[extensionName] || {});
   });
 
   return client;

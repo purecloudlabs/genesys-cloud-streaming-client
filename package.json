@@ -32,12 +32,17 @@
   },
   "author": "",
   "dependencies": {
-    "stanza.io": "^8.1.1"
+    "jingle-media-data-session-purecloud": "^2.1.2",
+    "jingle-purecloud": "^2.0.0",
+    "limiter": "^1.1.0",
+    "stanza.io": "^8.1.1",
+    "uuid": "^3.0.1"
   },
   "devDependencies": {
     "babel-core": "^6.22.1",
     "babel-loader": "^6.2.10",
     "babel-preset-es2015": "^6.22.0",
+    "mock-socket": "^6.0.4",
     "semistandard": "^9.2.1",
     "snazzy": "^6.0.0",
     "tap": "^10.0.1",
