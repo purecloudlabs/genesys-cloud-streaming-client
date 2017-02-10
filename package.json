@@ -16,7 +16,7 @@
   },
   "scripts": {
     "test": "npm run semistandard && tap test/unit/*.js --coverage",
-    "test:coverage": "tap $npm_package_config_coverage",
+    "test:coverage": "npm run test && tap $npm_package_config_coverage",
     "semistandard": "semistandard $npm_package_config_snazzy",
     "semistandard:fix": "semistandard --fix"
   },
