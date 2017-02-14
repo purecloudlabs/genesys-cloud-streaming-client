@@ -1,25 +1,62 @@
 'use strict';
 
 const test = require('tap').test;
-const td = require('../helpers').td;
-const notifications = require('../../src/notifications');
 
-let notification;
-test('setup', t => {
-  notification = td.replace('../../src/notifications');
+test('subscribe should subscribeToNode', t => {
+  const client = {
+    subscribeToNode: (subscription) => {
+      return {
+        type: 'set',
+        to: '123456',
+        pubsub: {
+          subscribe: {}
+        }
+      };
+    },
+    on: () => {},
+    createSubscription: () => {}
+  };
+
+  const notification = require('../../src/notifications')(client);
+  const args = [
+    'ournode',
+    { topic: [() => {}, () => {}] },
+    (err) => {
+      if (!err) {
+        t.truthy('subscribed');
+        t.end();
+      }
+    }
+  ];
+  t.equal(notification.subscribe(...args), undefined);
   t.end();
 });
 
-test('notifications should return a module', t => {
-  t.plan(1);
-  t.ok(notifications, 'should return notifications module');
-});
-
-test('topicHandlers should return a topic', t => {
-  t.end();
-});
-
-test('teardown', t => {
-  td.reset();
+test('unsubscribe should unsubscribe', t => {
+  const client = {
+    createClient: (client) => {
+      return {
+        jid: 'codecraftsmanships@gitter.im',
+        transport: 'websocket',
+        wsURL: 'wss://gitter.im/xmpp-websocket',
+        credentials: {
+          auth: 'auth'
+        }
+      };
+    },
+    unsubscribe: (subscription) => {
+      return {
+        type: 'set',
+        to: '123456',
+        pubsub: {
+          subscribe: {}
+        }
+      };
+    },
+    on: () => {},
+    createSubscription: () => {}
+  };
+  const notification = require('../../src/notifications')(client);
+  t.equal(notification.unsubscribe.call({ topic: [() => {}, () => {}] }, () => {}), undefined);
   t.end();
 });

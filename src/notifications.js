@@ -38,7 +38,6 @@ module.exports = function (client) {
     subscribe (topic, handler, callback) {
       xmppSubscribe(topic, callback);
       createSubscription(topic, handler);
-      console.log(subscriptions);
     },
 
     unsubscribe (topic, handler) {
