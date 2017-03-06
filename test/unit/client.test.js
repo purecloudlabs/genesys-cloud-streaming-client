@@ -3,7 +3,7 @@
 const test = require('tap').test;
 const td = require('../helpers').td;
 
-let client, xmppInfo, extendObject, clientStanza, stanzaioInstance;
+let pcStream, xmppInfo, extendObject, clientStanza, stanzaioInstance;
 test('setup', t => {
   xmppInfo = {
     jid: 'anon@anon.lance.im',
@@ -28,17 +28,17 @@ test('setup', t => {
 
   td.replace('stanza.io', clientStanza);
 
-  client = require('../../src/client.js');
+  pcStream = require('../../src/client.js');
   t.end();
 });
 
 test('client should return a module', t => {
   t.plan(1);
-  t.ok(client, 'should return client stub module');
+  t.ok(pcStream, 'should return client stub module');
 });
 
 test('client creation', t => {
-  client.client(xmppInfo);
+  pcStream.client(xmppInfo);
   td.verify(clientStanza.createClient({
       jid: 'anon@anon.lance.im',
       credentials: {
@@ -52,15 +52,15 @@ test('client creation', t => {
 });
 
 test('connect jid override', t => {
-  let con = client.client(xmppInfo);
+  let con = pcStream.client(xmppInfo);
   con.connect({
-    jid: 'anon2@anon.lance.im',
+    jid: 'anonAlt@anon.lance.im',
   });
 
   td.verify(stanzaioInstance.connect({
-      jid: 'anon2@anon.lance.im',
+      jid: 'anonAlt@anon.lance.im',
       credentials: {
-        username: 'anon2@anon.lance.im',
+        username: 'anonAlt@anon.lance.im',
         password: 'authKey:AuthToken'
       },
       transport: 'websocket',
@@ -70,9 +70,30 @@ test('connect jid override', t => {
   t.end();
 });
 
+test('connect full override', t => {
+  let con = pcStream.client(xmppInfo);
+  con.connect({
+    jid: 'anonAlt@anon.lance.im',
+    authToken: 'AuthTokenAlt',
+    host: 'wss://example.com/testAlt'
+  });
+
+  td.verify(stanzaioInstance.connect({
+      jid: 'anonAlt@anon.lance.im',
+      credentials: {
+        username: 'anonAlt@anon.lance.im',
+        password: 'authKey:AuthTokenAlt'
+      },
+      transport: 'websocket',
+      wsURL: 'wss://example.com/testAlt/stream'
+  }));
+
+  t.end();
+});
+
 test('extend should return an extendObject', t => {
   t.plan(1);
-  const actual = client.extend(false);
+  const actual = pcStream.extend(false);
   t.deepEqual(actual, extendObject);
 });
 
