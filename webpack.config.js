@@ -6,7 +6,7 @@ module.exports = {
     path: path.resolve(__dirname, 'web'),
     filename: 'pc-streaming-client.js',
     library: 'pc-streaming',
-    libraryTarget: 'commonjs2'
+    libraryTarget: 'umd'
   },
   module: {
     loaders: [
