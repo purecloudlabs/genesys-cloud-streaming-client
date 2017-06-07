@@ -1,5 +1,5 @@
 'use strict';
-const XMPP = require('stanza.io');
+const XMPP = require('./stanzaio-light');
 const notifications = require('./notifications');
 
 let extensions = {
