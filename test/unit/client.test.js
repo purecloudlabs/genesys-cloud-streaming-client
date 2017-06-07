@@ -26,7 +26,7 @@ test('setup', t => {
   td.when(clientStanza.createClient(td.matchers.anything()))
     .thenReturn(stanzaioInstance);
 
-  td.replace('stanza.io', clientStanza);
+  td.replace('../../src/stanzaio-light', clientStanza);
 
   pcStream = require('../../src/client.js');
   t.end();
