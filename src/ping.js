@@ -4,13 +4,9 @@ const DEFAULT_PING_INTERVAL = 20000;
 const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
 module.exports = function(stanzaClient, options) {  
-  if(options === null) {
-      options = {};
-  }
-  let pingInterval = options.pingInterval === undefined 
-    ? DEFAULT_PING_INTERVAL : options.pingInterval;
-  let failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect === undefined 
-    ? DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT : options.failedPingsBeforeDisconnect;
+  options = options || {};
+  let pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
+  let failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
   let numberOfFailedPings = 0;
   let pingIntervalId = null;
 
