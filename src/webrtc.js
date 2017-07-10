@@ -1,4 +1,5 @@
 'use strict';
+
 // const xmpp = require('node-xmpp-core');
 const Jingle = require('jingle-purecloud');
 const uuid = require('uuid');
@@ -7,6 +8,10 @@ const {TokenBucket} = require('limiter');
 
 const MediaDataSession = require('jingle-media-data-session-purecloud');
 const MediaSession = require('jingle-media-session-purecloud');
+
+const {
+  events
+} = require('./constants').exposeWebrtcEvents;
 
 const log = {
   debug: console.log.bind(console),
@@ -31,7 +36,7 @@ function createSessionManager () {
           session.lastNChannel = channel;
           channel.onmessage = function (message) {
             if (__guard__(message, x => x.data)) {
-              return session.emit('lastNChange', JSON.parse(message.data));
+              return session.emit(events.LASTN_CHANGE, JSON.parse(message.data));
             }
           };
           return channel.onmessage;
@@ -84,19 +89,19 @@ module.exports = function (stanzaio, options) {
   });
 
   sessionManager.on('outgoing', session => {
-    return emit('outgoingRtcSession', session);
+    return emit(events.OUTGOING_RTCSESSION_PROCEED, session);
   });
 
   sessionManager.on('incoming', session => {
-    return emit('incomingRtcSession', session);
+    return emit(events.INCOMING_RTCSESSION, session);
   });
 
   sessionManager.on('log:*', (level, msg) => {
-    return emit('traceRtcSession', level.split(':')[1], msg);
+    return emit(events.TRACE_RTCSESSION, level.split(':')[1], msg);
   });
 
   sessionManager.on('error', req => {
-    return emit('rtcSessionError', req.error, req);
+    return emit(events.RTCSESSION_ERROR, req.error, req);
   });
 
   stanzaio.on('iq:set:jingle', (stanza) => {
@@ -171,7 +176,7 @@ module.exports = function (stanzaio, options) {
 
       return session.start(peerConstraints);
     } catch (err) {
-      return emit('rtcSessionError', err);
+      return emit(events.RTCSESSION_ERROR, err);
     }
   }
 
@@ -204,7 +209,7 @@ module.exports = function (stanzaio, options) {
       handleEndRtcSessionsWithJid(jid, reason);
 
       if (jid.match(/@conference/)) {
-        emit('updateMediaPresence', {
+        emit(events.UPDATE_MEDIA_PRESENCE, {
           opts: {jid},
           mediaDescriptions: [],
           callback: callback
@@ -256,7 +261,7 @@ module.exports = function (stanzaio, options) {
       if (mediaDescriptions.length === 0) {
         mediaDescriptions = [ { media: 'listener' } ];
       }
-      emit('updateMediaPresence', {
+      emit(events.UPDATE_MEDIA_PRESENCE, {
         opts: opts,
         mediaDescriptions: mediaDescriptions,
         callback: callback
@@ -273,7 +278,7 @@ module.exports = function (stanzaio, options) {
   function cancelRtcSession (sessionId) {
     const session = pendingSessions[sessionId];
     if (!session) {
-      emit('rtcSessionError', 'Cannot cancel session because it is not pending or does not exist');
+      emit(events.RTCSESSION_ERROR, 'Cannot cancel session because it is not pending or does not exist');
       return;
     }
 
@@ -290,7 +295,7 @@ module.exports = function (stanzaio, options) {
   function acceptRtcSession (sessionId) {
     const session = pendingSessions[sessionId];
     if (!session) {
-      emit('rtcSessionError', 'Cannot accept session because it is not pending or does not exist');
+      emit(events.RTCSESSION_ERROR, 'Cannot accept session because it is not pending or does not exist');
       return;
     }
 
@@ -315,7 +320,7 @@ module.exports = function (stanzaio, options) {
   function rejectRtcSession (sessionId) {
     const session = pendingSessions[sessionId];
     if (!session) {
-      emit('rtcSessionError', 'Cannot reject session because it is not pending or does not exist');
+      emit(events.RTCSESSION_ERROR, 'Cannot reject session because it is not pending or does not exist');
       return;
     }
 
