@@ -1,6 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "client for the firehose websocket/xmpp interface",
   "main": "src/client.js",
   "files": [
