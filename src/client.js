@@ -2,11 +2,9 @@
 
 const XMPP = require('./stanzaio-light');
 const notifications = require('./notifications');
-const webrtc = require('./webrtc');
 
 let extensions = {
-  notifications: notifications,
-  webrtc: webrtc
+  notifications: notifications
 };
 
 function mergeOptions (destination, provided) {
