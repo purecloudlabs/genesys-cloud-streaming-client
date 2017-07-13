@@ -1,7 +1,7 @@
 'use strict';
 
-const test = require('tap').test;
 const notifications = require('../../src/notifications');
+const test = require('ava');
 
 test('subscribe should subscribeToNode', t => {
   const client = {
@@ -29,8 +29,7 @@ test('subscribe should subscribeToNode', t => {
       }
     }
   ];
-  t.equal(notification.subscribe(...args), undefined);
-  t.end();
+  t.is(notification.subscribe(...args), undefined);
 });
 
 test('unsubscribe should unsubscribe', t => {
@@ -59,6 +58,6 @@ test('unsubscribe should unsubscribe', t => {
   };
   const notification = notifications(client);
   const args = [{ topic: [() => {}, () => {}] }, () => {}];
-  t.equal(notification.unsubscribe.call(...args, undefined));
-  t.end();
+  t.is(notification.unsubscribe.call(...args, undefined));
+  t.is(notification.unsubscribe.call({ topic: [() => {}, () => {}] }, () => {}), undefined);
 });

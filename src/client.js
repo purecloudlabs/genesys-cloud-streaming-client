@@ -1,4 +1,5 @@
 'use strict';
+
 const XMPP = require('./stanzaio-light');
 const notifications = require('./notifications');
 
@@ -6,12 +7,12 @@ let extensions = {
   notifications: notifications
 };
 
-function mergeOptions(destination, provided) {
-  for ( var key in provided ) {
-    let value = provided[key]
-    if (typeof value === "object" ) {
-      if (! destination[key]) {
-        destination[key] = {}
+function mergeOptions (destination, provided) {
+  for (var key in provided) {
+    let value = provided[key];
+    if (typeof value === 'object') {
+      if (!destination[key]) {
+        destination[key] = {};
       }
       mergeOptions(destination[key], value);
     } else {
@@ -22,7 +23,7 @@ function mergeOptions(destination, provided) {
   return destination;
 }
 
-function stanzaioOptions(pcOptions) {
+function stanzaioOptions (pcOptions) {
   let wsHost = pcOptions.host.replace(/\/$/, '');
   let stanzaOptions = {
     jid: pcOptions.jid,
@@ -31,18 +32,19 @@ function stanzaioOptions(pcOptions) {
       password: `authKey:${pcOptions.authToken}`
     },
     wsURL: `${wsHost}/stream`,
-    transport: 'websocket',
+    transport: 'websocket'
   };
 
   return stanzaOptions;
 }
 
-function client(clientOptions) {
+function client (clientOptions) {
   let stanzaioOpts = stanzaioOptions(clientOptions);
-  let stanzaClient = XMPP.createClient(stanzaioOpts)
+  let stanzaClient = XMPP.createClient(stanzaioOpts);
   let subscribedTopics = [];
 
   let client = {
+    _stanzaio: stanzaClient,
     connected: false,
     subscribedTopics: subscribedTopics,
     on: stanzaClient.on.bind(stanzaClient),
@@ -66,7 +68,7 @@ function client(clientOptions) {
   });
 
   Object.keys(extensions).forEach((extensionName) => {
-    client[extensionName] = extensions[extensionName](stanzaClient);
+    client[extensionName] = extensions[extensionName](stanzaClient, clientOptions[extensionName] || {});
   });
 
   return client;
