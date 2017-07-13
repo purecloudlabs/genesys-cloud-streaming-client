@@ -11,3 +11,5 @@ web
 # tap specific files
 /.nyc_output
 /coverage
+
+/.npmrc
