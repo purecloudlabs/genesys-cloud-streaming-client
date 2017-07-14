@@ -1,5 +1,6 @@
 'use strict';
 
+const notifications = require('../../src/notifications');
 const test = require('ava');
 
 test('subscribe should subscribeToNode', t => {
@@ -17,7 +18,7 @@ test('subscribe should subscribeToNode', t => {
     createSubscription: () => {}
   };
 
-  const notification = require('../../src/notifications')(client);
+  const notification = notifications(client);
   const args = [
     'ournode',
     { topic: [() => {}, () => {}] },
@@ -43,7 +44,7 @@ test('unsubscribe should unsubscribe', t => {
         }
       };
     },
-    unsubscribe: (subscription) => {
+    unsubscribeFromNode: (subscription) => {
       return {
         type: 'set',
         to: '123456',
@@ -55,6 +56,8 @@ test('unsubscribe should unsubscribe', t => {
     on: () => {},
     createSubscription: () => {}
   };
-  const notification = require('../../src/notifications')(client);
+  const notification = notifications(client);
+  const args = [{ topic: [() => {}, () => {}] }, () => {}];
+  t.is(notification.unsubscribe.call(...args, undefined));
   t.is(notification.unsubscribe.call({ topic: [() => {}, () => {}] }, () => {}), undefined);
 });

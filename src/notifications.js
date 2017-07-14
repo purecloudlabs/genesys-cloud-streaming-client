@@ -27,6 +27,15 @@ module.exports = function (client) {
     }
   }
 
+  function xmppUnsubscribe (topic, handler, callback) {
+    let handlers = topicHandlers(topic);
+    let handlerIndex = handlers.indexOf(handler);
+    if (handlerIndex > -1) {
+      handlers.splice(handlerIndex, 1);
+    }
+    client.unsubscribeFromNode(PUBSUB_HOST, topic, callback);
+  }
+
   function createSubscription (topic, handler) {
     let handlers = topicHandlers(topic);
     if (!handlers.includes(handler)) {
@@ -40,12 +49,8 @@ module.exports = function (client) {
       createSubscription(topic, handler);
     },
 
-    unsubscribe (topic, handler) {
-      let handlers = topicHandlers(topic);
-      let handlerIndex = handlers.indexOf(handler);
-      if (handlerIndex > -1) {
-        handlers.splice(handlerIndex, 1);
-      }
+    unsubscribe (topic, handler = () => {}, callback = () => {}) {
+      xmppUnsubscribe(topic, handler, callback);
     }
   };
 };
