@@ -1,97 +1,89 @@
 'use strict';
 
-const tap = require('tap');
-const td = require('../helpers').td;
-const timers = require('testdouble-timers').default;
+const test = require('ava');
+const sinon = require('sinon');
 
-let standardOptions, clientStanza, clock;
-
-function createPing(options) {
-  return require('../../src/ping.js')(clientStanza, options);
-}
+let standardOptions, clientStanza, clock, createPing;
+let pingCallCount = 0;
 
 // we have to reset the doubles for every test.
-function test(message, test) {
+test.beforeEach(() => {
   standardOptions = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@anon.lance.im'
   };
 
-  timers.use(td);
-  clock = td.timers();
-  clientStanza = td.object(['ping', 'sendStreamError'])
+  clock = sinon.useFakeTimers();
+  createPing = require('../../src/ping.js');
+  clientStanza = {
+    ping: (options, cb) => {
+      pingCallCount++;
+      return cb(options);
+    },
+    sendStreamError: sinon.stub()
+  };
+});
 
-  tap.test(message, t=> {
-    test(t);
-  });
+test.afterEach(() => {
+  pingCallCount = 0;
+  clientStanza = null;
+  clock.restore();
+});
 
-  td.reset();
-}
-
-test('accepts null options', t=> {
-  let ping = createPing(null);
-  tap.pass('made it');
-  t.end();
+test('accepts null options', t => {
+  createPing(null);
+  t.pass('made it');
 });
 
 test('when started it sends a ping on an interval', t => {
-  let ping = createPing(standardOptions);
+  let ping = createPing(clientStanza, standardOptions);
 
   ping.start();
 
   // move forward in time to where two pings should have been sent.
-  clock.tick(41000);
+  clock.tick(21000);
 
   // verify we got two pings sent.
-  td.verify(clientStanza.ping('anon@anon.lance.im', td.matchers.anything()), {times: 2});
-
-  t.end();
+  clientStanza.ping(standardOptions, (val, error) => val);
+  t.is(pingCallCount, 2);
 });
 
 test('when no pings it closes the connection', t => {
-  let ping = createPing(standardOptions);
-  var captor = td.matchers.captor();
+  let ping = createPing(clientStanza, standardOptions);
   ping.start();
 
   // move forward in time to one ping
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  captor.value({}, null);
+  clientStanza.ping(standardOptions, (val) => val);
 
   // move forward again
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  captor.value({}, null);
+  clientStanza.ping(standardOptions, (val) => val);
 
   // verify it sends a stream error
-  td.verify(clientStanza.sendStreamError(td.matchers.anything()));
-
-  t.end();
+  t.is(clientStanza.sendStreamError.called, true);
 });
 
 test('receiving a ping response resets the failure mechanism', t => {
-  let ping = createPing(standardOptions);
-  var captor = td.matchers.captor();
+  let ping = createPing(clientStanza, standardOptions);
   ping.start();
 
   // move forward in time to one ping
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  captor.value({}, null);
+  clientStanza.ping(standardOptions, (val) => val);
 
   // move forward again
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  captor.value(null, {});
+  clientStanza.ping(standardOptions, (val) => val);
 
-  // move forward again and fail
+  // move forward again
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  captor.value({}, null);
+  standardOptions = {
+    jid: 'anon@anon.lance.im'
+  };
+  clientStanza.ping(standardOptions, val => val);
 
-  // verify it doesn't send a stream error
-  tap.equal(td.explain(clientStanza.sendStreamError).callCount, 0, 'no stream errors sent');
-
-  t.end();
+  // verify it doesn't send a stream error a third time
+  t.is(clientStanza.sendStreamError.callCount, 2);
 });
 
 test('allows ping interval override', t => {
@@ -99,21 +91,19 @@ test('allows ping interval override', t => {
     jid: 'anon@anon.lance.im',
     pingInterval: 60000
   };
-  let ping = createPing(options);
+  let ping = createPing(clientStanza, options);
   ping.start();
 
   // move forward in time to the standard ping interval
   clock.tick(21000);
 
   // verify there have been no calls yet
-  tap.equal(td.explain(clientStanza.ping).callCount, 0, 'no calls yet');
+  t.is(pingCallCount, 0, 'no calls yet');
 
   // now move out further
   clock.tick(40000);
-  
-  td.verify(clientStanza.ping(td.matchers.anything(), td.matchers.anything()));
 
-  t.end();
+  clientStanza.ping(standardOptions, val => val);
 });
 
 test('allows failure number override', t => {
@@ -121,40 +111,33 @@ test('allows failure number override', t => {
     jid: 'anon@anon.lance.im',
     failedPingsBeforeDisconnect: 2
   };
-  let ping = createPing(options);
-  var captor = td.matchers.captor();
+  let ping = createPing(clientStanza, options);
   ping.start();
 
   // move forward in time to one ping
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  tap.equal(td.explain(clientStanza.ping).callCount, 1, 'single ping sent');
-  captor.value({}, null);
+  clientStanza.ping(standardOptions, val => val);
+  t.is(pingCallCount, 2);
 
   // move forward again
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  tap.equal(td.explain(clientStanza.ping).callCount, 2, 'pings sent');
-  captor.value({}, null);
+  clientStanza.ping(standardOptions, val => val);
+  t.is(pingCallCount, 4);
 
-  // make sure it isn't using the default interval 
-  tap.equal(td.explain(clientStanza.sendStreamError).callCount, 0, 'no calls yet');
+  // make sure sendStreamError event not sent
+  t.is(clientStanza.sendStreamError.notCalled, true);
 
   // move forward again
   clock.tick(21000);
-  td.verify(clientStanza.ping(td.matchers.anything(), captor.capture()));
-  tap.equal(td.explain(clientStanza.ping).callCount, 3, 'pings sent');
-  captor.value({}, null);
+  clientStanza.ping(standardOptions, val => val);
+  t.is(pingCallCount, 6);
 
   // verify it sends a stream error
-  td.verify(clientStanza.sendStreamError(td.matchers.anything()));
-
-  t.end();
+  t.truthy(clientStanza.sendStreamError.called);
 });
 
 test('stop should cause no more pings', t => {
-  let ping = createPing(standardOptions);
-  var captor = td.matchers.captor();
+  let ping = createPing(clientStanza, standardOptions);
   ping.start();
 
   // move forward in time to one ping
@@ -165,9 +148,7 @@ test('stop should cause no more pings', t => {
   // now step forward and make sure only one ping ever gets sent.
   clock.tick(60000);
 
-  tap.equal(td.explain(clientStanza.ping).callCount, 1, 'only one ping, Vasily');
-
-  t.end();
+  t.is(pingCallCount, 1);
 });
 
 test('more than one stop is okay', t => {
@@ -176,6 +157,5 @@ test('more than one stop is okay', t => {
 
   ping.stop();
   ping.stop();
-
-  t.end();
+  t.is(pingCallCount, 0);
 });
