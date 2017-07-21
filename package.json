@@ -30,7 +30,7 @@
     "failFast": true,
     "failWithoutAssertions": false,
     "tap": true,
-    "powerAssert": false,
+    "powerAssert": true,
     "require": [
       "babel-register"
     ]

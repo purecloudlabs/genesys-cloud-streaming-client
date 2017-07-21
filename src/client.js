@@ -42,6 +42,7 @@ function client (clientOptions) {
   let stanzaioOpts = stanzaioOptions(clientOptions);
   let stanzaClient = XMPP.createClient(stanzaioOpts);
   let subscribedTopics = [];
+  let ping = require('./ping')(stanzaClient, stanzaioOpts);
 
   let client = {
     _stanzaio: stanzaClient,
@@ -61,10 +62,16 @@ function client (clientOptions) {
 
   client.on('disconnected', function () {
     client.connected = false;
+    ping.stop();
   });
 
   client.on('session:started', function (event) {
     client.streamId = event.resource;
+    ping.start();
+  });
+
+  client.on('session:end', function (event) {
+    ping.stop();
   });
 
   Object.keys(extensions).forEach((extensionName) => {
