@@ -2,9 +2,13 @@
 
 const XMPP = require('./stanzaio-light');
 const notifications = require('./notifications');
+// const webrtcSessions = require('firehose-webrtc-sessions');
+const {TokenBucket} = require('limiter');
+const uuid = require('uuid');
 
 let extensions = {
-  notifications: notifications
+  notifications
+  // , webrtcSessions
 };
 
 function mergeOptions (destination, provided) {
@@ -43,6 +47,7 @@ function client (clientOptions) {
   let stanzaClient = XMPP.createClient(stanzaioOpts);
   let subscribedTopics = [];
   let ping = require('./ping')(stanzaClient, stanzaioOpts);
+  let pendingIqs = {};
 
   let client = {
     _stanzaio: stanzaClient,
@@ -75,7 +80,39 @@ function client (clientOptions) {
   });
 
   Object.keys(extensions).forEach((extensionName) => {
-    client[extensionName] = extensions[extensionName](stanzaClient, clientOptions[extensionName] || {});
+    const extension = new extensions[extensionName](stanzaClient, clientOptions[extensionName] || {});
+
+    if (typeof extension.handleIq === 'function') {
+      stanzaClient.on('iq', extension.handleIq.bind(extension));
+    }
+    if (typeof extension.handleMessage === 'function') {
+      stanzaClient.on('message', extension.handleIq.bind(extension));
+    }
+
+    extension.on('send', function (data, message = false) {
+      let stanzaLimiter = extension.tokenBucket || new TokenBucket(20, 25, 1000);
+      stanzaLimiter.content = 20;
+
+      return stanzaLimiter.removeTokens(1, () => {
+        if (['get', 'set'].includes(data.type)) {
+          data.id = uuid.v4();
+          pendingIqs[data.id] = data;
+        }
+        if (message === true) {
+          return stanzaClient.sendMessage(data);
+        }
+        return stanzaClient.sendIq(data);
+      });
+    });
+
+    extension.exposeEvents.forEach(event => {
+      extension.on(event, function () {
+        stanzaClient.emit(event, ...arguments);
+      });
+    });
+
+    client[extensionName] = extension.expose;
+    client[`_${extensionName}`] = extension;
   });
 
   return client;

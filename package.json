@@ -1,6 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "1.0.21",
+  "version": "1.0.19",
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "src/client.js",
@@ -24,6 +24,11 @@
       "/scripts"
     ]
   },
+  "babel": {
+    "presets": [
+      "es2015"
+    ]
+  },
   "ava": {
     "files": [],
     "concurrency": 5,
@@ -40,11 +45,10 @@
   },
   "author": "",
   "dependencies": {
-    "jingle-media-data-session-purecloud": "^2.1.2",
-    "jingle-purecloud": "^2.0.0",
     "limiter": "^1.1.0",
     "stanza.io": "^8.1.1",
-    "uuid": "^3.0.1"
+    "uuid": "^3.0.1",
+    "wildemitter": "^1.2.0"
   },
   "devDependencies": {
     "ava": "^0.20.0",
@@ -57,5 +61,6 @@
     "sinon": "^2.3.7",
     "snazzy": "^6.0.0",
     "webpack": "^2.2.0"
-  }
+  },
+  "false": {}
 }
