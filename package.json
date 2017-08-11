@@ -24,6 +24,11 @@
       "/scripts"
     ]
   },
+  "babel": {
+    "presets": [
+      "es2015"
+    ]
+  },
   "ava": {
     "files": [],
     "concurrency": 5,
@@ -40,11 +45,11 @@
   },
   "author": "",
   "dependencies": {
-    "jingle-media-data-session-purecloud": "^2.1.2",
-    "jingle-purecloud": "^2.0.0",
+    "firehose-webrtc-sessions": "^0.1.1",
     "limiter": "^1.1.0",
-    "stanza.io": "^8.1.1",
-    "uuid": "^3.0.1"
+    "stanza.io": "^8.4.3",
+    "uuid": "^3.0.1",
+    "wildemitter": "^1.2.0"
   },
   "devDependencies": {
     "ava": "^0.20.0",
@@ -52,10 +57,11 @@
     "babel-loader": "^6.2.10",
     "babel-preset-es2015": "^6.22.0",
     "mock-socket": "^6.0.4",
-    "nyc": "^11.0.3",
+    "nyc": "^11.1.0",
     "semistandard": "^9.2.1",
-    "sinon": "^2.3.7",
+    "sinon": "^2.4.1",
     "snazzy": "^6.0.0",
-    "webpack": "^2.2.0"
-  }
+    "webpack": "^2.7.0"
+  },
+  "false": {}
 }

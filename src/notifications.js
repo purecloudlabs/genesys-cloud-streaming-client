@@ -1,56 +1,71 @@
+const WildEmitter = require('wildemitter');
+
 const PUBSUB_HOST = 'firehose.inindca.com';
 
-module.exports = function (client) {
-  let subscriptions = {};
+class Notification extends WildEmitter {
+  constructor (client, clientOptions) {
+    super();
+    this.subscriptions = {};
 
-  function topicHandlers (topic) {
-    if (!subscriptions[topic]) {
-      subscriptions[topic] = [];
-    }
-    return subscriptions[topic];
+    this.client = client;
+
+    client.on('pubsub:event', this.pubsubEvent);
   }
 
-  client.on('pubsub:event', function (msg) {
+  topicHandlers (topic) {
+    if (!this.subscriptions[topic]) {
+      this.subscriptions[topic] = [];
+    }
+    return this.subscriptions[topic];
+  }
+
+  pubsubEvent (msg) {
     const topic = msg.event.updated.node;
     const payload = msg.event.updated.published[0].json;
-    const handlers = topicHandlers(topic);
+    const handlers = this.topicHandlers(topic);
 
-    client.emit('notifications:notify', {topic: topic, data: payload});
+    this.client.emit('notifications:notify', {topic: topic, data: payload});
     handlers.forEach((handler) => {
       handler(payload);
     });
-  });
+  }
 
-  function xmppSubscribe (topic, callback) {
-    if (topicHandlers(topic).length === 0) {
-      client.subscribeToNode(PUBSUB_HOST, topic, callback);
+  xmppSubscribe (topic, callback) {
+    if (this.topicHandlers(topic).length === 0) {
+      this.client.subscribeToNode(PUBSUB_HOST, topic, callback);
     }
   }
 
-  function xmppUnsubscribe (topic, handler, callback) {
-    let handlers = topicHandlers(topic);
+  xmppUnsubscribe (topic, handler, callback) {
+    let handlers = this.topicHandlers(topic);
     let handlerIndex = handlers.indexOf(handler);
     if (handlerIndex > -1) {
       handlers.splice(handlerIndex, 1);
     }
-    client.unsubscribeFromNode(PUBSUB_HOST, topic, callback);
+    this.client.unsubscribeFromNode(PUBSUB_HOST, topic, callback);
   }
 
-  function createSubscription (topic, handler) {
-    let handlers = topicHandlers(topic);
+  createSubscription (topic, handler) {
+    let handlers = this.topicHandlers(topic);
     if (!handlers.includes(handler)) {
       handlers.push(handler);
     }
   }
 
-  return {
-    subscribe (topic, handler, callback) {
-      xmppSubscribe(topic, callback);
-      createSubscription(topic, handler);
-    },
+  get exposeEvents () { return [ 'notifications:notify' ]; }
 
-    unsubscribe (topic, handler = () => {}, callback = () => {}) {
-      xmppUnsubscribe(topic, handler, callback);
-    }
-  };
-};
+  get expose () {
+    return {
+      subscribe: function (topic, handler, callback) {
+        this.xmppSubscribe(topic, callback);
+        this.createSubscription(topic, handler);
+      }.bind(this),
+
+      unsubscribe: function (topic, handler = () => {}, callback = () => {}) {
+        this.xmppUnsubscribe(topic, handler, callback);
+      }.bind(this)
+    };
+  }
+}
+
+module.exports = Notification;
