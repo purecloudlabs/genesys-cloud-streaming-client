@@ -4,6 +4,6 @@ pipelines:
   default:
     - step:
         script: # Modify the commands below to build your repository.
-          - printf "@purecloud:registry=https://purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/\n//purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/:_password=QVA2d2I2MUZnVjlIb2FoU3lnbzU4VGp3cmpI\n//purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/:username=inin-developer\n//purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/:always-auth=true" >> ~/.npmrc
+          - printf "registry=https://purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/\n//purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/:_password=QVA2d2I2MUZnVjlIb2FoU3lnbzU4VGp3cmpI\n//purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/:username=inin-developer\n//purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm/:always-auth=true" >> .npmrc
           - npm install
           - npm test

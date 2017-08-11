@@ -2,13 +2,13 @@
 
 const XMPP = require('./stanzaio-light');
 const notifications = require('./notifications');
-// const webrtcSessions = require('firehose-webrtc-sessions');
+const webrtcSessions = require('firehose-webrtc-sessions');
 const {TokenBucket} = require('limiter');
 const uuid = require('uuid');
 
 let extensions = {
-  notifications
-  // , webrtcSessions
+  notifications,
+  webrtcSessions
 };
 
 function mergeOptions (destination, provided) {
