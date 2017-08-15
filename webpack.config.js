@@ -12,7 +12,10 @@ module.exports = {
     loaders: [
       {
         test: /\.js$/,
-        exclude: /(node_modules|bower_components)/,
+        include: [
+          /src/,
+          /node_modules\/firehose-webrtc-sessions/
+        ],
         loader: 'babel-loader',
         query: {
           presets: ['es2015']
