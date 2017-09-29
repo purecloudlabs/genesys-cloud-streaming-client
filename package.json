@@ -4,6 +4,7 @@
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "src/client.js",
+  "browser": "web/pc-streaming-client.js",
   "files": [
     "src",
     "web/pc-streaming-client.js"
