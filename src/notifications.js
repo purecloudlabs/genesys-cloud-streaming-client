@@ -9,7 +9,7 @@ class Notification extends WildEmitter {
 
     this.client = client;
 
-    client.on('pubsub:event', this.pubsubEvent);
+    client.on('pubsub:event', this.pubsubEvent.bind(this));
   }
 
   topicHandlers (topic) {
