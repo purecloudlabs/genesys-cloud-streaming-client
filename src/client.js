@@ -105,12 +105,6 @@ function client (clientOptions) {
       });
     });
 
-    extension.exposeEvents.forEach(event => {
-      extension.on(event, function () {
-        stanzaClient.emit(event, ...arguments);
-      });
-    });
-
     client[extensionName] = extension.expose;
     client[`_${extensionName}`] = extension;
   });
