@@ -90,15 +90,6 @@ function client (clientOptions) {
       stanzaClient.on('message', extension.handleMessage.bind(extension));
     }
 
-    // stanza.io uses an object called 'callbacks' to determine if some extension is registered
-    // to handle the stanzaevent (in the form `iq:get:jingle` as an example).
-    // See https://github.com/legastero/stanza.io/blob/f7cc3ff3264d15d3ee03a20de939f5afb15aae33/lib/client.js#L156
-    if (typeof extension.stanzaEvents === 'object' && Array.isArray(extension.stanzaEvents)) {
-      extension.stanzaEvents.forEach(e => {
-        stanzaClient.callbacks[e] = true;
-      });
-    }
-
     extension.on('send', function (data, message = false) {
       let stanzaLimiter = extension.tokenBucket || new TokenBucket(20, 25, 1000);
       stanzaLimiter.content = 20;

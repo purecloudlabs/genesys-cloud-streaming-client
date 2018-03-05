@@ -137,25 +137,9 @@ test('should call handleIq or handleMessage on those events, if an extension reg
   client._stanzaio.emit('message', testMessage);
 });
 
-test('should register each stanza events for each extension', t => {
-  class TestExtension {
-    get stanzaEvents () { return ['iq:set:testExtension']; }
-    on () {}
-    off () {}
-  }
-
-  class TestExtension2 {
-    get stanzaEvents () { return ['iq:get:testExtension2']; }
-    on () {}
-    off () {}
-  }
-
+test('Should see callbacks set when an iq callback is explicitly registered', t => {
   let client = pcStream.client(xmppInfo);
-  t.falsy(client._stanzaio.callbacks['iq:set:testExtension']);
+  client._stanzaio.on('iq:set:myTestTopic', () => {});
 
-  pcStream.extend('testExtensionStanzaEvents', TestExtension);
-  pcStream.extend('testExtensionStanzaEvents2', TestExtension2);
-  let client2 = pcStream.client(xmppInfo);
-  t.true(client2._stanzaio.callbacks['iq:set:testExtension']);
-  t.true(client2._stanzaio.callbacks['iq:get:testExtension2']);
+  t.is(client._stanzaio.callbacks['iq:set:myTestTopic'].length, 1);
 });
