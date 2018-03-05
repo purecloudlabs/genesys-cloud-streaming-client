@@ -107,7 +107,55 @@ test('connect full override', t => {
 });
 
 test('extend should return an extendObject', t => {
+  class TestExtension {
+    on () {}
+    off () {}
+  }
   t.plan(1);
-  const actual = pcStream.extend(false);
+  const actual = pcStream.extend('test1234', TestExtension);
   t.deepEqual(actual, extendObject);
+});
+
+test('should call handleIq or handleMessage on those events, if an extension registered for them', t => {
+  t.plan(2);
+  const testIq = { to: 'you', from: 'someone' };
+  const testMessage = { to: 'you', from: 'someoneElse' };
+  class TestExtension {
+    on () {}
+    off () {}
+    handleIq (stanza) {
+      t.is(stanza, testIq);
+    }
+    handleMessage (stanza) {
+      t.is(stanza, testMessage);
+    }
+  }
+
+  pcStream.extend('testIqAndMessageHandlers', TestExtension);
+  let client = pcStream.client(xmppInfo);
+  client._stanzaio.emit('iq', testIq);
+  client._stanzaio.emit('message', testMessage);
+});
+
+test('should register each stanza events for each extension', t => {
+  class TestExtension {
+    get stanzaEvents () { return ['iq:set:testExtension']; }
+    on () {}
+    off () {}
+  }
+
+  class TestExtension2 {
+    get stanzaEvents () { return ['iq:get:testExtension2']; }
+    on () {}
+    off () {}
+  }
+
+  let client = pcStream.client(xmppInfo);
+  t.falsy(client._stanzaio.callbacks['iq:set:testExtension']);
+
+  pcStream.extend('testExtensionStanzaEvents', TestExtension);
+  pcStream.extend('testExtensionStanzaEvents2', TestExtension2);
+  let client2 = pcStream.client(xmppInfo);
+  t.true(client2._stanzaio.callbacks['iq:set:testExtension']);
+  t.true(client2._stanzaio.callbacks['iq:get:testExtension2']);
 });
