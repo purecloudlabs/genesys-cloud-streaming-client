@@ -54,6 +54,7 @@ function client (clientOptions) {
     connected: false,
     subscribedTopics: subscribedTopics,
     on: stanzaClient.on.bind(stanzaClient),
+    off: stanzaClient.off.bind(stanzaClient),
     disconnect: stanzaClient.disconnect.bind(stanzaClient),
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
@@ -86,7 +87,16 @@ function client (clientOptions) {
       stanzaClient.on('iq', extension.handleIq.bind(extension));
     }
     if (typeof extension.handleMessage === 'function') {
-      stanzaClient.on('message', extension.handleIq.bind(extension));
+      stanzaClient.on('message', extension.handleMessage.bind(extension));
+    }
+
+    // stanza.io uses an object called 'callbacks' to determine if some extension is registered
+    // to handle the stanzaevent (in the form `iq:get:jingle` as an example).
+    // See https://github.com/legastero/stanza.io/blob/f7cc3ff3264d15d3ee03a20de939f5afb15aae33/lib/client.js#L156
+    if (typeof extension.stanzaEvents === 'object' && Array.isArray(extension.stanzaEvents)) {
+      extension.stanzaEvents.forEach(e => {
+        stanzaClient.callbacks[e] = true;
+      });
     }
 
     extension.on('send', function (data, message = false) {
