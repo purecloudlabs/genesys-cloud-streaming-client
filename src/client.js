@@ -54,6 +54,7 @@ function client (clientOptions) {
     connected: false,
     subscribedTopics: subscribedTopics,
     on: stanzaClient.on.bind(stanzaClient),
+    off: stanzaClient.off.bind(stanzaClient),
     disconnect: stanzaClient.disconnect.bind(stanzaClient),
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
