@@ -61,6 +61,8 @@ test('when no pings it closes the connection', t => {
 
   // verify it sends a stream error
   t.is(clientStanza.sendStreamError.called, true);
+  t.is(clientStanza.sendStreamError.getCall(0).args[0].condition, 'connection-timeout');
+  t.is(clientStanza.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
 });
 
 test('receiving a ping response resets the failure mechanism', t => {

@@ -17,7 +17,7 @@ module.exports = function (stanzaClient, options) {
       console.warn('Missed a ping.');
       if (++numberOfFailedPings > failedPingsBeforeDisconnect) {
         console.error('Missed ' + numberOfFailedPings + ' pings, disconnecting');
-        stanzaClient.sendStreamError('too many missed pongs');
+        stanzaClient.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
       }
     }
   }
