@@ -2,6 +2,7 @@
 
 import XMPP from './stanzaio-light';
 import notifications from './notifications';
+import Reconnector from './reconnector';
 import webrtcSessions from 'firehose-webrtc-sessions';
 
 import {TokenBucket} from 'limiter';
@@ -48,15 +49,24 @@ function client (clientOptions) {
   let stanzaClient = XMPP.createClient(stanzaioOpts);
   let subscribedTopics = [];
   let ping = require('./ping')(stanzaClient, stanzaioOpts);
+  let reconnect = new Reconnector(stanzaClient, stanzaioOpts);
   let pendingIqs = {};
 
   let client = {
     _stanzaio: stanzaClient,
     connected: false,
+    autoReconnect: true,
     subscribedTopics: subscribedTopics,
     on: stanzaClient.on.bind(stanzaClient),
     off: stanzaClient.off.bind(stanzaClient),
-    disconnect: stanzaClient.disconnect.bind(stanzaClient),
+    disconnect () {
+      client.autoReconnect = false;
+      stanzaClient.disconnect();
+    },
+    reconnect () {
+      // trigger a stop on the underlying connection, but allow reconnect
+      stanzaClient.disconnect();
+    },
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
       stanzaClient.connect(stanzaioOptions(options));
@@ -65,11 +75,16 @@ function client (clientOptions) {
 
   client.on('connected', function () {
     client.connected = true;
+    reconnect.stop();
   });
 
   client.on('disconnected', function () {
     client.connected = false;
     ping.stop();
+
+    if (client.autoReconnect) {
+      reconnect.start(client);
+    }
   });
 
   client.on('session:started', function (event) {
