@@ -1,7 +1,10 @@
 'use strict';
 
-exports.JID = require('xmpp-jid').JID;
-exports.Client = require('stanza.io/lib/client');
+import { JID } from 'xmpp-jid';
+import Client from 'stanza.io/lib/client';
+
+exports.JID = JID;
+exports.Client = Client;
 
 exports.createClient = function (opts) {
   var client = new exports.Client(opts);

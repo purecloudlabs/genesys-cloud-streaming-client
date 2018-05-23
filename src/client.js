@@ -1,10 +1,11 @@
 'use strict';
 
-const XMPP = require('./stanzaio-light');
-const notifications = require('./notifications');
-const webrtcSessions = require('firehose-webrtc-sessions');
-const {TokenBucket} = require('limiter');
-const uuid = require('uuid');
+import XMPP from './stanzaio-light';
+import notifications from './notifications';
+import webrtcSessions from 'firehose-webrtc-sessions';
+
+import {TokenBucket} from 'limiter';
+import uuid from 'uuid';
 
 let extensions = {
   notifications,

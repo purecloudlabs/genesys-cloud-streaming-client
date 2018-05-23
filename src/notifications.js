@@ -1,4 +1,4 @@
-const WildEmitter = require('wildemitter');
+import WildEmitter from 'wildemitter';
 
 const PUBSUB_HOST = 'firehose.inindca.com';
 
