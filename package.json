@@ -1,6 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "2.0.5",
+  "version": "3.0.0",
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "src/client.js",
@@ -61,7 +61,8 @@
     "semistandard": "^9.2.1",
     "sinon": "^2.4.1",
     "snazzy": "^6.0.0",
-    "webpack": "^2.7.0"
+    "webpack": "^4.8.3",
+    "webpack-cli": "^2.1.4"
   },
   "false": {}
 }
