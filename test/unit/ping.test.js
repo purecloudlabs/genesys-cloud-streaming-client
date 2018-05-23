@@ -3,18 +3,18 @@
 const test = require('ava');
 const sinon = require('sinon');
 
-let standardOptions, clientStanza, clock, createPing;
+let standardOptions, client, clock, createPing;
 let pingCallCount = 0;
 
 // we have to reset the doubles for every test.
 test.beforeEach(() => {
   standardOptions = {
-    jid: 'anon@anon.lance.im'
+    jid: 'anon@example.mypurecloud.com'
   };
 
   clock = sinon.useFakeTimers();
   createPing = require('../../src/ping.js');
-  clientStanza = {
+  client = {
     ping: (options, cb) => {
       pingCallCount++;
       return cb(options);
@@ -25,7 +25,7 @@ test.beforeEach(() => {
 
 test.afterEach(() => {
   pingCallCount = 0;
-  clientStanza = null;
+  client = null;
   clock.restore();
 });
 
@@ -35,65 +35,65 @@ test('accepts null options', t => {
 });
 
 test('when started it sends a ping on an interval', t => {
-  let ping = createPing(clientStanza, standardOptions);
+  let ping = createPing(client, standardOptions);
 
   ping.start();
 
   // move forward in time to where two pings should have been sent.
-  clock.tick(21000);
+  clock.tick(5100);
 
   // verify we got two pings sent.
-  clientStanza.ping(standardOptions, (val, error) => val);
+  client.ping(standardOptions, (val, error) => val);
   t.is(pingCallCount, 2);
 });
 
 test('when no pings it closes the connection', t => {
-  let ping = createPing(clientStanza, standardOptions);
+  let ping = createPing(client, standardOptions);
   ping.start();
 
   // move forward in time to one ping
   clock.tick(21000);
-  clientStanza.ping(standardOptions, (val) => val);
+  client.ping(standardOptions, (val) => val);
 
   // move forward again
   clock.tick(21000);
-  clientStanza.ping(standardOptions, (val) => val);
+  client.ping(standardOptions, (val) => val);
 
   // verify it sends a stream error
-  t.is(clientStanza.sendStreamError.called, true);
-  t.is(clientStanza.sendStreamError.getCall(0).args[0].condition, 'connection-timeout');
-  t.is(clientStanza.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
+  t.is(client.sendStreamError.called, true);
+  t.is(client.sendStreamError.getCall(0).args[0].condition, 'connection-timeout');
+  t.is(client.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
 });
 
 test('receiving a ping response resets the failure mechanism', t => {
-  let ping = createPing(clientStanza, standardOptions);
+  let ping = createPing(client, standardOptions);
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(21000);
-  clientStanza.ping(standardOptions, (val) => val);
+  clock.tick(5100);
+  client.ping(standardOptions, (val) => val);
 
   // move forward again
-  clock.tick(21000);
-  clientStanza.ping(standardOptions, (val) => val);
+  clock.tick(5100);
+  client.ping(standardOptions, (val) => val);
 
   // move forward again
-  clock.tick(21000);
+  clock.tick(5100);
   standardOptions = {
-    jid: 'anon@anon.lance.im'
+    jid: 'anon@example.mypurecloud.com'
   };
-  clientStanza.ping(standardOptions, val => val);
+  client.ping(standardOptions, val => val);
 
   // verify it doesn't send a stream error a third time
-  t.is(clientStanza.sendStreamError.callCount, 2);
+  t.is(client.sendStreamError.callCount, 2);
 });
 
 test('allows ping interval override', t => {
   const options = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     pingInterval: 60000
   };
-  let ping = createPing(clientStanza, options);
+  let ping = createPing(client, options);
   ping.start();
 
   // move forward in time to the standard ping interval
@@ -105,45 +105,45 @@ test('allows ping interval override', t => {
   // now move out further
   clock.tick(40000);
 
-  clientStanza.ping(standardOptions, val => val);
+  client.ping(standardOptions, val => val);
 });
 
 test('allows failure number override', t => {
   const options = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     failedPingsBeforeDisconnect: 2
   };
-  let ping = createPing(clientStanza, options);
+  let ping = createPing(client, options);
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(21000);
-  clientStanza.ping(standardOptions, val => val);
+  clock.tick(5100);
+  client.ping(standardOptions, val => val);
   t.is(pingCallCount, 2);
 
   // move forward again
-  clock.tick(21000);
-  clientStanza.ping(standardOptions, val => val);
+  clock.tick(5100);
+  client.ping(standardOptions, val => val);
   t.is(pingCallCount, 4);
 
   // make sure sendStreamError event not sent
-  t.is(clientStanza.sendStreamError.notCalled, true);
+  t.is(client.sendStreamError.notCalled, true);
 
   // move forward again
-  clock.tick(21000);
-  clientStanza.ping(standardOptions, val => val);
+  clock.tick(5100);
+  client.ping(standardOptions, val => val);
   t.is(pingCallCount, 6);
 
   // verify it sends a stream error
-  t.truthy(clientStanza.sendStreamError.called);
+  t.truthy(client.sendStreamError.called);
 });
 
 test('stop should cause no more pings', t => {
-  let ping = createPing(clientStanza, standardOptions);
+  let ping = createPing(client, standardOptions);
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(21000);
+  clock.tick(5100);
 
   ping.stop();
 

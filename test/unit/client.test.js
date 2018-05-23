@@ -5,10 +5,10 @@ const sinon = require('sinon');
 
 const pcStream = require('../../src/client');
 
-let xmppInfo, extendObject, clientStanza, stanzaioInstance;
+let xmppInfo, extendObject, client, stanzaioInstance;
 test.beforeEach(() => {
   xmppInfo = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     authToken: 'AuthToken',
     host: 'wss://example.com/test'
   };
@@ -37,47 +37,47 @@ test.beforeEach(() => {
     }
   };
 
-  clientStanza = {
+  client = {
     createClient: sinon.stub()
   };
 
-  clientStanza.createClient.withArgs(sinon.match.any).returns(stanzaioInstance);
+  client.createClient.withArgs(sinon.match.any).returns(stanzaioInstance);
 });
 
 test('client creation', t => {
   pcStream.client(xmppInfo);
-  const clientStanzaPayload = {
-    jid: 'anon@anon.lance.im',
+  const clientOptions = {
+    jid: 'anon@example.mypurecloud.com',
     credentials: {
-      username: 'anon@anon.lance.im',
+      username: 'anon@example.mypurecloud.com',
       password: 'authKey:AuthToken'
     },
     transport: 'websocket',
     wsURL: 'wss://example.com/test/stream'
   };
-  clientStanza.createClient(clientStanzaPayload);
+  client.createClient(clientOptions);
   const expectedPayload = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     credentials: {
-      username: 'anon@anon.lance.im',
+      username: 'anon@example.mypurecloud.com',
       password: 'authKey:AuthToken'
     },
     transport: 'websocket',
     wsURL: 'wss://example.com/test/stream'
   };
-  t.deepEqual(clientStanza.createClient.args[0][0], expectedPayload);
+  t.deepEqual(client.createClient.args[0][0], expectedPayload);
 });
 
 test('connect jid override', t => {
   t.plan(0);
   let con = pcStream.client(xmppInfo);
   con.connect({
-    jid: 'anon@anon.lance.im'
+    jid: 'anon@example.mypurecloud.com'
   });
   const connectPayload = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     credentials: {
-      username: 'anon@anon.lance.im',
+      username: 'anon@example.mypurecloud.com',
       password: 'authKey:AuthToken'
     },
     transport: 'websocket',
@@ -90,14 +90,14 @@ test('connect full override', t => {
   t.plan(0);
   let con = pcStream.client(xmppInfo);
   con.connect({
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     authToken: 'AuthTokenAlt',
     host: 'wss://example.com/testAlt'
   });
   const connectPayload = {
-    jid: 'anon@anon.lance.im',
+    jid: 'anon@example.mypurecloud.com',
     credentials: {
-      username: 'anon@anon.lance.im',
+      username: 'anon@example.mypurecloud.com',
       password: 'authKey:AuthToken'
     },
     wsURL: 'wss://example.com/test/stream',
