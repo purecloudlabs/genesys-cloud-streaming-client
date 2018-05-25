@@ -16,7 +16,8 @@
     "unit-test": "nyc ava test/unit/*.js",
     "test": "npm run semistandard && npm run unit-test",
     "semistandard": "semistandard",
-    "semistandard:fix": "semistandard --fix"
+    "semistandard:fix": "semistandard --fix",
+    "watch-tests": "watch 'npm test' src test"
   },
   "semistandard": {
     "ignore": [
@@ -46,6 +47,7 @@
   },
   "author": "",
   "dependencies": {
+    "backoff-web": "^1.0.1",
     "firehose-webrtc-sessions": "^3.0.0",
     "limiter": "^1.1.0",
     "stanza.io": "^8.4.3",
