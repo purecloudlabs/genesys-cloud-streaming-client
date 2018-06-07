@@ -143,3 +143,24 @@ test('Should see callbacks set when an iq callback is explicitly registered', t 
 
   t.is(client._stanzaio.callbacks['iq:set:myTestTopic'].length, 1);
 });
+
+test('Should begin to reconnect when it becomes disconnected', t => {
+  let client = pcStream.client(xmppInfo);
+  client._stanzaio.emit('disconnected');
+
+  return new Promise(resolve => {
+    client._stanzaio.connect = sinon.stub().callsFake(() => {
+      client._stanzaio.emit('connected');
+      resolve();
+    });
+  });
+});
+
+test('Disconnecting explicitly will set autoReconnect to false', t => {
+  let client = pcStream.client(xmppInfo);
+  t.is(client.autoReconnect, true);
+  client._stanzaio.disconnect = sinon.stub();
+  client.disconnect();
+  t.is(client.autoReconnect, false);
+  sinon.assert.calledOnce(client._stanzaio.disconnect);
+});

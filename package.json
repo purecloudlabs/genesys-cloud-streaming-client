@@ -1,6 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "2.0.5",
+  "version": "3.0.0",
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "src/client.js",
@@ -16,7 +16,8 @@
     "unit-test": "nyc ava test/unit/*.js",
     "test": "npm run semistandard && npm run unit-test",
     "semistandard": "semistandard",
-    "semistandard:fix": "semistandard --fix"
+    "semistandard:fix": "semistandard --fix",
+    "watch-tests": "watch 'npm test' src test"
   },
   "semistandard": {
     "ignore": [
@@ -46,7 +47,8 @@
   },
   "author": "",
   "dependencies": {
-    "firehose-webrtc-sessions": "^2.0.0",
+    "backoff-web": "^1.0.1",
+    "firehose-webrtc-sessions": "^3.0.0",
     "limiter": "^1.1.0",
     "stanza.io": "^8.4.3",
     "uuid": "^3.0.1",
@@ -61,7 +63,8 @@
     "semistandard": "^9.2.1",
     "sinon": "^2.4.1",
     "snazzy": "^6.0.0",
-    "webpack": "^2.7.0"
+    "webpack": "^4.8.3",
+    "webpack-cli": "^2.1.4"
   },
   "false": {}
 }
