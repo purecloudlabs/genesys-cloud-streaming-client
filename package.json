@@ -1,6 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "3.0.2",
+  "version": "4.0.0",
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "src/client.js",
@@ -48,9 +48,9 @@
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
-    "firehose-webrtc-sessions": "^3.0.0",
+    "firehose-webrtc-sessions": "^4.0.0",
     "limiter": "^1.1.0",
-    "stanza.io": "^8.4.3",
+    "stanza.io": "^9.1.0",
     "uuid": "^3.0.1",
     "wildemitter": "^1.2.0"
   },
