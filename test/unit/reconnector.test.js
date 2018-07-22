@@ -62,6 +62,23 @@ test('when started it reconnects on backoff', async t => {
   t.is(client.connectAttempts, 4);
 });
 
+test('when started a second time it will not immediately retry the backoff', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  reconnect.start();
+
+  // move forward in time to where two connections should have been attempted.
+  clock.tick(350);
+  t.is(client.connectAttempts, 2);
+
+  // Will not throw an error
+  reconnect.start();
+  t.is(client.connectAttempts, 2);
+
+  clock.tick(600);
+  t.is(client.connectAttempts, 3);
+});
+
 test('when stopped it will cease the backoff', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
