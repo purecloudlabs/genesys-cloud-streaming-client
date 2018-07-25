@@ -2,7 +2,11 @@ const path = require('path');
 
 module.exports = {
   entry: './src/client.js',
-  mode: 'production',
+  mode: 'development',
+  devtool: 'source-map',
+  optimization: {
+    minimize: false
+  },
   output: {
     path: path.resolve(__dirname, 'web'),
     filename: 'pc-streaming-client.js',
