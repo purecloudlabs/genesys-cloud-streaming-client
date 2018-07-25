@@ -2,11 +2,14 @@ const path = require('path');
 
 module.exports = {
   entry: './src/client.js',
-  mode: 'production',
+  mode: 'development',
+  optimization: {
+    minimize: !!process.env.MINIMIZE
+  },
   devtool: 'source-map',
   output: {
     path: path.resolve(__dirname, 'web'),
-    filename: 'pc-streaming-client.js',
+    filename: process.env.MINIMIZE ? 'pc-streaming-client.min.js' : 'pc-streaming-client.js',
     library: 'pc-streaming',
     libraryTarget: 'umd'
   },

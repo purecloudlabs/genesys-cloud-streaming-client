@@ -7,8 +7,7 @@
   "browser": "web/pc-streaming-client.js",
   "files": [
     "src",
-    "web/pc-streaming-client.js",
-    "web/pc-streaming-client.js.map"
+    "web"
   ],
   "pre-push": [
     "test"
