@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
   entry: './src/client.js',
-  mode: 'development',
+  mode: 'production',
   devtool: 'source-map',
   output: {
     path: path.resolve(__dirname, 'web'),
