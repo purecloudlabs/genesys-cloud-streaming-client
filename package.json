@@ -63,8 +63,8 @@
     "semistandard": "^9.2.1",
     "sinon": "^2.4.1",
     "snazzy": "^6.0.0",
-    "webpack": "^4.8.3",
-    "webpack-cli": "^2.1.4"
+    "webpack": "^4.16.2",
+    "webpack-cli": "^3.1.0"
   },
   "false": {}
 }

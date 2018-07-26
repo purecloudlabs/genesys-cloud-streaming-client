@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = {
   entry: './src/client.js',
-  mode: 'development',
+  mode: process.env.MINIMIZE ? 'production' : 'development',
   optimization: {
     minimize: !!process.env.MINIMIZE
   },
