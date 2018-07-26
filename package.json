@@ -48,7 +48,7 @@
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
-    "firehose-webrtc-sessions": "^4.1.4",
+    "firehose-webrtc-sessions": "^4.1.5",
     "limiter": "^1.1.0",
     "stanza.io": "^9.1.0",
     "uuid": "^3.0.1",
