@@ -6,7 +6,6 @@ import Reconnector from './reconnector';
 import webrtcSessions from 'firehose-webrtc-sessions';
 
 import {TokenBucket} from 'limiter';
-import uuid from 'uuid';
 
 let extensions = {
   notifications,
@@ -16,7 +15,7 @@ let extensions = {
 function mergeOptions (destination, provided) {
   for (var key in provided) {
     let value = provided[key];
-    if (typeof value === 'object') {
+    if (value instanceof Object) {
       if (!destination[key]) {
         destination[key] = {};
       }
@@ -50,9 +49,8 @@ function client (clientOptions) {
   let subscribedTopics = [];
   let ping = require('./ping')(stanzaClient, stanzaioOpts);
   let reconnect = new Reconnector(stanzaClient, stanzaioOpts);
-  let pendingIqs = {};
 
-  let client = {
+  const client = {
     _stanzaio: stanzaClient,
     connected: false,
     autoReconnect: true,
@@ -106,15 +104,19 @@ function client (clientOptions) {
       stanzaClient.on('message', extension.handleMessage.bind(extension));
     }
 
-    extension.on('send', function (data, message = false) {
-      let stanzaLimiter = extension.tokenBucket || new TokenBucket(20, 25, 1000);
-      stanzaLimiter.content = 20;
+    if (!extension.tokenBucket) {
+      // default rate limit
+      // 20 stanzas per 1000 ms,
+      // adding up to 25 stanzas over the course of the 1000ms
+      // starting with 20 stanzas
+      // = 45 stanzas max per 1000 ms
+      // = 70 stanzas max per 2000 ms
+      extension.tokenBucket = new TokenBucket(20, 25, 1000);
+      extension.tokenBucket.content = 25;
+    }
 
-      return stanzaLimiter.removeTokens(1, () => {
-        if (['get', 'set'].includes(data.type)) {
-          data.id = uuid.v4();
-          pendingIqs[data.id] = data;
-        }
+    extension.on('send', function (data, message = false) {
+      return extension.tokenBucket.removeTokens(1, () => {
         if (message === true) {
           return stanzaClient.sendMessage(data);
         }

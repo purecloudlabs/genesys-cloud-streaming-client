@@ -42,7 +42,9 @@ class Notification extends WildEmitter {
     if (handlerIndex > -1) {
       handlers.splice(handlerIndex, 1);
     }
-    this.client.unsubscribeFromNode(PUBSUB_HOST, topic, callback);
+    if (handlers.length === 0) {
+      this.client.unsubscribeFromNode(PUBSUB_HOST, topic, callback);
+    }
   }
 
   createSubscription (topic, handler) {
@@ -61,7 +63,7 @@ class Notification extends WildEmitter {
         this.createSubscription(topic, handler);
       }.bind(this),
 
-      unsubscribe: function (topic, handler = () => {}, callback = () => {}) {
+      unsubscribe: function (topic, handler, callback = () => {}) {
         this.xmppUnsubscribe(topic, handler, callback);
       }.bind(this)
     };

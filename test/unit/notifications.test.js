@@ -2,62 +2,40 @@
 
 const Notifications = require('../../src/notifications');
 const test = require('ava');
+const sinon = require('sinon');
 
-test('subscribe should subscribeToNode', t => {
+test('subscribe and unsubscribe do their jobs', t => {
   const client = {
-    subscribeToNode: (subscription) => {
-      return {
-        type: 'set',
-        to: '123456',
-        pubsub: {
-          subscribe: {}
-        }
-      };
-    },
     on: () => {},
-    createSubscription: () => {}
-  };
-
-  const notification = new Notifications(client);
-  const args = [
-    'ournode',
-    { topic: [() => {}, () => {}] },
-    (err) => {
-      if (!err) {
-        t.truthy('subscribed');
-        t.end();
-      }
-    }
-  ];
-  t.is(notification.expose.subscribe(...args), undefined);
-});
-
-test('unsubscribe should unsubscribe', t => {
-  const client = {
-    createClient: (client) => {
-      return {
-        jid: 'codecraftsmanships@gitter.im',
-        transport: 'websocket',
-        wsURL: 'wss://gitter.im/xmpp-websocket',
-        credentials: {
-          auth: 'auth'
-        }
-      };
-    },
-    unsubscribeFromNode: (subscription) => {
-      return {
-        type: 'set',
-        to: '123456',
-        pubsub: {
-          subscribe: {}
-        }
-      };
-    },
-    on: () => {},
-    createSubscription: () => {}
+    subscribeToNode () {},
+    unsubscribeFromNode () {}
   };
   const notification = new Notifications(client);
-  const args = [{ topic: [() => {}, () => {}] }, () => {}];
-  t.is(notification.expose.unsubscribe.call(...args, undefined));
-  t.is(notification.expose.unsubscribe.call({ topic: [() => {}, () => {}] }, () => {}), undefined);
+
+  sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c) => c());
+  const handler = () => {};
+  const callback = () => {};
+  notification.expose.subscribe('test', handler, callback);
+  sinon.assert.calledOnce(notification.client.subscribeToNode);
+  t.is(notification.subscriptions.test[0], handler);
+  const handler2 = () => {};
+  notification.expose.subscribe('test', handler2, callback);
+  // don't resubscribe on the server
+  sinon.assert.calledOnce(notification.client.subscribeToNode);
+  t.is(notification.subscriptions.test[1], handler2);
+
+  sinon.stub(notification.client, 'unsubscribeFromNode').callsFake((a, b, c) => c());
+  notification.expose.unsubscribe('test', handler2);
+  // there are still more subscriptions
+  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+
+  notification.expose.unsubscribe('test');
+  // unsubscribing without a handler won't trigger any unsubscribe
+  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+
+  notification.expose.unsubscribe('test', handler, callback);
+  sinon.assert.calledOnce(notification.client.unsubscribeFromNode);
+  sinon.assert.calledWith(notification.client.unsubscribeFromNode, 'firehose.inindca.com', 'test', sinon.match.func);
+
+  t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });
