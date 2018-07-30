@@ -1,9 +1,13 @@
 {
   "name": "@purecloud/streaming-client",
+<<<<<<< HEAD
   "version": "4.0.11",
+=======
+  "version": "5.0.0",
+>>>>>>> Update FWS, change main/entry to built/transpiled file
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
-  "main": "src/client.js",
+  "main": "web/pc-streaming-client.min.js",
   "browser": "web/pc-streaming-client.js",
   "files": [
     "src",
@@ -48,7 +52,7 @@
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
-    "firehose-webrtc-sessions": "^4.1.5",
+    "firehose-webrtc-sessions": "^4.1.8",
     "limiter": "^1.1.0",
     "stanza.io": "^9.1.0",
     "uuid": "^3.0.1",
