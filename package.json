@@ -1,10 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-<<<<<<< HEAD
-  "version": "4.0.11",
-=======
   "version": "5.0.0",
->>>>>>> Update FWS, change main/entry to built/transpiled file
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "web/pc-streaming-client.min.js",
