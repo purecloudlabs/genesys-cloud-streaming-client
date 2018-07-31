@@ -4,8 +4,8 @@ const test = require('ava');
 const sinon = require('sinon');
 
 const pcStream = require('../../src/client');
-import {TokenBucket} from 'limiter';
-import WildEmitter from 'wildemitter';
+const { TokenBucket } = require('limiter');
+const WildEmitter = require('wildemitter');
 
 let xmppInfo, extendObject, client, stanzaioInstance;
 test.beforeEach(() => {

@@ -2,22 +2,23 @@
 
 const test = require('ava');
 const sinon = require('sinon');
+const createPing = require('../../src/ping.js');
 
-let standardOptions, client, clock, createPing;
+let standardOptions, client, clock;
 let pingCallCount = 0;
 
 // we have to reset the doubles for every test.
 test.beforeEach(() => {
   standardOptions = {
-    jid: 'anon@example.mypurecloud.com'
+    jid: 'anon@example.mypurecloud.com',
+    logger: { warn () {}, error () {} }
   };
 
   clock = sinon.useFakeTimers();
-  createPing = require('../../src/ping.js');
   client = {
-    ping: (options, cb) => {
+    ping: (jid, cb) => {
       pingCallCount++;
-      return cb(options);
+      return cb(null, { to: 'you' });
     },
     sendStreamError: sinon.stub()
   };
@@ -29,35 +30,49 @@ test.afterEach(() => {
   clock.restore();
 });
 
-test('accepts null options', t => {
+test.serial('accepts null options', t => {
   createPing(null);
   t.pass('made it');
 });
 
-test('when started it sends a ping on an interval', t => {
+test.serial('when started it sends a ping on an interval', t => {
   let ping = createPing(client, standardOptions);
 
   ping.start();
-
-  // move forward in time to where two pings should have been sent.
   clock.tick(5100);
-
-  // verify we got two pings sent.
-  client.ping(standardOptions, (val, error) => val);
+  t.is(pingCallCount, 1);
+  clock.tick(5100);
   t.is(pingCallCount, 2);
 });
 
-test('when no pings it closes the connection', t => {
+test.serial('when started multiple times it sends a ping on a single interval', t => {
+  let ping = createPing(client, standardOptions);
+
+  ping.start();
+  ping.start();
+  ping.start();
+  clock.tick(5100);
+  t.is(pingCallCount, 1);
+  ping.start();
+  clock.tick(5100);
+  t.is(pingCallCount, 2);
+});
+
+test.serial('when no pings it closes the connection', t => {
+  const client = {
+    ping: (jid, cb) => {
+      cb(new Error('Missed pong'));
+    },
+    sendStreamError: sinon.stub()
+  };
   let ping = createPing(client, standardOptions);
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(21000);
-  client.ping(standardOptions, (val) => val);
+  clock.tick(5100);
 
   // move forward again
-  clock.tick(21000);
-  client.ping(standardOptions, (val) => val);
+  clock.tick(5100);
 
   // verify it sends a stream error
   t.is(client.sendStreamError.called, true);
@@ -65,33 +80,35 @@ test('when no pings it closes the connection', t => {
   t.is(client.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
 });
 
-test('receiving a ping response resets the failure mechanism', t => {
+test.serial('receiving a ping response resets the failure mechanism', t => {
+  let pingCount = 0;
+  const client = {
+    ping: (jid, cb) => {
+      pingCount++;
+      if (pingCount === 1) {
+        // fail first ping
+        return cb(new Error('missed pong'));
+      }
+      return cb(null, { to: 'your@jid' });
+    },
+    sendStreamError: sinon.stub()
+  };
   let ping = createPing(client, standardOptions);
   ping.start();
 
-  // move forward in time to one ping
+  // move forward in time to one missed
   clock.tick(5100);
-  client.ping(standardOptions, (val) => val);
-
   // move forward again
   clock.tick(5100);
-  client.ping(standardOptions, (val) => val);
-
-  // move forward again
-  clock.tick(5100);
-  standardOptions = {
-    jid: 'anon@example.mypurecloud.com'
-  };
-  client.ping(standardOptions, val => val);
-
-  // verify it doesn't send a stream error a third time
-  t.is(client.sendStreamError.callCount, 2);
+  // verify it doesn't send a stream error
+  t.is(client.sendStreamError.callCount, 0);
 });
 
-test('allows ping interval override', t => {
+test.serial('allows ping interval override', t => {
   const options = {
     jid: 'anon@example.mypurecloud.com',
-    pingInterval: 60000
+    pingInterval: 60000,
+    logger: { warn () {}, error () {} }
   };
   let ping = createPing(client, options);
   ping.start();
@@ -108,37 +125,38 @@ test('allows ping interval override', t => {
   client.ping(standardOptions, val => val);
 });
 
-test('allows failure number override', t => {
-  const options = {
-    jid: 'anon@example.mypurecloud.com',
-    failedPingsBeforeDisconnect: 2
+test.serial('allows failure number override', t => {
+  const client = {
+    ping: (jid, cb) => {
+      cb(new Error('Missed pong'));
+    },
+    sendStreamError: sinon.stub()
   };
-  let ping = createPing(client, options);
+  let ping = createPing(client, {
+    jid: 'aonon@example.mypurecloud.com',
+    failedPingsBeforeDisconnect: 4,
+    logger: { warn () {}, error () {} }
+  });
   ping.start();
 
   // move forward in time to one ping
   clock.tick(5100);
-  client.ping(standardOptions, val => val);
-  t.is(pingCallCount, 2);
-
+  t.is(client.sendStreamError.called, false);
   // move forward again
   clock.tick(5100);
-  client.ping(standardOptions, val => val);
-  t.is(pingCallCount, 4);
-
-  // make sure sendStreamError event not sent
-  t.is(client.sendStreamError.notCalled, true);
-
+  t.is(client.sendStreamError.called, false);
   // move forward again
   clock.tick(5100);
-  client.ping(standardOptions, val => val);
-  t.is(pingCallCount, 6);
-
-  // verify it sends a stream error
-  t.truthy(client.sendStreamError.called);
+  t.is(client.sendStreamError.called, false);
+  // move forward again
+  clock.tick(5100);
+  t.is(client.sendStreamError.called, false);
+  // move forward again
+  clock.tick(5100);
+  t.is(client.sendStreamError.called, true);
 });
 
-test('stop should cause no more pings', t => {
+test.serial('stop should cause no more pings', t => {
   let ping = createPing(client, standardOptions);
   ping.start();
 
@@ -153,7 +171,7 @@ test('stop should cause no more pings', t => {
   t.is(pingCallCount, 1);
 });
 
-test('more than one stop is okay', t => {
+test.serial('more than one stop is okay', t => {
   let ping = createPing(standardOptions);
   ping.start();
 

@@ -5,6 +5,7 @@ const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
 module.exports = function (stanzaClient, options) {
   options = options || {};
+  let logger = options.logger || console;
   let pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
   let failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
   let numberOfFailedPings = 0;
@@ -13,10 +14,10 @@ module.exports = function (stanzaClient, options) {
   function pingCallback (error, response) {
     if (response && !error) {
       numberOfFailedPings = 0;
-    } else if (error) {
-      console.warn('Missed a ping.');
+    } else {
+      logger.warn('Missed a ping.', error);
       if (++numberOfFailedPings > failedPingsBeforeDisconnect) {
-        console.error('Missed ' + numberOfFailedPings + ' pings, disconnecting');
+        logger.error('Missed ' + numberOfFailedPings + ' pings, disconnecting');
         stanzaClient.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
       }
     }
