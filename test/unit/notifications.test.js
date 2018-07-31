@@ -10,8 +10,38 @@ class Client extends WildEmitter {
   unsubscribeFromNode () {}
 }
 
+test('pubsubHost', t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
+  };
+  const notification = new Notifications(client);
+  t.is(notification.pubsubHost, 'notifications.inindca.com');
+  notification.client.config.wsURL = 'ws://firehose.us-east-1.inintca.com/something-else';
+  t.is(notification.pubsubHost, 'notifications.inintca.com');
+  notification.client.config.wsURL = 'ws://firehose.us-east-1.mypurecloud.com/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
+  notification.client.config.wsURL = 'ws://firehose.ap-southeast-2.mypurecloud.com.au/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.com.au');
+  notification.client.config.wsURL = 'ws://firehose.ap-northeast-1.mypurecloud.jp/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.jp');
+  notification.client.config.wsURL = 'ws://firehose.eu-central-1.mypurecloud.de/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.de');
+  notification.client.config.wsURL = 'ws://firehose.eu-west-1.mypurecloud.ie/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.ie');
+
+  notification.client.config.wsURL = 'ws://someone.elses.website/something-else';
+  t.is(notification.pubsubHost, 'notifications.elses.website');
+
+  notification.client.config.wsURL = 'ws://uhoh';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
+});
+
 test('subscribe and unsubscribe do their jobs', t => {
   const client = new Client();
+  client.config = {
+    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
+  };
   const notification = new Notifications(client);
 
   // subscribing
@@ -66,7 +96,7 @@ test('subscribe and unsubscribe do their jobs', t => {
 
   notification.expose.unsubscribe('test', handler);
   sinon.assert.calledOnce(notification.client.unsubscribeFromNode);
-  sinon.assert.calledWith(notification.client.unsubscribeFromNode, 'firehose.inindca.com', 'test', sinon.match.func);
+  sinon.assert.calledWith(notification.client.unsubscribeFromNode, 'notifications.inindca.com', 'test', sinon.match.func);
 
   t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });
