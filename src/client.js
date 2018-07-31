@@ -63,10 +63,12 @@ function client (clientOptions) {
     },
     reconnect () {
       // trigger a stop on the underlying connection, but allow reconnect
+      client.autoReconnect = true;
       stanzaClient.disconnect();
     },
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
+      client.autoReconnect = true;
       stanzaClient.connect(stanzaioOptions(options));
     }
   };
@@ -92,6 +94,11 @@ function client (clientOptions) {
 
   client.on('session:end', function (event) {
     ping.stop();
+  });
+
+  client.on('auth:failed', function () {
+    client.autoReconnect = false;
+    client.disconnect();
   });
 
   Object.keys(extensions).forEach((extensionName) => {

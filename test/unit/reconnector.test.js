@@ -100,3 +100,25 @@ test('when stopped it will cease the backoff', async t => {
   clock.tick(10000);
   t.is(client.connectAttempts, 3);
 });
+
+test('when an auth failure occurs it will cease the backoff', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  reconnect.start();
+
+  // move forward in time to where two connections should have been attempted.
+  clock.tick(350);
+  t.is(client.connectAttempts, 2);
+
+  clock.tick(600);
+  t.is(client.connectAttempts, 3);
+
+  client.emit('auth:failed');
+  clock.tick(1100);
+  t.is(client.connectAttempts, 3);
+  t.is(client.connected, false);
+
+  // make sure it didn't keep trying
+  clock.tick(10000);
+  t.is(client.connectAttempts, 3);
+});

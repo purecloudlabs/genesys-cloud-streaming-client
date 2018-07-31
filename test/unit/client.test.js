@@ -201,10 +201,19 @@ test('Disconnecting explicitly will set autoReconnect to false', t => {
 
 test('reconnect should disconnect but allow autoReconnect', t => {
   const client = pcStream.client(xmppInfo);
-  t.is(client.autoReconnect, true);
+  client._autoReconnect = false;
   client._stanzaio.disconnect = sinon.stub();
   client.reconnect();
   t.is(client.autoReconnect, true);
+  sinon.assert.calledOnce(client._stanzaio.disconnect);
+});
+
+test('auth:failed should disable autoReconnect and disconnect', t => {
+  const client = pcStream.client(xmppInfo);
+  t.is(client.autoReconnect, true);
+  client._stanzaio.disconnect = sinon.stub();
+  client._stanzaio.emit('auth:failed');
+  t.is(client.autoReconnect, false);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
 });
 
