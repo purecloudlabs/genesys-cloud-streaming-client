@@ -1,9 +1,9 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "4.0.11",
+  "version": "5.0.0",
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
-  "main": "src/client.js",
+  "main": "web/pc-streaming-client.min.js",
   "browser": "web/pc-streaming-client.js",
   "files": [
     "src",
@@ -13,23 +13,33 @@
     "test"
   ],
   "scripts": {
-    "unit-test": "nyc ava test/unit/*.js",
-    "test": "npm run semistandard && npm run unit-test",
+    "build": "./scripts/build.sh",
+    "unit-test": "NODE_ENV=test nyc --reporter=lcov --reporter=cobertura ava test/unit/*.js",
+    "test": "semistandard && npm run unit-test && npm run report",
     "semistandard": "semistandard",
     "semistandard:fix": "semistandard --fix",
+    "report": "nyc report && nyc check-coverage --lines 100 --functions 100 --branches 100 --statements 100",
     "watch-tests": "watch 'npm test' src test"
   },
   "semistandard": {
     "ignore": [
       "/.nyc_output",
       "/coverage",
-      "/scripts"
+      "/scripts",
+      "/dist"
     ]
   },
   "babel": {
     "presets": [
       "env"
-    ]
+    ],
+    "env": {
+      "test": {
+        "plugins": [
+          "istanbul"
+        ]
+      }
+    }
   },
   "ava": {
     "files": [],
@@ -42,13 +52,20 @@
       "babel-register"
     ]
   },
+  "nyc": {
+    "require": [
+      "babel-register"
+    ],
+    "sourceMap": false,
+    "instrument": false
+  },
   "publishConfig": {
     "registry": "https://purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm-dev/"
   },
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
-    "firehose-webrtc-sessions": "^4.1.5",
+    "firehose-webrtc-sessions": "^4.1.9",
     "limiter": "^1.1.0",
     "stanza.io": "^9.1.0",
     "uuid": "^3.0.1",
@@ -57,10 +74,11 @@
   "devDependencies": {
     "ava": "^0.20.0",
     "babel-loader": "^7.1.2",
-    "babel-preset-env": "^1.6.0",
+    "babel-plugin-istanbul": "^4.1.6",
+    "babel-preset-env": "^1.7.0",
     "mock-socket": "^6.0.4",
-    "nyc": "^11.1.0",
-    "semistandard": "^9.2.1",
+    "nyc": "^13.0.1",
+    "semistandard": "^12.0.1",
     "sinon": "^2.4.1",
     "snazzy": "^6.0.0",
     "webpack": "^4.16.2",

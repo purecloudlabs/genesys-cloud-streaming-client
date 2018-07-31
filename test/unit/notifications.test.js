@@ -2,62 +2,101 @@
 
 const Notifications = require('../../src/notifications');
 const test = require('ava');
+const sinon = require('sinon');
+const WildEmitter = require('wildemitter');
 
-test('subscribe should subscribeToNode', t => {
-  const client = {
-    subscribeToNode: (subscription) => {
-      return {
-        type: 'set',
-        to: '123456',
-        pubsub: {
-          subscribe: {}
-        }
-      };
-    },
-    on: () => {},
-    createSubscription: () => {}
+class Client extends WildEmitter {
+  subscribeToNode () {}
+  unsubscribeFromNode () {}
+}
+
+test('pubsubHost', t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
   };
-
   const notification = new Notifications(client);
-  const args = [
-    'ournode',
-    { topic: [() => {}, () => {}] },
-    (err) => {
-      if (!err) {
-        t.truthy('subscribed');
-        t.end();
-      }
-    }
-  ];
-  t.is(notification.expose.subscribe(...args), undefined);
+  t.is(notification.pubsubHost, 'notifications.inindca.com');
+  notification.client.config.wsURL = 'ws://firehose.us-east-1.inintca.com/something-else';
+  t.is(notification.pubsubHost, 'notifications.inintca.com');
+  notification.client.config.wsURL = 'ws://firehose.us-east-1.mypurecloud.com/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
+  notification.client.config.wsURL = 'ws://firehose.ap-southeast-2.mypurecloud.com.au/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.com.au');
+  notification.client.config.wsURL = 'ws://firehose.ap-northeast-1.mypurecloud.jp/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.jp');
+  notification.client.config.wsURL = 'ws://firehose.eu-central-1.mypurecloud.de/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.de');
+  notification.client.config.wsURL = 'ws://firehose.eu-west-1.mypurecloud.ie/something-else';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.ie');
+
+  notification.client.config.wsURL = 'ws://someone.elses.website/something-else';
+  t.is(notification.pubsubHost, 'notifications.elses.website');
+
+  notification.client.config.wsURL = 'ws://uhoh';
+  t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
 });
 
-test('unsubscribe should unsubscribe', t => {
-  const client = {
-    createClient: (client) => {
-      return {
-        jid: 'codecraftsmanships@gitter.im',
-        transport: 'websocket',
-        wsURL: 'wss://gitter.im/xmpp-websocket',
-        credentials: {
-          auth: 'auth'
-        }
-      };
-    },
-    unsubscribeFromNode: (subscription) => {
-      return {
-        type: 'set',
-        to: '123456',
-        pubsub: {
-          subscribe: {}
-        }
-      };
-    },
-    on: () => {},
-    createSubscription: () => {}
+test('subscribe and unsubscribe do their jobs', t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
   };
   const notification = new Notifications(client);
-  const args = [{ topic: [() => {}, () => {}] }, () => {}];
-  t.is(notification.expose.unsubscribe.call(...args, undefined));
-  t.is(notification.expose.unsubscribe.call({ topic: [() => {}, () => {}] }, () => {}), undefined);
+
+  // subscribing
+  sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c) => c());
+  const handler = sinon.stub();
+  const callback = () => {};
+  notification.expose.subscribe('test', handler, callback);
+  sinon.assert.calledOnce(notification.client.subscribeToNode);
+  t.is(notification.subscriptions.test.length, 1);
+  t.is(notification.subscriptions.test[0], handler);
+
+  // subscribe again to the same topic with the same handler
+  notification.expose.subscribe('test', handler, callback);
+  t.is(notification.subscriptions.test.length, 1, 'handler not added again');
+
+  const handler2 = sinon.stub();
+  notification.expose.subscribe('test', handler2, callback);
+  // don't resubscribe on the server
+  sinon.assert.calledOnce(notification.client.subscribeToNode);
+  t.is(notification.subscriptions.test[1], handler2);
+
+  // eventing
+  const pubsubMessage = {
+    event: {
+      updated: {
+        node: 'test',
+        published: [
+          { json: { the: 'payload' } }
+        ]
+      }
+    }
+  };
+  sinon.spy(client, 'emit');
+  client.emit('pubsub:event', pubsubMessage);
+  sinon.assert.calledTwice(client.emit);
+  sinon.assert.calledWith(client.emit, 'notifications:notify', { topic: 'test', data: { the: 'payload' } });
+
+  sinon.assert.calledOnce(handler);
+  sinon.assert.calledWith(handler, { the: 'payload' });
+  sinon.assert.calledOnce(handler2);
+  sinon.assert.calledWith(handler2, { the: 'payload' });
+
+  // unsubscribing
+  sinon.stub(notification.client, 'unsubscribeFromNode').callsFake((a, b, c) => c());
+  notification.expose.unsubscribe('test', handler2);
+  // there are still more subscriptions
+  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+
+  notification.expose.unsubscribe('test');
+  // unsubscribing without a handler won't trigger any unsubscribe
+  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+
+  notification.expose.unsubscribe('test', handler);
+  sinon.assert.calledOnce(notification.client.unsubscribeFromNode);
+  sinon.assert.calledWith(notification.client.unsubscribeFromNode, 'notifications.inindca.com', 'test', sinon.match.func);
+
+  t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });

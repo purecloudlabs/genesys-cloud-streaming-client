@@ -26,6 +26,9 @@ class Reconnector {
     this._cleanupReconnect = this.cleanupReconnect.bind(this);
     this.client.on('connected', this._cleanupReconnect);
 
+    // disable reconnecting when there's an auth failure
+    this.client.on('auth:failed', this._cleanupReconnect);
+
     this._backoffActive = false;
   }
 

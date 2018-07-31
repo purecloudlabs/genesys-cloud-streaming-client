@@ -1,6 +1,6 @@
 import WildEmitter from 'wildemitter';
 
-const PUBSUB_HOST = 'firehose.inindca.com';
+const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
 class Notification extends WildEmitter {
   constructor (client, clientOptions) {
@@ -10,6 +10,15 @@ class Notification extends WildEmitter {
     this.client = client;
 
     client.on('pubsub:event', this.pubsubEvent.bind(this));
+  }
+
+  get pubsubHost () {
+    try {
+      const domain = this.client.config.wsURL.toLowerCase().match(/\.([a-z0-9]+\.[a-z.]+)\//)[1];
+      return `notifications.${domain}`;
+    } catch (e) {
+      return PUBSUB_HOST_DEFAULT;
+    }
   }
 
   topicHandlers (topic) {
@@ -32,7 +41,7 @@ class Notification extends WildEmitter {
 
   xmppSubscribe (topic, callback) {
     if (this.topicHandlers(topic).length === 0) {
-      this.client.subscribeToNode(PUBSUB_HOST, topic, callback);
+      this.client.subscribeToNode(this.pubsubHost, topic, callback);
     }
   }
 
@@ -42,7 +51,9 @@ class Notification extends WildEmitter {
     if (handlerIndex > -1) {
       handlers.splice(handlerIndex, 1);
     }
-    this.client.unsubscribeFromNode(PUBSUB_HOST, topic, callback);
+    if (handlers.length === 0) {
+      this.client.unsubscribeFromNode(this.pubsubHost, topic, callback);
+    }
   }
 
   createSubscription (topic, handler) {
@@ -61,7 +72,7 @@ class Notification extends WildEmitter {
         this.createSubscription(topic, handler);
       }.bind(this),
 
-      unsubscribe: function (topic, handler = () => {}, callback = () => {}) {
+      unsubscribe: function (topic, handler, callback = () => {}) {
         this.xmppUnsubscribe(topic, handler, callback);
       }.bind(this)
     };
