@@ -1,6 +1,6 @@
 {
   "name": "@purecloud/streaming-client",
-  "version": "5.0.0",
+  "version": "5.0.1",
   "description": "client for the firehose websocket/xmpp interface",
   "repository": "https://bitbucket.org/inindca/firehose-client",
   "main": "web/pc-streaming-client.min.js",
