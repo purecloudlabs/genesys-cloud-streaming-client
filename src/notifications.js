@@ -10,6 +10,7 @@ class Notification extends WildEmitter {
     this.client = client;
 
     client.on('pubsub:event', this.pubsubEvent.bind(this));
+    client.on('session:started', this.resubscribe.bind(this));
   }
 
   get pubsubHost () {
@@ -61,6 +62,16 @@ class Notification extends WildEmitter {
     if (!handlers.includes(handler)) {
       handlers.push(handler);
     }
+  }
+
+  resubscribe () {
+    const topics = Object.keys(this.subscriptions);
+    topics.forEach(topic => {
+      const handlers = this.topicHandlers(topic);
+      if (handlers.length > 0) {
+        this.client.subscribeToNode(this.pubsubHost, topic);
+      }
+    });
   }
 
   get exposeEvents () { return [ 'notifications:notify' ]; }

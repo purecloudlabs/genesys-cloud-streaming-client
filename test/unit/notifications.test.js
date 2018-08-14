@@ -100,3 +100,27 @@ test('subscribe and unsubscribe do their jobs', t => {
 
   t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });
+
+test('notifications should resubscribe to existing topics after session:started event', t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
+  };
+  const notification = new Notifications(client);
+
+  // subscribing
+  sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
+  client.emit('session:started');
+  sinon.assert.notCalled(notification.client.subscribeToNode);
+  const handler = sinon.stub();
+  const handler2 = sinon.stub();
+  const handler3 = sinon.stub();
+  const callback = () => {};
+  notification.expose.subscribe('test', handler, callback);
+  notification.expose.subscribe('test', handler2, callback);
+  notification.expose.subscribe('test2', handler3, callback);
+  sinon.assert.calledTwice(notification.client.subscribeToNode);
+  notification.expose.unsubscribe('test2', handler3);
+  client.emit('session:started');
+  sinon.assert.calledThrice(notification.client.subscribeToNode);
+});
