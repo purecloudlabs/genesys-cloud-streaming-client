@@ -1,7 +1,7 @@
-## Firehose Client
+## Streaming Client
 
 ### Overview
-Client library for [firehose-service](https://bitbucket.org/inindca/firehose-service)
+Client library for streaming-service
 
 ![Making firehose easy to manage](http://i.giphy.com/TVJzpTzptvxDi.gif)
 
