@@ -3,8 +3,6 @@
 ### Overview
 Client library for streaming-service
 
-![Making firehose easy to manage](http://i.giphy.com/TVJzpTzptvxDi.gif)
-
 ### Installation
 Run `npm install` in order to install all the dependencies
 
