@@ -3,7 +3,7 @@
 import XMPP from './stanzaio-light';
 import notifications from './notifications';
 import Reconnector from './reconnector';
-import webrtcSessions from 'firehose-webrtc-sessions';
+import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
 
 import {TokenBucket} from 'limiter';
 

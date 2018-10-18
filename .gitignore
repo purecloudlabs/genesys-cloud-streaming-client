@@ -3,6 +3,7 @@
 /npm-debug.log
 .npmrc
 
+dist
 web
 
 ## vscode specific files

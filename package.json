@@ -1,10 +1,10 @@
 {
-  "name": "@purecloud/streaming-client",
-  "version": "5.0.1",
-  "description": "client for the firehose websocket/xmpp interface",
-  "repository": "https://bitbucket.org/inindca/firehose-client",
-  "main": "web/pc-streaming-client.min.js",
-  "browser": "web/pc-streaming-client.js",
+  "name": "purecloud-streaming-client",
+  "version": "6.0.0",
+  "description": "client for the PureCloud Streaming APIs (websocket/xmpp interface)",
+  "repository": "https:github.com/purecloudlabs/purecloud-streaming-client",
+  "main": "dist/streaming-client.min.js",
+  "browser": "dist/streaming-client.js",
   "files": [
     "src",
     "web"
@@ -13,7 +13,7 @@
     "test"
   ],
   "scripts": {
-    "build": "./scripts/build.sh",
+    "build": "webpack && webpack --env.production",
     "unit-test": "NODE_ENV=test nyc --reporter=lcov --reporter=cobertura ava test/unit/*.js",
     "test": "semistandard && npm run unit-test && npm run report",
     "semistandard": "semistandard",
@@ -59,13 +59,10 @@
     "sourceMap": false,
     "instrument": false
   },
-  "publishConfig": {
-    "registry": "https://purecloud.artifactoryonline.com/purecloud/api/npm/inin-internal-npm-dev/"
-  },
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
-    "firehose-webrtc-sessions": "^4.1.9",
+    "purecloud-streaming-client-webrtc-sessions": "^6.0.3",
     "limiter": "^1.1.0",
     "stanza.io": "^9.1.0",
     "uuid": "^3.0.1",
