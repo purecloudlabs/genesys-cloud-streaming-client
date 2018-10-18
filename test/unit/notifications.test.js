@@ -13,21 +13,21 @@ class Client extends WildEmitter {
 test('pubsubHost', t => {
   const client = new Client();
   client.config = {
-    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
+    wsURL: 'ws://streaming.inindca.com/something-else'
   };
   const notification = new Notifications(client);
   t.is(notification.pubsubHost, 'notifications.inindca.com');
-  notification.client.config.wsURL = 'ws://firehose.us-east-1.inintca.com/something-else';
+  notification.client.config.wsURL = 'ws://streaming.inintca.com/something-else';
   t.is(notification.pubsubHost, 'notifications.inintca.com');
-  notification.client.config.wsURL = 'ws://firehose.us-east-1.mypurecloud.com/something-else';
+  notification.client.config.wsURL = 'ws://streaming.mypurecloud.com/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
-  notification.client.config.wsURL = 'ws://firehose.ap-southeast-2.mypurecloud.com.au/something-else';
+  notification.client.config.wsURL = 'ws://streaming.mypurecloud.com.au/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.com.au');
-  notification.client.config.wsURL = 'ws://firehose.ap-northeast-1.mypurecloud.jp/something-else';
+  notification.client.config.wsURL = 'ws://streaming.mypurecloud.jp/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.jp');
-  notification.client.config.wsURL = 'ws://firehose.eu-central-1.mypurecloud.de/something-else';
+  notification.client.config.wsURL = 'ws://streaming.mypurecloud.de/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.de');
-  notification.client.config.wsURL = 'ws://firehose.eu-west-1.mypurecloud.ie/something-else';
+  notification.client.config.wsURL = 'ws://streaming.mypurecloud.ie/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.ie');
 
   notification.client.config.wsURL = 'ws://someone.elses.website/something-else';
@@ -40,7 +40,7 @@ test('pubsubHost', t => {
 test('subscribe and unsubscribe do their jobs', t => {
   const client = new Client();
   client.config = {
-    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
+    wsURL: 'ws://streaming.inindca.com/something-else'
   };
   const notification = new Notifications(client);
 
@@ -104,7 +104,7 @@ test('subscribe and unsubscribe do their jobs', t => {
 test('notifications should resubscribe to existing topics after session:started event', t => {
   const client = new Client();
   client.config = {
-    wsURL: 'ws://firehose.us-east-1.inindca.com/something-else'
+    wsURL: 'ws://streaming.inindca.com/something-else'
   };
   const notification = new Notifications(client);
 
