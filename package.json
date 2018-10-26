@@ -1,6 +1,6 @@
 {
   "name": "purecloud-streaming-client",
-  "version": "6.0.3",
+  "version": "6.0.4",
   "description": "client for the PureCloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/purecloud-streaming-client",
   "main": "dist/streaming-client.min.js",
