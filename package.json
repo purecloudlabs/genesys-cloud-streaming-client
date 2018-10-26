@@ -62,9 +62,10 @@
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
-    "purecloud-streaming-client-webrtc-sessions": "^6.0.3",
     "limiter": "^1.1.0",
+    "purecloud-streaming-client-webrtc-sessions": "^6.0.3",
     "stanza.io": "^9.1.0",
+    "superagent": "^3.8.3",
     "uuid": "^3.0.1",
     "wildemitter": "^1.2.0"
   },
@@ -74,6 +75,7 @@
     "babel-plugin-istanbul": "^4.1.6",
     "babel-preset-env": "^1.7.0",
     "mock-socket": "^6.0.4",
+    "nock": "^10.0.1",
     "nyc": "^13.0.1",
     "semistandard": "^12.0.1",
     "sinon": "^2.4.1",
