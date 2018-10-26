@@ -2,143 +2,107 @@
 
 const test = require('ava');
 const sinon = require('sinon');
+const nock = require('nock');
 
 const pcStream = require('../../src/client');
 const { TokenBucket } = require('limiter');
 const WildEmitter = require('wildemitter');
 
-let xmppInfo, extendObject, client, stanzaioInstance;
-test.beforeEach(() => {
-  xmppInfo = {
-    jid: 'anon@example.mypurecloud.com',
-    authToken: 'AuthToken',
-    host: 'wss://example.com/test'
-  };
+const defaultOptions = {
+  jid: 'anon@example.mypurecloud.com',
+  authToken: 'AuthToken',
+  host: 'wss://streaming.example.com'
+};
+Object.freeze(defaultOptions);
 
-  // Stub stanzaio connection
-  stanzaioInstance = {
-    on: () => {
-      return {
-        bind: sinon.stub()
-      };
-    },
-    connect: () => {
-      return {
-        bind: sinon.stub()
-      };
-    },
-    disconnect: () => {
-      return {
-        bind: sinon.stub()
-      };
-    },
-    emit: () => {
-      return {
-        bind: sinon.stub()
-      };
-    }
-  };
+function getDefaultOptions () {
+  return Object.assign({}, defaultOptions);
+}
 
-  client = {
-    createClient: sinon.stub()
-  };
-
-  client.createClient.withArgs(sinon.match.any).returns(stanzaioInstance);
-});
+function mockApi () {
+  return nock('https://api.example.com')
+    .post('/api/v2/notifications/channels?connectionType=streaming')
+    .reply(200, { id: 'streaming-someid' });
+}
 
 test('client creation', t => {
-  pcStream.client(xmppInfo);
-  const clientOptions = {
-    jid: 'anon@example.mypurecloud.com',
-    credentials: {
-      username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthToken'
-    },
-    transport: 'websocket',
-    wsURL: 'wss://example.com/test/stream'
-  };
-  client.createClient(clientOptions);
-  const expectedPayload = {
-    jid: 'anon@example.mypurecloud.com',
-    credentials: {
-      username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthToken'
-    },
-    transport: 'websocket',
-    wsURL: 'wss://example.com/test/stream'
-  };
-  t.deepEqual(client.createClient.args[0][0], expectedPayload);
+  const client = pcStream.client(getDefaultOptions());
+  t.is(typeof client.on, 'function');
+  t.is(typeof client.connect, 'function');
+  t.truthy(client.webrtcSessions);
 });
 
-test('connect jid override', t => {
+test('connect jid override', async t => {
   t.plan(0);
-  let con = pcStream.client(xmppInfo);
-  con.connect({
-    jid: 'anon@example.mypurecloud.com'
+  const client = pcStream.client(getDefaultOptions());
+  sinon.stub(client._stanzaio, 'connect');
+  const api = mockApi();
+  await client.connect({
+    jid: 'someone-else@example.mypurecloud.com'
   });
-  const connectPayload = {
-    jid: 'anon@example.mypurecloud.com',
+  api.done();
+  sinon.assert.calledWithExactly(client._stanzaio.connect, {
+    jid: 'someone-else@example.mypurecloud.com',
     credentials: {
-      username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthToken'
+      username: 'someone-else@example.mypurecloud.com',
+      password: 'authKey:AuthToken:streaming-someid'
     },
     transport: 'websocket',
-    wsURL: 'wss://example.com/test/stream'
-  };
-  stanzaioInstance.connect(connectPayload);
+    wsURL: 'wss://streaming.example.com/stream'
+  });
 });
 
-test('connect full override', t => {
+test('connect full override', async t => {
   t.plan(0);
-  let con = pcStream.client(xmppInfo);
-  con.connect({
+  const options = getDefaultOptions();
+  options.test = { baz: 'qux' };
+  const client = pcStream.client(options);
+  sinon.stub(client._stanzaio, 'connect');
+  const api = mockApi();
+  await client.connect({
     jid: 'anon@example.mypurecloud.com',
     authToken: 'AuthTokenAlt',
     test: { foo: 'bar' },
-    host: 'wss://example.com/testAlt'
+    host: 'wss://streaming.example.com'
   });
-  const connectPayload = {
+  api.done();
+  sinon.assert.calledWithExactly(client._stanzaio.connect, {
     jid: 'anon@example.mypurecloud.com',
     credentials: {
       username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthToken'
+      password: 'authKey:AuthTokenAlt:streaming-someid'
     },
-    wsURL: 'wss://example.com/test/stream',
-    transport: 'websocket'
-  };
-  stanzaioInstance.connect(connectPayload);
+    transport: 'websocket',
+    wsURL: 'wss://streaming.example.com/stream'
+  });
 });
 
-test('connect override of clientOptions', t => {
+test('connect override of clientOptions', async t => {
   t.plan(0);
-  xmppInfo.test = {};
-  let con = pcStream.client(xmppInfo);
-  con.connect({
+  const client = pcStream.client(getDefaultOptions());
+  sinon.stub(client._stanzaio, 'connect');
+  const api = mockApi();
+  await client.connect({
     jid: 'anon@example.mypurecloud.com',
     authToken: 'AuthTokenAlt',
     test: { foo: 'bar' },
-    host: 'wss://example.com/testAlt'
+    host: 'wss://streaming.example.com'
   });
-  const connectPayload = {
-    jid: 'anon@example.mypurecloud.com',
-    credentials: {
-      username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthToken'
-    },
-    wsURL: 'wss://example.com/test/stream',
-    transport: 'websocket'
-  };
-  stanzaioInstance.connect(connectPayload);
+  api.done();
 });
 
-test('extend should return an extendObject', t => {
+test('extend add an extension for creating clients', t => {
   class TestExtension {
     on () {}
     off () {}
+    get expose () {
+      return { foo () {} };
+    }
   }
-  t.plan(1);
-  const actual = pcStream.extend('test1234', TestExtension);
-  t.deepEqual(actual, extendObject);
+  pcStream.extend('test1234', TestExtension);
+  const client = pcStream.client(getDefaultOptions());
+  t.is(typeof client._test1234.on, 'function');
+  t.is(typeof client.test1234.foo, 'function');
 });
 
 test('should call handleIq or handleMessage on those events, if an extension registered for them', t => {
@@ -157,20 +121,20 @@ test('should call handleIq or handleMessage on those events, if an extension reg
   }
 
   pcStream.extend('testIqAndMessageHandlers', TestExtension);
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   client._stanzaio.emit('iq', testIq);
   client._stanzaio.emit('message', testMessage);
 });
 
 test('Should see callbacks set when an iq callback is explicitly registered', t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   client._stanzaio.on('iq:set:myTestTopic', () => {});
 
   t.is(client._stanzaio.callbacks['iq:set:myTestTopic'].length, 1);
 });
 
 test('Should begin to reconnect when it becomes disconnected', t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   client._stanzaio.emit('disconnected');
 
   return new Promise(resolve => {
@@ -182,7 +146,7 @@ test('Should begin to reconnect when it becomes disconnected', t => {
 });
 
 test('Should not begin to reconnect when it becomes disconnected if autoReconnect is off', async t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   client.autoReconnect = false;
   client._stanzaio.emit('disconnected');
   sinon.stub(client._stanzaio, 'emit');
@@ -191,7 +155,7 @@ test('Should not begin to reconnect when it becomes disconnected if autoReconnec
 });
 
 test('Disconnecting explicitly will set autoReconnect to false', t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   t.is(client.autoReconnect, true);
   client._stanzaio.disconnect = sinon.stub();
   client.disconnect();
@@ -200,7 +164,7 @@ test('Disconnecting explicitly will set autoReconnect to false', t => {
 });
 
 test('reconnect should disconnect but allow autoReconnect', t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   client._autoReconnect = false;
   client._stanzaio.disconnect = sinon.stub();
   client.reconnect();
@@ -209,7 +173,7 @@ test('reconnect should disconnect but allow autoReconnect', t => {
 });
 
 test('auth:failed should disable autoReconnect and disconnect', t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   t.is(client.autoReconnect, true);
   client._stanzaio.disconnect = sinon.stub();
   client._stanzaio.emit('auth:failed');
@@ -218,7 +182,7 @@ test('auth:failed should disable autoReconnect and disconnect', t => {
 });
 
 test('session:started event sets the client streamId', t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   client._stanzaio.emit('session:started', { resource: 'foobar' });
   t.is(client.streamId, 'foobar');
   client._stanzaio.emit('session:end');
@@ -226,7 +190,7 @@ test('session:started event sets the client streamId', t => {
 });
 
 test('extension.on(send) will send a stanza', async t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   client._webrtcSessions.emit('send', { some: 'stanza' });
   await new Promise(resolve => setTimeout(resolve, 10));
@@ -234,7 +198,7 @@ test('extension.on(send) will send a stanza', async t => {
 });
 
 test('extension.on(send) will send a message stanza', async t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   sinon.stub(client._stanzaio, 'sendMessage');
   client._webrtcSessions.emit('send', { some: 'stanza' }, true);
@@ -244,7 +208,7 @@ test('extension.on(send) will send a message stanza', async t => {
 });
 
 test('it will rate limit extensions sending stanzas', async t => {
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   for (let i = 0; i < 100; i++) {
     client._webrtcSessions.emit('send', { some: 'data' });
@@ -267,7 +231,7 @@ test('it will rate limit extensions with their own tokenBucket', async t => {
       this.tokenBucket.content = 40;
     }
   });
-  const client = pcStream.client(xmppInfo);
+  const client = pcStream.client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   for (let i = 0; i < 200; i++) {
     client._tokenBucket.emit('send', { some: 'data' });

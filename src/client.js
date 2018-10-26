@@ -6,6 +6,20 @@ import Reconnector from './reconnector';
 import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
 
 import {TokenBucket} from 'limiter';
+import request from 'superagent';
+
+function buildUri (host, path, version = 'v2') {
+  path = path.replace(/^\/+|\/+$/g, ''); // trim leading/trailing /
+  return `https://api.${host}/api/${version}/${path}`;
+}
+
+function requestApi (path, { method, data, host, version, contentType, authToken }) {
+  let response = request[method](buildUri(host, path, version))
+    .set('Authorization', `Bearer ${authToken}`)
+    .type(contentType || 'json');
+
+  return response.send(data); // trigger request
+}
 
 let extensions = {
   notifications,
@@ -34,7 +48,7 @@ function stanzaioOptions (pcOptions) {
     jid: pcOptions.jid,
     credentials: {
       username: pcOptions.jid,
-      password: `authKey:${pcOptions.authToken}`
+      password: `authKey:${pcOptions.authToken}:${pcOptions.channelId}`
     },
     wsURL: `${wsHost}/stream`,
     transport: 'websocket'
@@ -68,8 +82,17 @@ function client (clientOptions) {
     },
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
-      client.autoReconnect = true;
-      stanzaClient.connect(stanzaioOptions(options));
+      const opts = {
+        method: 'post',
+        host: options.host.replace('wss://streaming.', ''),
+        authToken: options.authToken
+      };
+      return requestApi('notifications/channels?connectionType=streaming', opts)
+        .then(res => {
+          options.channelId = res.body.id;
+          client.autoReconnect = true;
+          stanzaClient.connect(stanzaioOptions(options));
+        });
     }
   };
 
