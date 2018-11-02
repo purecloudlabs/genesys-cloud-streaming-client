@@ -3,14 +3,15 @@ import WildEmitter from 'wildemitter';
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
 class Notification extends WildEmitter {
-  constructor (client, clientOptions) {
+  constructor (client, clientOptions = {}) {
     super();
     this.subscriptions = {};
 
     this.client = client;
+    this.logger = clientOptions.logger || console;
 
     client.on('pubsub:event', this.pubsubEvent.bind(this));
-    client.on('session:started', this.resubscribe.bind(this));
+    client.on('connected', this.subscriptionsKeepAlive.bind(this));
   }
 
   get pubsubHost () {
@@ -67,11 +68,24 @@ class Notification extends WildEmitter {
   resubscribe () {
     const topics = Object.keys(this.subscriptions);
     topics.forEach(topic => {
+      if (topic === 'streaming-subscriptions-expiring') {
+        return; // this doesn't need subscribed
+      }
       const handlers = this.topicHandlers(topic);
       if (handlers.length > 0) {
         this.client.subscribeToNode(this.pubsubHost, topic);
       }
     });
+  }
+
+  subscriptionsKeepAlive () {
+    const topic = 'streaming-subscriptions-expiring';
+    if (this.topicHandlers(topic).length === 0) {
+      this.createSubscription(topic, () => {
+        this.logger.info(`${topic} - Triggering resubscribe.`);
+        this.resubscribe();
+      });
+    }
   }
 
   get exposeEvents () { return [ 'notifications:notify' ]; }
