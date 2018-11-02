@@ -251,3 +251,28 @@ test('extend throws if an extension is already registered to a namespace', t => 
     pcStream.extend('webrtcSessions', () => {});
   });
 });
+
+test('it will remap some events for our client to the underlying stanza client', async t => {
+  const client = pcStream.client(getDefaultOptions());
+  const connected = sinon.stub();
+  const _connected = sinon.stub();
+  client.on('session:started', connected);
+  client.on('connected', connected);
+  client.on('_connected', _connected);
+  client._stanzaio.emit('session:started', {});
+  sinon.assert.calledTwice(connected);
+  sinon.assert.notCalled(_connected);
+  client._stanzaio.emit('connected', {});
+  sinon.assert.calledOnce(_connected);
+
+  connected.reset();
+  _connected.reset();
+  client.off('session:started', connected);
+  client.off('connected', connected);
+  client.off('_connected', _connected);
+  client._stanzaio.emit('session:started', {});
+  sinon.assert.notCalled(connected);
+  sinon.assert.notCalled(_connected);
+  client._stanzaio.emit('connected', {});
+  sinon.assert.notCalled(_connected);
+});
