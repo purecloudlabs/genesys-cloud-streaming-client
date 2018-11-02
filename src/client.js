@@ -57,6 +57,13 @@ function stanzaioOptions (pcOptions) {
   return stanzaOptions;
 }
 
+const REMAPPED_EVENTS = {
+  'connected': 'session:started',
+  '_connected': 'connected',
+  'disconnected': 'session:end',
+  '_disconnected': 'disconnected'
+};
+
 function client (clientOptions) {
   let stanzaioOpts = stanzaioOptions(clientOptions);
   let stanzaClient = XMPP.createClient(stanzaioOpts);
@@ -69,8 +76,18 @@ function client (clientOptions) {
     connected: false,
     autoReconnect: true,
     subscribedTopics: subscribedTopics,
-    on: stanzaClient.on.bind(stanzaClient),
-    off: stanzaClient.off.bind(stanzaClient),
+    on (eventName, ...args) {
+      if (REMAPPED_EVENTS[eventName]) {
+        return this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
+      }
+      return this._stanzaio.on(eventName, ...args);
+    },
+    off (eventName, ...args) {
+      if (REMAPPED_EVENTS[eventName]) {
+        return this._stanzaio.off(REMAPPED_EVENTS[eventName], ...args);
+      }
+      return this._stanzaio.off(eventName, ...args);
+    },
     disconnect () {
       client.autoReconnect = false;
       stanzaClient.disconnect();
@@ -96,12 +113,12 @@ function client (clientOptions) {
     }
   };
 
-  client.on('connected', function () {
+  client.on('_connected', function () {
     client.connected = true;
     reconnect.stop();
   });
 
-  client.on('disconnected', function () {
+  client.on('_disconnected', function () {
     client.connected = false;
     ping.stop();
 
@@ -110,12 +127,14 @@ function client (clientOptions) {
     }
   });
 
-  client.on('session:started', function (event) {
+  // remapped session:started
+  client.on('connected', function (event) {
     client.streamId = event.resource;
     ping.start();
   });
 
-  client.on('session:end', function (event) {
+  // remapped session:end
+  client.on('disconnected', function (event) {
     ping.stop();
   });
 

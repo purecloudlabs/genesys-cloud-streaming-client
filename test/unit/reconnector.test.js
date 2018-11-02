@@ -21,10 +21,10 @@ class Client extends WildEmitter {
     this.connectAttempts++;
     setTimeout(() => {
       if (SIMULTATE_ONLINE) {
-        this.emit('connected');
+        this.emit('_connected');
         this.connected = true;
       } else {
-        this.emit('disconnected');
+        this.emit('_disconnected');
         this.connected = false;
       }
     }, 10);

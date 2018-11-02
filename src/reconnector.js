@@ -24,7 +24,7 @@ class Reconnector {
 
     // self bound methods so we can clean up the handlers
     this._cleanupReconnect = this.cleanupReconnect.bind(this);
-    this.client.on('connected', this._cleanupReconnect);
+    this.client.on('_connected', this._cleanupReconnect);
 
     // disable reconnecting when there's an auth failure
     this.client.on('auth:failed', this._cleanupReconnect);
@@ -34,7 +34,7 @@ class Reconnector {
 
   cleanupReconnect () {
     this.backoff.reset();
-    this.client.off('connected', this._cleanupReconnect);
+    this.client.off('_connected', this._cleanupReconnect);
     this._backoffActive = false;
   }
 
