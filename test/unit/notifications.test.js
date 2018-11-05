@@ -101,7 +101,7 @@ test('subscribe and unsubscribe do their jobs', t => {
   t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });
 
-test('notifications should resubscribe to existing topics after session:started event', t => {
+test('notifications should resubscribe to existing topics after streaming-subscriptions-expiring event', t => {
   const client = new Client();
   client.config = {
     wsURL: 'ws://streaming.inindca.com/something-else'
@@ -110,7 +110,7 @@ test('notifications should resubscribe to existing topics after session:started 
 
   // subscribing
   sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
-  client.emit('session:started');
+  client.emit('connected');
   sinon.assert.notCalled(notification.client.subscribeToNode);
   const handler = sinon.stub();
   const handler2 = sinon.stub();
@@ -121,6 +121,15 @@ test('notifications should resubscribe to existing topics after session:started 
   notification.expose.subscribe('test2', handler3, callback);
   sinon.assert.calledTwice(notification.client.subscribeToNode);
   notification.expose.unsubscribe('test2', handler3);
-  client.emit('session:started');
+  client.emit('pubsub:event', {
+    event: {
+      updated: {
+        node: 'streaming-subscriptions-expiring',
+        published: [
+          { json: {expiring: 60} }
+        ]
+      }
+    }
+  });
   sinon.assert.calledThrice(notification.client.subscribeToNode);
 });
