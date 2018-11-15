@@ -101,7 +101,7 @@ function client (clientOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
       const opts = {
         method: 'post',
-        host: options.host.replace('wss://streaming.', ''),
+        host: options.apiHost || options.host.replace('wss://streaming.', ''),
         authToken: options.authToken
       };
       return requestApi('notifications/channels?connectionType=streaming', opts)
