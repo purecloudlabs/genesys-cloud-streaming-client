@@ -37,7 +37,7 @@ test('pubsubHost', t => {
   t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
 });
 
-test('subscribe and unsubscribe do their jobs', t => {
+test('subscribe and unsubscribe do their jobs', async t => {
   const client = new Client();
   client.config = {
     wsURL: 'ws://streaming.inindca.com/something-else'
@@ -49,6 +49,12 @@ test('subscribe and unsubscribe do their jobs', t => {
   const handler = sinon.stub();
   const callback = () => {};
   notification.expose.subscribe('test', handler, callback);
+
+  // not subscribed yet, client is not connected
+  sinon.assert.notCalled(notification.client.subscribeToNode);
+
+  client.emit('connected');
+  client.connected = true;
   sinon.assert.calledOnce(notification.client.subscribeToNode);
   t.is(notification.subscriptions.test.length, 1);
   t.is(notification.subscriptions.test[0], handler);
@@ -94,7 +100,11 @@ test('subscribe and unsubscribe do their jobs', t => {
   // unsubscribing without a handler won't trigger any unsubscribe
   sinon.assert.notCalled(notification.client.unsubscribeFromNode);
 
+  client.connected = false;
   notification.expose.unsubscribe('test', handler);
+  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+
+  client.emit('connected');
   sinon.assert.calledOnce(notification.client.unsubscribeFromNode);
   sinon.assert.calledWith(notification.client.unsubscribeFromNode, 'notifications.inindca.com', 'test', sinon.match.func);
 
@@ -111,6 +121,7 @@ test('notifications should resubscribe to existing topics after streaming-subscr
   // subscribing
   sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
   client.emit('connected');
+  client.connected = true;
   sinon.assert.notCalled(notification.client.subscribeToNode);
   const handler = sinon.stub();
   const handler2 = sinon.stub();
