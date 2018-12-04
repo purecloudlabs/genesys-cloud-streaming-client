@@ -48,9 +48,9 @@ function stanzaioOptions (pcOptions) {
     jid: pcOptions.jid,
     credentials: {
       username: pcOptions.jid,
-      password: `authKey:${pcOptions.authToken}:${pcOptions.channelId}`
+      password: `authKey:${pcOptions.authToken}`
     },
-    wsURL: `${wsHost}/stream`,
+    wsURL: `${wsHost}/stream/channels/${pcOptions.channelId}`,
     transport: 'websocket'
   };
 

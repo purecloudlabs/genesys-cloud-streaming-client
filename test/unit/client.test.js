@@ -45,10 +45,10 @@ test('connect jid override', async t => {
     jid: 'someone-else@example.mypurecloud.com',
     credentials: {
       username: 'someone-else@example.mypurecloud.com',
-      password: 'authKey:AuthToken:streaming-someid'
+      password: 'authKey:AuthToken'
     },
     transport: 'websocket',
-    wsURL: 'wss://streaming.example.com/stream'
+    wsURL: 'wss://streaming.example.com/stream/channels/streaming-someid'
   });
 });
 
@@ -70,10 +70,10 @@ test('connect full override', async t => {
     jid: 'anon@example.mypurecloud.com',
     credentials: {
       username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthTokenAlt:streaming-someid'
+      password: 'authKey:AuthTokenAlt'
     },
     transport: 'websocket',
-    wsURL: 'wss://streaming.example.com/stream'
+    wsURL: 'wss://streaming.example.com/stream/channels/streaming-someid'
   });
 });
 
