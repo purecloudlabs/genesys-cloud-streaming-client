@@ -43,7 +43,13 @@ class Notification extends WildEmitter {
 
   xmppSubscribe (topic, callback) {
     if (this.topicHandlers(topic).length === 0) {
-      this.client.subscribeToNode(this.pubsubHost, topic, callback);
+      if (this.client.connected) {
+        this.client.subscribeToNode(this.pubsubHost, topic, callback);
+      } else {
+        this.client.once('connected', () => {
+          this.client.subscribeToNode(this.pubsubHost, topic, callback);
+        });
+      }
     }
   }
 
@@ -54,7 +60,13 @@ class Notification extends WildEmitter {
       handlers.splice(handlerIndex, 1);
     }
     if (handlers.length === 0) {
-      this.client.unsubscribeFromNode(this.pubsubHost, topic, callback);
+      if (this.client.connected) {
+        this.client.unsubscribeFromNode(this.pubsubHost, topic, callback);
+      } else {
+        this.client.once('connected', () => {
+          this.client.unsubscribeFromNode(this.pubsubHost, topic, callback);
+        });
+      }
     }
   }
 
