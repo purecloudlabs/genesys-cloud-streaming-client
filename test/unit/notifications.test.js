@@ -17,23 +17,23 @@ test('pubsubHost', t => {
   };
   const notification = new Notifications(client);
   t.is(notification.pubsubHost, 'notifications.inindca.com');
-  notification.client.config.wsURL = 'ws://streaming.inintca.com/something-else';
+  notification.stanzaio.config.wsURL = 'ws://streaming.inintca.com/something-else';
   t.is(notification.pubsubHost, 'notifications.inintca.com');
-  notification.client.config.wsURL = 'ws://streaming.mypurecloud.com/something-else';
+  notification.stanzaio.config.wsURL = 'ws://streaming.mypurecloud.com/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
-  notification.client.config.wsURL = 'ws://streaming.mypurecloud.com.au/something-else';
+  notification.stanzaio.config.wsURL = 'ws://streaming.mypurecloud.com.au/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.com.au');
-  notification.client.config.wsURL = 'ws://streaming.mypurecloud.jp/something-else';
+  notification.stanzaio.config.wsURL = 'ws://streaming.mypurecloud.jp/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.jp');
-  notification.client.config.wsURL = 'ws://streaming.mypurecloud.de/something-else';
+  notification.stanzaio.config.wsURL = 'ws://streaming.mypurecloud.de/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.de');
-  notification.client.config.wsURL = 'ws://streaming.mypurecloud.ie/something-else';
+  notification.stanzaio.config.wsURL = 'ws://streaming.mypurecloud.ie/something-else';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.ie');
 
-  notification.client.config.wsURL = 'ws://someone.elses.website/something-else';
+  notification.stanzaio.config.wsURL = 'ws://someone.elses.website/something-else';
   t.is(notification.pubsubHost, 'notifications.elses.website');
 
-  notification.client.config.wsURL = 'ws://uhoh';
+  notification.stanzaio.config.wsURL = 'ws://uhoh';
   t.is(notification.pubsubHost, 'notifications.mypurecloud.com');
 });
 
@@ -45,17 +45,17 @@ test('subscribe and unsubscribe do their jobs', async t => {
   const notification = new Notifications(client);
 
   // subscribing
-  sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c) => c());
+  sinon.stub(notification.stanzaio, 'subscribeToNode').callsFake((a, b, c) => c());
   const handler = sinon.stub();
   const callback = () => {};
   notification.expose.subscribe('test', handler, callback);
 
   // not subscribed yet, client is not connected
-  sinon.assert.notCalled(notification.client.subscribeToNode);
+  sinon.assert.notCalled(notification.stanzaio.subscribeToNode);
 
-  client.emit('connected');
-  client.connected = true;
-  sinon.assert.calledOnce(notification.client.subscribeToNode);
+  client.emit('session:started');
+  client.transport = { authenticated: true };
+  sinon.assert.calledOnce(notification.stanzaio.subscribeToNode);
   t.is(notification.subscriptions.test.length, 1);
   t.is(notification.subscriptions.test[0], handler);
 
@@ -66,7 +66,7 @@ test('subscribe and unsubscribe do their jobs', async t => {
   const handler2 = sinon.stub();
   notification.expose.subscribe('test', handler2, callback);
   // don't resubscribe on the server
-  sinon.assert.calledOnce(notification.client.subscribeToNode);
+  sinon.assert.calledOnce(notification.stanzaio.subscribeToNode);
   t.is(notification.subscriptions.test[1], handler2);
 
   // eventing
@@ -91,22 +91,22 @@ test('subscribe and unsubscribe do their jobs', async t => {
   sinon.assert.calledWith(handler2, { the: 'payload' });
 
   // unsubscribing
-  sinon.stub(notification.client, 'unsubscribeFromNode').callsFake((a, b, c) => c());
+  sinon.stub(notification.stanzaio, 'unsubscribeFromNode').callsFake((a, b, c) => c());
   notification.expose.unsubscribe('test', handler2);
   // there are still more subscriptions
-  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+  sinon.assert.notCalled(notification.stanzaio.unsubscribeFromNode);
 
   notification.expose.unsubscribe('test');
   // unsubscribing without a handler won't trigger any unsubscribe
-  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+  sinon.assert.notCalled(notification.stanzaio.unsubscribeFromNode);
 
-  client.connected = false;
+  client.transport = { authenticated: false };
   notification.expose.unsubscribe('test', handler);
-  sinon.assert.notCalled(notification.client.unsubscribeFromNode);
+  sinon.assert.notCalled(notification.stanzaio.unsubscribeFromNode);
 
-  client.emit('connected');
-  sinon.assert.calledOnce(notification.client.unsubscribeFromNode);
-  sinon.assert.calledWith(notification.client.unsubscribeFromNode, 'notifications.inindca.com', 'test', sinon.match.func);
+  client.emit('session:started');
+  sinon.assert.calledOnce(notification.stanzaio.unsubscribeFromNode);
+  sinon.assert.calledWith(notification.stanzaio.unsubscribeFromNode, 'notifications.inindca.com', 'test', sinon.match.func);
 
   t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });
@@ -119,10 +119,10 @@ test('notifications should resubscribe to existing topics after streaming-subscr
   const notification = new Notifications(client);
 
   // subscribing
-  sinon.stub(notification.client, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
-  client.emit('connected');
-  client.connected = true;
-  sinon.assert.notCalled(notification.client.subscribeToNode);
+  sinon.stub(notification.stanzaio, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
+  client.emit('session:started');
+  client.transport = { authenticated: true };
+  sinon.assert.notCalled(notification.stanzaio.subscribeToNode);
   const handler = sinon.stub();
   const handler2 = sinon.stub();
   const handler3 = sinon.stub();
@@ -130,7 +130,7 @@ test('notifications should resubscribe to existing topics after streaming-subscr
   notification.expose.subscribe('test', handler, callback);
   notification.expose.subscribe('test', handler2, callback);
   notification.expose.subscribe('test2', handler3, callback);
-  sinon.assert.calledTwice(notification.client.subscribeToNode);
+  sinon.assert.calledTwice(notification.stanzaio.subscribeToNode);
   notification.expose.unsubscribe('test2', handler3);
   client.emit('pubsub:event', {
     event: {
@@ -142,5 +142,5 @@ test('notifications should resubscribe to existing topics after streaming-subscr
       }
     }
   });
-  sinon.assert.calledThrice(notification.client.subscribeToNode);
+  sinon.assert.calledThrice(notification.stanzaio.subscribeToNode);
 });

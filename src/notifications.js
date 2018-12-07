@@ -3,20 +3,20 @@ import WildEmitter from 'wildemitter';
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
 class Notification extends WildEmitter {
-  constructor (client, clientOptions = {}) {
+  constructor (stanzaio, clientOptions = {}) {
     super();
     this.subscriptions = {};
 
-    this.client = client;
+    this.stanzaio = stanzaio;
     this.logger = clientOptions.logger || console;
 
-    client.on('pubsub:event', this.pubsubEvent.bind(this));
-    client.on('connected', this.subscriptionsKeepAlive.bind(this));
+    stanzaio.on('pubsub:event', this.pubsubEvent.bind(this));
+    stanzaio.on('session:started', this.subscriptionsKeepAlive.bind(this));
   }
 
   get pubsubHost () {
     try {
-      const domain = this.client.config.wsURL.toLowerCase().match(/\.([a-z0-9]+\.[a-z.]+)\//)[1];
+      const domain = this.stanzaio.config.wsURL.toLowerCase().match(/\.([a-z0-9]+\.[a-z.]+)\//)[1];
       return `notifications.${domain}`;
     } catch (e) {
       return PUBSUB_HOST_DEFAULT;
@@ -35,7 +35,7 @@ class Notification extends WildEmitter {
     const payload = msg.event.updated.published[0].json;
     const handlers = this.topicHandlers(topic);
 
-    this.client.emit('notifications:notify', {topic: topic, data: payload});
+    this.stanzaio.emit('notifications:notify', {topic: topic, data: payload});
     handlers.forEach((handler) => {
       handler(payload);
     });
@@ -43,11 +43,11 @@ class Notification extends WildEmitter {
 
   xmppSubscribe (topic, callback) {
     if (this.topicHandlers(topic).length === 0) {
-      if (this.client.connected) {
-        this.client.subscribeToNode(this.pubsubHost, topic, callback);
+      if (this.stanzaio.transport && this.stanzaio.transport.authenticated) {
+        this.stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
       } else {
-        this.client.once('connected', () => {
-          this.client.subscribeToNode(this.pubsubHost, topic, callback);
+        this.stanzaio.once('session:started', () => {
+          this.stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
         });
       }
     }
@@ -60,11 +60,11 @@ class Notification extends WildEmitter {
       handlers.splice(handlerIndex, 1);
     }
     if (handlers.length === 0) {
-      if (this.client.connected) {
-        this.client.unsubscribeFromNode(this.pubsubHost, topic, callback);
+      if (this.stanzaio.transport && this.stanzaio.transport.authenticated) {
+        this.stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
       } else {
-        this.client.once('connected', () => {
-          this.client.unsubscribeFromNode(this.pubsubHost, topic, callback);
+        this.stanzaio.once('session:started', () => {
+          this.stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
         });
       }
     }
@@ -85,7 +85,7 @@ class Notification extends WildEmitter {
       }
       const handlers = this.topicHandlers(topic);
       if (handlers.length > 0) {
-        this.client.subscribeToNode(this.pubsubHost, topic);
+        this.stanzaio.subscribeToNode(this.pubsubHost, topic);
       }
     });
   }

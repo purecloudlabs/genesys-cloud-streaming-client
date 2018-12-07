@@ -3,7 +3,7 @@
 const backoff = require('backoff-web');
 
 class Reconnector {
-  constructor (client) {
+  constructor (stanzaio) {
     this.backoff = backoff.exponential({
       randomisationFactor: 0.2,
       initialDelay: 250,
@@ -12,29 +12,28 @@ class Reconnector {
     });
 
     this.backoff.on('backoff', (number, delay) => {
-      this.client.emit('backoff', { number, delay });
+      this.stanzaio.emit('backoff', { number, delay });
     });
 
     this.backoff.on('ready', (number, delay) => {
-      this.client.connect();
+      this.stanzaio.connect();
       this.backoff.backoff();
     });
 
-    this.client = client;
+    this.stanzaio = stanzaio;
 
     // self bound methods so we can clean up the handlers
     this._cleanupReconnect = this.cleanupReconnect.bind(this);
-    this.client.on('_connected', this._cleanupReconnect);
+    this.stanzaio.on('connected', this._cleanupReconnect);
 
     // disable reconnecting when there's an auth failure
-    this.client.on('auth:failed', this._cleanupReconnect);
+    this.stanzaio.on('auth:failed', this._cleanupReconnect);
 
     this._backoffActive = false;
   }
 
   cleanupReconnect () {
     this.backoff.reset();
-    this.client.off('_connected', this._cleanupReconnect);
     this._backoffActive = false;
   }
 
@@ -42,7 +41,7 @@ class Reconnector {
     if (this._backoffActive) {
       return;
     }
-    this.client.connect();
+    this.stanzaio.connect();
     this.backoff.backoff();
     this._backoffActive = true;
   }

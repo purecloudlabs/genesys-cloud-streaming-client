@@ -66,13 +66,13 @@ const REMAPPED_EVENTS = {
 
 function client (clientOptions) {
   let stanzaioOpts = stanzaioOptions(clientOptions);
-  let stanzaClient = XMPP.createClient(stanzaioOpts);
+  let stanzaio = XMPP.createClient(stanzaioOpts);
   let subscribedTopics = [];
-  let ping = require('./ping')(stanzaClient, stanzaioOpts);
-  let reconnect = new Reconnector(stanzaClient, stanzaioOpts);
+  let ping = require('./ping')(stanzaio, stanzaioOpts);
+  let reconnect = new Reconnector(stanzaio, stanzaioOpts);
 
   const client = {
-    _stanzaio: stanzaClient,
+    _stanzaio: stanzaio,
     connected: false,
     autoReconnect: true,
     subscribedTopics: subscribedTopics,
@@ -90,12 +90,12 @@ function client (clientOptions) {
     },
     disconnect () {
       client.autoReconnect = false;
-      stanzaClient.disconnect();
+      stanzaio.disconnect();
     },
     reconnect () {
       // trigger a stop on the underlying connection, but allow reconnect
       client.autoReconnect = true;
-      stanzaClient.disconnect();
+      stanzaio.disconnect();
     },
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
@@ -108,7 +108,7 @@ function client (clientOptions) {
         .then(res => {
           options.channelId = res.body.id;
           client.autoReconnect = true;
-          stanzaClient.connect(stanzaioOptions(options));
+          stanzaio.connect(stanzaioOptions(options));
         });
     }
   };
@@ -144,13 +144,13 @@ function client (clientOptions) {
   });
 
   Object.keys(extensions).forEach((extensionName) => {
-    const extension = new extensions[extensionName](stanzaClient, clientOptions[extensionName] || {});
+    const extension = new extensions[extensionName](stanzaio, clientOptions[extensionName] || {});
 
     if (typeof extension.handleIq === 'function') {
-      stanzaClient.on('iq', extension.handleIq.bind(extension));
+      stanzaio.on('iq', extension.handleIq.bind(extension));
     }
     if (typeof extension.handleMessage === 'function') {
-      stanzaClient.on('message', extension.handleMessage.bind(extension));
+      stanzaio.on('message', extension.handleMessage.bind(extension));
     }
 
     if (!extension.tokenBucket) {
@@ -167,9 +167,9 @@ function client (clientOptions) {
     extension.on('send', function (data, message = false) {
       return extension.tokenBucket.removeTokens(1, () => {
         if (message === true) {
-          return stanzaClient.sendMessage(data);
+          return stanzaio.sendMessage(data);
         }
-        return stanzaClient.sendIq(data);
+        return stanzaio.sendIq(data);
       });
     });
 
