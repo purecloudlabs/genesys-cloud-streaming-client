@@ -21,6 +21,19 @@ function requestApi (path, { method, data, host, version, contentType, authToken
   return response.send(data); // trigger request
 }
 
+function timeoutPromise (fn, timeout, msg) {
+  return new Promise(function (resolve, reject) {
+    const timeout = setTimeout(function () {
+      reject(new Error(`Timeout: ${msg}`));
+    });
+    const done = function () {
+      clearTimeout(timeout);
+      resolve();
+    };
+    fn(done);
+  });
+}
+
 let extensions = {
   notifications,
   webrtcSessions
@@ -67,7 +80,6 @@ const REMAPPED_EVENTS = {
 function client (clientOptions) {
   let stanzaioOpts = stanzaioOptions(clientOptions);
   let stanzaio = XMPP.createClient(stanzaioOpts);
-  let subscribedTopics = [];
   let ping = require('./ping')(stanzaio, stanzaioOpts);
   let reconnect = new Reconnector(stanzaio, stanzaioOpts);
 
@@ -75,7 +87,6 @@ function client (clientOptions) {
     _stanzaio: stanzaio,
     connected: false,
     autoReconnect: true,
-    subscribedTopics: subscribedTopics,
     on (eventName, ...args) {
       if (REMAPPED_EVENTS[eventName]) {
         return this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
@@ -89,13 +100,19 @@ function client (clientOptions) {
       return this._stanzaio.off(eventName, ...args);
     },
     disconnect () {
-      client.autoReconnect = false;
-      stanzaio.disconnect();
+      return timeoutPromise(resolve => {
+        this._stanzaio.once('disconnected', resolve);
+        this.autoReconnect = false;
+        this._stanzaio.disconnect();
+      }, 1000, 'disconnecting streaming service');
     },
     reconnect () {
-      // trigger a stop on the underlying connection, but allow reconnect
-      client.autoReconnect = true;
-      stanzaio.disconnect();
+      return timeoutPromise(resolve => {
+        this._stanzaio.once('session:started', resolve);
+        // trigger a stop on the underlying connection, but allow reconnect
+        this.autoReconnect = true;
+        stanzaio.disconnect();
+      }, 1000, 'reconnecting streaming service');
     },
     connect (connectionOptions) {
       let options = mergeOptions(clientOptions, connectionOptions);
@@ -107,8 +124,11 @@ function client (clientOptions) {
       return requestApi('notifications/channels?connectionType=streaming', opts)
         .then(res => {
           options.channelId = res.body.id;
-          client.autoReconnect = true;
-          stanzaio.connect(stanzaioOptions(options));
+          this.autoReconnect = true;
+          return timeoutPromise(resolve => {
+            this._stanzaio.once('session:started', resolve);
+            stanzaio.connect(stanzaioOptions(options));
+          }, 10 * 1000, 'connecting to streaming service');
         });
     }
   };

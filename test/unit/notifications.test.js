@@ -47,8 +47,7 @@ test('subscribe and unsubscribe do their jobs', async t => {
   // subscribing
   sinon.stub(notification.stanzaio, 'subscribeToNode').callsFake((a, b, c) => c());
   const handler = sinon.stub();
-  const callback = () => {};
-  notification.expose.subscribe('test', handler, callback);
+  const firstSubscription = notification.expose.subscribe('test', handler);
 
   // not subscribed yet, client is not connected
   sinon.assert.notCalled(notification.stanzaio.subscribeToNode);
@@ -56,15 +55,16 @@ test('subscribe and unsubscribe do their jobs', async t => {
   client.emit('session:started');
   client.transport = { authenticated: true };
   sinon.assert.calledOnce(notification.stanzaio.subscribeToNode);
+  await firstSubscription;
   t.is(notification.subscriptions.test.length, 1);
   t.is(notification.subscriptions.test[0], handler);
 
   // subscribe again to the same topic with the same handler
-  notification.expose.subscribe('test', handler, callback);
+  await notification.expose.subscribe('test', handler);
   t.is(notification.subscriptions.test.length, 1, 'handler not added again');
 
   const handler2 = sinon.stub();
-  notification.expose.subscribe('test', handler2, callback);
+  await notification.expose.subscribe('test', handler2);
   // don't resubscribe on the server
   sinon.assert.calledOnce(notification.stanzaio.subscribeToNode);
   t.is(notification.subscriptions.test[1], handler2);
@@ -80,10 +80,10 @@ test('subscribe and unsubscribe do their jobs', async t => {
       }
     }
   };
-  sinon.spy(client, 'emit');
+  sinon.spy(notification, 'emit');
   client.emit('pubsub:event', pubsubMessage);
-  sinon.assert.calledTwice(client.emit);
-  sinon.assert.calledWith(client.emit, 'notifications:notify', { topic: 'test', data: { the: 'payload' } });
+  sinon.assert.calledOnce(notification.emit);
+  sinon.assert.calledWith(notification.emit, 'notify', { topic: 'test', data: { the: 'payload' } });
 
   sinon.assert.calledOnce(handler);
   sinon.assert.calledWith(handler, { the: 'payload' });
@@ -92,26 +92,41 @@ test('subscribe and unsubscribe do their jobs', async t => {
 
   // unsubscribing
   sinon.stub(notification.stanzaio, 'unsubscribeFromNode').callsFake((a, b, c) => c());
-  notification.expose.unsubscribe('test', handler2);
+  await notification.expose.unsubscribe('test', handler2);
   // there are still more subscriptions
   sinon.assert.notCalled(notification.stanzaio.unsubscribeFromNode);
 
-  notification.expose.unsubscribe('test');
+  await notification.expose.unsubscribe('test');
   // unsubscribing without a handler won't trigger any unsubscribe
   sinon.assert.notCalled(notification.stanzaio.unsubscribeFromNode);
 
   client.transport = { authenticated: false };
-  notification.expose.unsubscribe('test', handler);
+  const unsubscribe = notification.expose.unsubscribe('test', handler);
   sinon.assert.notCalled(notification.stanzaio.unsubscribeFromNode);
 
   client.emit('session:started');
+  await unsubscribe;
   sinon.assert.calledOnce(notification.stanzaio.unsubscribeFromNode);
   sinon.assert.calledWith(notification.stanzaio.unsubscribeFromNode, 'notifications.inindca.com', 'test', sinon.match.func);
-
-  t.deepEqual(notification.exposeEvents, [ 'notifications:notify' ]);
 });
 
-test('notifications should resubscribe to existing topics after streaming-subscriptions-expiring event', t => {
+test('subscribe and unsubscribe reject on failures', async t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://streaming.inindca.com/something-else'
+  };
+  const notification = new Notifications(client);
+
+  client.transport = { authenticated: true };
+  sinon.stub(notification.stanzaio, 'subscribeToNode').callsFake((a, b, c) => c(new Error('test')));
+  sinon.stub(notification.stanzaio, 'unsubscribeFromNode').callsFake((a, b, c = () => {}) => c(new Error('test')));
+  const handler = sinon.stub();
+  t.plan(2);
+  await notification.expose.subscribe('test', handler).catch(() => t.pass());
+  await notification.expose.unsubscribe('test', handler).catch(() => t.pass());
+});
+
+test('notifications should resubscribe to existing topics after streaming-subscriptions-expiring event', async t => {
   const client = new Client();
   client.config = {
     wsURL: 'ws://streaming.inindca.com/something-else'
@@ -120,18 +135,18 @@ test('notifications should resubscribe to existing topics after streaming-subscr
 
   // subscribing
   sinon.stub(notification.stanzaio, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
+  sinon.stub(notification.stanzaio, 'unsubscribeFromNode').callsFake((a, b, c = () => {}) => c());
   client.emit('session:started');
   client.transport = { authenticated: true };
   sinon.assert.notCalled(notification.stanzaio.subscribeToNode);
   const handler = sinon.stub();
   const handler2 = sinon.stub();
   const handler3 = sinon.stub();
-  const callback = () => {};
-  notification.expose.subscribe('test', handler, callback);
-  notification.expose.subscribe('test', handler2, callback);
-  notification.expose.subscribe('test2', handler3, callback);
+  await notification.expose.subscribe('test', handler);
+  await notification.expose.subscribe('test', handler2);
+  await notification.expose.subscribe('test2', handler3);
   sinon.assert.calledTwice(notification.stanzaio.subscribeToNode);
-  notification.expose.unsubscribe('test2', handler3);
+  await notification.expose.unsubscribe('test2', handler3);
   client.emit('pubsub:event', {
     event: {
       updated: {

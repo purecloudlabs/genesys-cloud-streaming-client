@@ -35,7 +35,7 @@ test('client creation', t => {
 test('connect jid override', async t => {
   t.plan(0);
   const client = pcStream.client(getDefaultOptions());
-  sinon.stub(client._stanzaio, 'connect');
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
   const api = mockApi();
   await client.connect({
     jid: 'someone-else@example.mypurecloud.com'
@@ -52,12 +52,24 @@ test('connect jid override', async t => {
   });
 });
 
+test('connect will reject if the session:started event is never emitted', t => {
+  t.plan(1);
+  const client = pcStream.client(getDefaultOptions());
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:error', {}));
+  mockApi();
+  return client.connect({
+    jid: 'someone-else@example.mypurecloud.com'
+  }).catch(() => {
+    t.pass();
+  });
+});
+
 test('connect full override', async t => {
   t.plan(0);
   const options = getDefaultOptions();
   options.test = { baz: 'qux' };
   const client = pcStream.client(options);
-  sinon.stub(client._stanzaio, 'connect');
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
   const api = mockApi();
   await client.connect({
     jid: 'anon@example.mypurecloud.com',
@@ -80,7 +92,7 @@ test('connect full override', async t => {
 test('connect override of clientOptions', async t => {
   t.plan(0);
   const client = pcStream.client(getDefaultOptions());
-  sinon.stub(client._stanzaio, 'connect');
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
   const api = mockApi();
   await client.connect({
     jid: 'anon@example.mypurecloud.com',
@@ -157,7 +169,7 @@ test('Should not begin to reconnect when it becomes disconnected if autoReconnec
 test('Disconnecting explicitly will set autoReconnect to false', t => {
   const client = pcStream.client(getDefaultOptions());
   t.is(client.autoReconnect, true);
-  client._stanzaio.disconnect = sinon.stub();
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
   client.disconnect();
   t.is(client.autoReconnect, false);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
@@ -166,7 +178,8 @@ test('Disconnecting explicitly will set autoReconnect to false', t => {
 test('reconnect should disconnect but allow autoReconnect', t => {
   const client = pcStream.client(getDefaultOptions());
   client._autoReconnect = false;
-  client._stanzaio.disconnect = sinon.stub();
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
+  client._stanzaio.connect = sinon.stub().callsFake(() => client._stanzaio.emit('session:started', {}));
   client.reconnect();
   t.is(client.autoReconnect, true);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
@@ -175,7 +188,7 @@ test('reconnect should disconnect but allow autoReconnect', t => {
 test('auth:failed should disable autoReconnect and disconnect', t => {
   const client = pcStream.client(getDefaultOptions());
   t.is(client.autoReconnect, true);
-  client._stanzaio.disconnect = sinon.stub();
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
   client._stanzaio.emit('auth:failed');
   t.is(client.autoReconnect, false);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
