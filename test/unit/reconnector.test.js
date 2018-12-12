@@ -15,20 +15,29 @@ class Client extends WildEmitter {
     super();
     this.connected = false;
     this.connectAttempts = 0;
+
+    this.logger = {
+      warn () {},
+      error () {}
+    };
+
+    this._stanzaio = {
+      connect: () => {
+        this.connectAttempts++;
+        setTimeout(() => {
+          if (SIMULTATE_ONLINE) {
+            this.emit('connected');
+            this.connected = true;
+          } else {
+            this.emit('disconnected');
+            this.connected = false;
+          }
+        }, 10);
+      }
+    };
   }
 
-  connect () {
-    this.connectAttempts++;
-    setTimeout(() => {
-      if (SIMULTATE_ONLINE) {
-        this.emit('connected');
-        this.connected = true;
-      } else {
-        this.emit('disconnected');
-        this.connected = false;
-      }
-    }, 10);
-  }
+  connect () {}
 }
 
 test.beforeEach(() => {
@@ -99,6 +108,26 @@ test('when stopped it will cease the backoff', async t => {
   // make sure it didn't keep trying
   clock.tick(10000);
   t.is(client.connectAttempts, 3);
+});
+
+test('will attempt a full reconnection after 10 failures', async t => {
+  const client = new Client();
+  sinon.stub(client, 'connect');
+  const reconnect = new Reconnector(client);
+  reconnect.start();
+
+  // move forward in time to where two connections should have been attempted.
+  clock.tick(350);
+  t.is(client.connectAttempts, 2);
+
+  sinon.assert.notCalled(client.connect);
+
+  // Fail a lot more
+  clock.tick(50000);
+  t.is(client.connectAttempts > 10, true);
+
+  // make sure client connect was called
+  sinon.assert.calledOnce(client.connect);
 });
 
 test('when an auth failure occurs it will cease the backoff', async t => {

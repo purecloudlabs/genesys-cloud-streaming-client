@@ -51,21 +51,17 @@ authenticated.
     - `String authToken`: Required; access token for the user
     - `String host`: Required; `wss://streaming.` + `mypurecloud.com || mypurecloud.ie ||
         mypurecloud.jp || mypurecloud.de || mypurecloud.com.au`
-    - `String jid` : Required; JabberId for the user (get `from api/v2/users/me`)
+    - `String jid` : Required; JabberId for the user (get from `api/v2/users/me`)
 
 #### Methods
 
-`client.connect(options) : Promise<void>` - Initialize the WebSocket connection for streaming
-connectivity with PureCloud. Initialize must be called before any events will trigger.
-
-- parameters
-  - `Object options` with properties same as the constructor. Will override any
-  constructor options
+`client.connect() : Promise<void>` - Initialize the WebSocket connection for streaming
+connectivity with PureCloud. `connect` must be called before any events will trigger.
 
 `client.reconnect() : Promise<void>` - Disconnect (if connected) and reconnect to
 the streaming service
 
-`client.disconnect() : Promise<void>` - Disconnect from  the streaming
+`client.disconnect() : Promise<void>` - Disconnect from the streaming
 service
 
 `client.on(eventName, handler) : void` - register an event handler for the client
@@ -77,11 +73,15 @@ service
         - 'disconnected' - when the streaming service is disconnected
   - `Function handler` - handler to evoke when event is emitted
 
+`client.once(eventName, handler) : void` - like `on` but handler will be called only once
+
 #### Extensions
 
 > For details on implementing new extensions, see [extensions.md].
 
 The following extensions are currently bundled with the client:
 
+ - Ping (for keepalive on the socket)
+ - Reconnector (for automatic reconnecting)
  - [Notifications](notifications.md)
  - [WebRTC Sessions](webrtc-sessions.md)

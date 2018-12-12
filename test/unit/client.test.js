@@ -4,7 +4,7 @@ const test = require('ava');
 const sinon = require('sinon');
 const nock = require('nock');
 
-const pcStream = require('../../src/client');
+const Client = require('../../src/client');
 const { TokenBucket } = require('limiter');
 const WildEmitter = require('wildemitter');
 
@@ -19,6 +19,10 @@ function getDefaultOptions () {
   return Object.assign({}, defaultOptions);
 }
 
+class TestExtension extends WildEmitter {}
+
+Client.extend('testExtension', TestExtension);
+
 function mockApi () {
   return nock('https://api.example.com')
     .post('/api/v2/notifications/channels?connectionType=streaming')
@@ -26,35 +30,15 @@ function mockApi () {
 }
 
 test('client creation', t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   t.is(typeof client.on, 'function');
   t.is(typeof client.connect, 'function');
-  t.truthy(client.webrtcSessions);
-});
-
-test('connect jid override', async t => {
-  t.plan(0);
-  const client = pcStream.client(getDefaultOptions());
-  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
-  const api = mockApi();
-  await client.connect({
-    jid: 'someone-else@example.mypurecloud.com'
-  });
-  api.done();
-  sinon.assert.calledWithExactly(client._stanzaio.connect, {
-    jid: 'someone-else@example.mypurecloud.com',
-    credentials: {
-      username: 'someone-else@example.mypurecloud.com',
-      password: 'authKey:AuthToken'
-    },
-    transport: 'websocket',
-    wsURL: 'wss://streaming.example.com/stream/channels/streaming-someid'
-  });
+  t.truthy(client.notifications);
 });
 
 test('connect will reject if the session:started event is never emitted', t => {
   t.plan(1);
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:error', {}));
   mockApi();
   return client.connect({
@@ -62,45 +46,6 @@ test('connect will reject if the session:started event is never emitted', t => {
   }).catch(() => {
     t.pass();
   });
-});
-
-test('connect full override', async t => {
-  t.plan(0);
-  const options = getDefaultOptions();
-  options.test = { baz: 'qux' };
-  const client = pcStream.client(options);
-  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
-  const api = mockApi();
-  await client.connect({
-    jid: 'anon@example.mypurecloud.com',
-    authToken: 'AuthTokenAlt',
-    test: { foo: 'bar' },
-    host: 'wss://streaming.example.com'
-  });
-  api.done();
-  sinon.assert.calledWithExactly(client._stanzaio.connect, {
-    jid: 'anon@example.mypurecloud.com',
-    credentials: {
-      username: 'anon@example.mypurecloud.com',
-      password: 'authKey:AuthTokenAlt'
-    },
-    transport: 'websocket',
-    wsURL: 'wss://streaming.example.com/stream/channels/streaming-someid'
-  });
-});
-
-test('connect override of clientOptions', async t => {
-  t.plan(0);
-  const client = pcStream.client(getDefaultOptions());
-  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
-  const api = mockApi();
-  await client.connect({
-    jid: 'anon@example.mypurecloud.com',
-    authToken: 'AuthTokenAlt',
-    test: { foo: 'bar' },
-    host: 'wss://streaming.example.com'
-  });
-  api.done();
 });
 
 test('extend add an extension for creating clients', t => {
@@ -111,8 +56,8 @@ test('extend add an extension for creating clients', t => {
       return { foo () {} };
     }
   }
-  pcStream.extend('test1234', TestExtension);
-  const client = pcStream.client(getDefaultOptions());
+  Client.extend('test1234', TestExtension);
+  const client = new Client(getDefaultOptions());
   t.is(typeof client._test1234.on, 'function');
   t.is(typeof client.test1234.foo, 'function');
 });
@@ -132,33 +77,33 @@ test('should call handleIq or handleMessage on those events, if an extension reg
     }
   }
 
-  pcStream.extend('testIqAndMessageHandlers', TestExtension);
-  const client = pcStream.client(getDefaultOptions());
+  Client.extend('testIqAndMessageHandlers', TestExtension);
+  const client = new Client(getDefaultOptions());
   client._stanzaio.emit('iq', testIq);
   client._stanzaio.emit('message', testMessage);
 });
 
 test('Should see callbacks set when an iq callback is explicitly registered', t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   client._stanzaio.on('iq:set:myTestTopic', () => {});
 
   t.is(client._stanzaio.callbacks['iq:set:myTestTopic'].length, 1);
 });
 
 test('Should begin to reconnect when it becomes disconnected', t => {
-  const client = pcStream.client(getDefaultOptions());
-  client._stanzaio.emit('disconnected');
+  const client = new Client(getDefaultOptions());
 
   return new Promise(resolve => {
     client._stanzaio.connect = sinon.stub().callsFake(() => {
       client._stanzaio.emit('connected');
       resolve();
     });
+    client._stanzaio.emit('disconnected');
   });
 });
 
 test('Should not begin to reconnect when it becomes disconnected if autoReconnect is off', async t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   client.autoReconnect = false;
   client._stanzaio.emit('disconnected');
   sinon.stub(client._stanzaio, 'emit');
@@ -167,7 +112,7 @@ test('Should not begin to reconnect when it becomes disconnected if autoReconnec
 });
 
 test('Disconnecting explicitly will set autoReconnect to false', t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
   client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
   client.disconnect();
@@ -176,7 +121,7 @@ test('Disconnecting explicitly will set autoReconnect to false', t => {
 });
 
 test('reconnect should disconnect but allow autoReconnect', t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   client._autoReconnect = false;
   client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
   client._stanzaio.connect = sinon.stub().callsFake(() => client._stanzaio.emit('session:started', {}));
@@ -186,7 +131,7 @@ test('reconnect should disconnect but allow autoReconnect', t => {
 });
 
 test('auth:failed should disable autoReconnect and disconnect', t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
   client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
   client._stanzaio.emit('auth:failed');
@@ -195,7 +140,7 @@ test('auth:failed should disable autoReconnect and disconnect', t => {
 });
 
 test('session:started event sets the client streamId', t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   client._stanzaio.emit('session:started', { resource: 'foobar' });
   t.is(client.streamId, 'foobar');
   client._stanzaio.emit('session:end');
@@ -203,28 +148,28 @@ test('session:started event sets the client streamId', t => {
 });
 
 test('extension.on(send) will send a stanza', async t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
-  client._webrtcSessions.emit('send', { some: 'stanza' });
+  client._testExtension.emit('send', { some: 'stanza' });
   await new Promise(resolve => setTimeout(resolve, 10));
   sinon.assert.calledOnce(client._stanzaio.sendIq);
 });
 
 test('extension.on(send) will send a message stanza', async t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   sinon.stub(client._stanzaio, 'sendMessage');
-  client._webrtcSessions.emit('send', { some: 'stanza' }, true);
+  client._testExtension.emit('send', { some: 'stanza' }, true);
   await new Promise(resolve => setTimeout(resolve, 10));
   sinon.assert.calledOnce(client._stanzaio.sendMessage);
   sinon.assert.notCalled(client._stanzaio.sendIq);
 });
 
 test('it will rate limit extensions sending stanzas', async t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   for (let i = 0; i < 100; i++) {
-    client._webrtcSessions.emit('send', { some: 'data' });
+    client._testExtension.emit('send', { some: 'data' });
   }
   await new Promise(resolve => setTimeout(resolve, 1001));
   t.is(client._stanzaio.sendIq.callCount, 45);
@@ -237,14 +182,14 @@ test('it will rate limit extensions sending stanzas', async t => {
 });
 
 test('it will rate limit extensions with their own tokenBucket', async t => {
-  pcStream.extend('tokenBucket', class CustomExtension extends WildEmitter {
+  Client.extend('tokenBucket', class CustomExtension extends WildEmitter {
     constructor () {
       super();
       this.tokenBucket = new TokenBucket(40, 50, 1000);
       this.tokenBucket.content = 40;
     }
   });
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'sendIq');
   for (let i = 0; i < 200; i++) {
     client._tokenBucket.emit('send', { some: 'data' });
@@ -261,22 +206,29 @@ test('it will rate limit extensions with their own tokenBucket', async t => {
 
 test('extend throws if an extension is already registered to a namespace', t => {
   t.throws(() => {
-    pcStream.extend('webrtcSessions', () => {});
+    Client.extend('testExtension', () => {});
   });
 });
 
 test('it will remap some events for our client to the underlying stanza client', async t => {
-  const client = pcStream.client(getDefaultOptions());
+  const client = new Client(getDefaultOptions());
   const connected = sinon.stub();
   const _connected = sinon.stub();
+  const event = sinon.stub();
   client.on('session:started', connected);
   client.on('connected', connected);
   client.on('_connected', _connected);
+  client.once('other:event', event);
   client._stanzaio.emit('session:started', {});
   sinon.assert.calledTwice(connected);
   sinon.assert.notCalled(_connected);
   client._stanzaio.emit('connected', {});
   sinon.assert.calledOnce(_connected);
+
+  // once should only emit once
+  client._stanzaio.emit('other:event', {});
+  client._stanzaio.emit('other:event', {});
+  sinon.assert.calledOnce(event);
 
   connected.reset();
   _connected.reset();
