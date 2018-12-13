@@ -1,23 +1,21 @@
-import WildEmitter from 'wildemitter';
+import { requestApi } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
-class Notification extends WildEmitter {
-  constructor (stanzaio, clientOptions = {}) {
-    super();
+class Notification {
+  constructor (client) {
     this.subscriptions = {};
+    this.bulkSubscriptions = {};
 
-    this.stanzaio = stanzaio;
-    this.logger = clientOptions.logger || console;
+    this.client = client;
 
-    stanzaio.on('pubsub:event', this.pubsubEvent.bind(this));
-    stanzaio.on('session:started', this.subscriptionsKeepAlive.bind(this));
+    client.on('pubsub:event', this.pubsubEvent.bind(this));
+    client.on('connected', this.subscriptionsKeepAlive.bind(this));
   }
 
   get pubsubHost () {
     try {
-      const domain = this.stanzaio.config.wsURL.toLowerCase().match(/\.([a-z0-9]+\.[a-z.]+)\//)[1];
-      return `notifications.${domain}`;
+      return `notifications.${this.client.config.apiHost}`;
     } catch (e) {
       return PUBSUB_HOST_DEFAULT;
     }
@@ -35,39 +33,48 @@ class Notification extends WildEmitter {
     const payload = msg.event.updated.published[0].json;
     const handlers = this.topicHandlers(topic);
 
-    this.stanzaio.emit('notifications:notify', {topic: topic, data: payload});
+    this.client._stanzaio.emit('notify', { topic: topic, data: payload });
+    this.client._stanzaio.emit(`notify:${topic}`, payload);
     handlers.forEach((handler) => {
       handler(payload);
     });
   }
 
   xmppSubscribe (topic, callback) {
-    if (this.topicHandlers(topic).length === 0) {
-      if (this.stanzaio.transport && this.stanzaio.transport.authenticated) {
-        this.stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
-      } else {
-        this.stanzaio.once('session:started', () => {
-          this.stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
-        });
-      }
+    if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
+      return callback();
+    }
+    if (this.client.connected) {
+      this.client._stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
+    } else {
+      this.client.once('connected', () => {
+        this.client._stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
+      });
     }
   }
 
-  xmppUnsubscribe (topic, handler, callback) {
-    let handlers = this.topicHandlers(topic);
-    let handlerIndex = handlers.indexOf(handler);
-    if (handlerIndex > -1) {
-      handlers.splice(handlerIndex, 1);
+  xmppUnsubscribe (topic, callback) {
+    if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
+      return callback();
     }
-    if (handlers.length === 0) {
-      if (this.stanzaio.transport && this.stanzaio.transport.authenticated) {
-        this.stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
-      } else {
-        this.stanzaio.once('session:started', () => {
-          this.stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
-        });
-      }
+    if (this.client.connected) {
+      this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
+    } else {
+      this.client.once('connected', () => {
+        this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
+      });
     }
+  }
+
+  bulkSubscribe (topics) {
+    const requestOptions = {
+      method: 'post',
+      host: this.client.config.apiHost,
+      authToken: this.client.config.authToken,
+      data: JSON.stringify(topics.map(t => ({ id: t })))
+    };
+    const channelId = this.client.config.channelId;
+    return requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
   }
 
   createSubscription (topic, handler) {
@@ -77,7 +84,16 @@ class Notification extends WildEmitter {
     }
   }
 
+  removeSubscription (topic, handler) {
+    let handlers = this.topicHandlers(topic);
+    let handlerIndex = handlers.indexOf(handler);
+    if (handlerIndex > -1) {
+      handlers.splice(handlerIndex, 1);
+    }
+  }
+
   resubscribe () {
+    const topicsToResubscribe = Object.keys(this.bulkSubscriptions);
     const topics = Object.keys(this.subscriptions);
     topics.forEach(topic => {
       if (topic === 'streaming-subscriptions-expiring') {
@@ -85,32 +101,50 @@ class Notification extends WildEmitter {
       }
       const handlers = this.topicHandlers(topic);
       if (handlers.length > 0) {
-        this.stanzaio.subscribeToNode(this.pubsubHost, topic);
+        if (topicsToResubscribe.indexOf(topic) === -1) {
+          topicsToResubscribe.push(topic);
+        }
       }
     });
+    return this.bulkSubscribe(topicsToResubscribe);
   }
 
   subscriptionsKeepAlive () {
     const topic = 'streaming-subscriptions-expiring';
     if (this.topicHandlers(topic).length === 0) {
       this.createSubscription(topic, () => {
-        this.logger.info(`${topic} - Triggering resubscribe.`);
+        this.client.logger.info(`${topic} - Triggering resubscribe.`);
         this.resubscribe();
       });
     }
   }
 
-  get exposeEvents () { return [ 'notifications:notify' ]; }
-
   get expose () {
     return {
-      subscribe: function (topic, handler, callback) {
-        this.xmppSubscribe(topic, callback);
-        this.createSubscription(topic, handler);
+      subscribe: function (topic, handler) {
+        return new Promise((resolve, reject) => {
+          this.xmppSubscribe(topic, (err, ...args) => {
+            if (err) { reject(err); } else { resolve(...args); }
+          });
+          this.createSubscription(topic, handler);
+        });
       }.bind(this),
 
-      unsubscribe: function (topic, handler, callback = () => {}) {
-        this.xmppUnsubscribe(topic, handler, callback);
+      unsubscribe: function (topic, handler) {
+        return new Promise((resolve, reject) => {
+          this.removeSubscription(topic, handler);
+          this.xmppUnsubscribe(topic, (err, ...args) => {
+            if (err) { reject(err); } else { resolve(...args); }
+          });
+        });
+      }.bind(this),
+
+      bulkSubscribe: function (topics) {
+        return this.bulkSubscribe(topics).then(() => {
+          topics.forEach(topic => {
+            this.bulkSubscriptions[topic] = true;
+          });
+        });
       }.bind(this)
     };
   }

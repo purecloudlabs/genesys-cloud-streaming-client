@@ -10,17 +10,19 @@ let pingCallCount = 0;
 // we have to reset the doubles for every test.
 test.beforeEach(() => {
   standardOptions = {
-    jid: 'anon@example.mypurecloud.com',
-    logger: { warn () {}, error () {} }
+    jid: 'anon@example.mypurecloud.com'
   };
 
   clock = sinon.useFakeTimers();
   client = {
-    ping: (jid, cb) => {
-      pingCallCount++;
-      return cb(null, { to: 'you' });
-    },
-    sendStreamError: sinon.stub()
+    logger: { warn () {}, error () {} },
+    _stanzaio: {
+      ping: (jid, cb) => {
+        pingCallCount++;
+        return cb(null, { to: 'you' });
+      },
+      sendStreamError: sinon.stub()
+    }
   };
 });
 
@@ -60,10 +62,13 @@ test.serial('when started multiple times it sends a ping on a single interval', 
 
 test.serial('when no pings it closes the connection', t => {
   const client = {
-    ping: (jid, cb) => {
-      cb(new Error('Missed pong'));
-    },
-    sendStreamError: sinon.stub()
+    logger: { warn () {}, error () {} },
+    _stanzaio: {
+      ping: (jid, cb) => {
+        cb(new Error('Missed pong'));
+      },
+      sendStreamError: sinon.stub()
+    }
   };
   let ping = createPing(client, standardOptions);
   ping.start();
@@ -75,23 +80,26 @@ test.serial('when no pings it closes the connection', t => {
   clock.tick(5100);
 
   // verify it sends a stream error
-  t.is(client.sendStreamError.called, true);
-  t.is(client.sendStreamError.getCall(0).args[0].condition, 'connection-timeout');
-  t.is(client.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
+  t.is(client._stanzaio.sendStreamError.called, true);
+  t.is(client._stanzaio.sendStreamError.getCall(0).args[0].condition, 'connection-timeout');
+  t.is(client._stanzaio.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
 });
 
 test.serial('receiving a ping response resets the failure mechanism', t => {
   let pingCount = 0;
   const client = {
-    ping: (jid, cb) => {
-      pingCount++;
-      if (pingCount === 1) {
-        // fail first ping
-        return cb(new Error('missed pong'));
-      }
-      return cb(null, { to: 'your@jid' });
-    },
-    sendStreamError: sinon.stub()
+    logger: { warn () {}, error () {} },
+    _stanzaio: {
+      ping: (jid, cb) => {
+        pingCount++;
+        if (pingCount === 1) {
+          // fail first ping
+          return cb(new Error('missed pong'));
+        }
+        return cb(null, { to: 'your@jid' });
+      },
+      sendStreamError: sinon.stub()
+    }
   };
   let ping = createPing(client, standardOptions);
   ping.start();
@@ -101,14 +109,13 @@ test.serial('receiving a ping response resets the failure mechanism', t => {
   // move forward again
   clock.tick(5100);
   // verify it doesn't send a stream error
-  t.is(client.sendStreamError.callCount, 0);
+  t.is(client._stanzaio.sendStreamError.callCount, 0);
 });
 
 test.serial('allows ping interval override', t => {
   const options = {
     jid: 'anon@example.mypurecloud.com',
-    pingInterval: 60000,
-    logger: { warn () {}, error () {} }
+    pingInterval: 60000
   };
   let ping = createPing(client, options);
   ping.start();
@@ -122,38 +129,40 @@ test.serial('allows ping interval override', t => {
   // now move out further
   clock.tick(40000);
 
-  client.ping(standardOptions, val => val);
+  client._stanzaio.ping(standardOptions, val => val);
 });
 
 test.serial('allows failure number override', t => {
   const client = {
-    ping: (jid, cb) => {
-      cb(new Error('Missed pong'));
-    },
-    sendStreamError: sinon.stub()
+    logger: { warn () {}, error () {} },
+    _stanzaio: {
+      ping: (jid, cb) => {
+        cb(new Error('Missed pong'));
+      },
+      sendStreamError: sinon.stub()
+    }
   };
   let ping = createPing(client, {
     jid: 'aonon@example.mypurecloud.com',
-    failedPingsBeforeDisconnect: 4,
-    logger: { warn () {}, error () {} }
+    failedPingsBeforeDisconnect: 4
   });
   ping.start();
 
   // move forward in time to one ping
   clock.tick(5100);
-  t.is(client.sendStreamError.called, false);
+  t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
   clock.tick(5100);
-  t.is(client.sendStreamError.called, false);
+  t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
   clock.tick(5100);
-  t.is(client.sendStreamError.called, false);
+  t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
   clock.tick(5100);
-  t.is(client.sendStreamError.called, false);
+  t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
   clock.tick(5100);
-  t.is(client.sendStreamError.called, true);
+  t.is(client._stanzaio.sendStreamError.called, true);
 });
 
 test.serial('stop should cause no more pings', t => {
