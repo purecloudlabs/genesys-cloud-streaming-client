@@ -24,9 +24,21 @@ class TestExtension extends WildEmitter {}
 Client.extend('testExtension', TestExtension);
 
 function mockApi () {
-  return nock('https://api.example.com')
-    .post('/api/v2/notifications/channels?connectionType=streaming')
+  nock.restore();
+  nock.cleanAll();
+  nock.activate();
+  const api = nock('https://api.example.com');
+  const channel = api
+    .post('/api/v2/notifications/channels', () => true)
+    .query(true)
     .reply(200, { id: 'streaming-someid' });
+  const me = api
+    .get('/api/v2/users/me')
+    .reply(200, { chat: { jabberId: defaultOptions.jid } });
+  const subscriptions = api
+    .post('/api/v2/notifications/channels/streaming-someid/subscriptions', () => true)
+    .reply(202);
+  return { api, channel, me, subscriptions };
 }
 
 test('client creation', t => {
@@ -36,16 +48,43 @@ test('client creation', t => {
   t.truthy(client.notifications);
 });
 
-test('connect will reject if the session:started event is never emitted', t => {
+test.serial('connect will reject if the session:started event is never emitted', t => {
   t.plan(1);
   const client = new Client(getDefaultOptions());
   sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:error', {}));
   mockApi();
-  return client.connect({
-    jid: 'someone-else@example.mypurecloud.com'
-  }).catch(() => {
-    t.pass();
+  return client.connect()
+    .catch(() => {
+      t.pass();
+    });
+});
+
+test.serial('connect will not fetch the jid if it was provided in client options', t => {
+  const client = new Client(getDefaultOptions());
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
+  const apis = mockApi();
+  return client.connect()
+    .then(() => {
+      t.false(apis.me.isDone());
+    });
+});
+
+test.serial('connect will fetch the jid if not provided', t => {
+  const client = new Client({
+    host: defaultOptions.host,
+    authToken: defaultOptions.authToken
   });
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
+  const apis = mockApi();
+  return client.connect()
+    .then(() => {
+      return client.notifications.bulkSubscribe(['test']);
+    })
+    .then(() => {
+      apis.api.done();
+      t.true(apis.me.isDone());
+      t.true(apis.channel.isDone());
+    });
 });
 
 test('extend add an extension for creating clients', t => {
