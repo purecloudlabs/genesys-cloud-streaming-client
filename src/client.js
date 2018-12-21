@@ -164,14 +164,31 @@ class Client {
   }
 
   connect () {
+    let jidPromise;
+    if (this.config.jid) {
+      jidPromise = Promise.resolve(this.config.jid);
+    } else {
+      const opts = {
+        method: 'get',
+        host: this.config.apiHost,
+        authToken: this.config.authToken
+      };
+      jidPromise = requestApi('users/me', opts)
+        .then(res => res.body.chat.jabberId);
+    }
+
     const opts = {
       method: 'post',
       host: this.config.apiHost,
       authToken: this.config.authToken
     };
-    return requestApi('notifications/channels?connectionType=streaming', opts)
-      .then(res => {
-        this.config.channelId = res.body.id;
+    const channelPromise = requestApi('notifications/channels?connectionType=streaming', opts)
+      .then(res => res.body.id);
+
+    return Promise.all([jidPromise, channelPromise])
+      .then(([jid, channelId]) => {
+        this.config.jid = jid;
+        this.config.channelId = channelId;
         this.autoReconnect = true;
         return timeoutPromise(resolve => {
           this.once('connected', resolve);
