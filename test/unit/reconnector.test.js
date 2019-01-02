@@ -11,14 +11,15 @@ let clock;
 let SIMULTATE_ONLINE = false;
 
 class Client extends WildEmitter {
-  constructor () {
+  constructor (connectTimeout) {
     super();
     this.connected = false;
     this.connectAttempts = 0;
 
     this.logger = {
       warn () {},
-      error () {}
+      error () {},
+      debug () {}
     };
 
     this._stanzaio = {
@@ -32,7 +33,7 @@ class Client extends WildEmitter {
             this.emit('disconnected');
             this.connected = false;
           }
-        }, 10);
+        }, connectTimeout || 10);
       }
     };
   }
@@ -69,6 +70,38 @@ test('when started it reconnects on backoff', async t => {
   // make sure it didn't keep trying
   clock.tick(10000);
   t.is(client.connectAttempts, 4);
+});
+
+test('when started it reconnects on backoff (long reconnect)', async t => {
+  const client = new Client(400);
+  const reconnect = new Reconnector(client);
+  reconnect.start();
+
+  // move forward in time to where two connections should have been attempted.
+  clock.tick(200);
+  client._stanzaio.transport = { conn: { readyState: 0 } };
+  clock.tick(350);
+  t.is(client.connectAttempts, 1);
+
+  client._stanzaio.transport = { conn: { readyState: 1 } };
+  clock.tick(450);
+  t.is(client.connectAttempts, 1);
+
+  clock.tick(1100);
+  t.is(client.connectAttempts, 1);
+  client._stanzaio.transport = { conn: { readyState: 3 } };
+
+  clock.tick(3000);
+  t.is(client.connectAttempts, 2);
+
+  SIMULTATE_ONLINE = true;
+  clock.tick(6000);
+  t.is(client.connectAttempts, 3);
+  t.is(client.connected, true);
+
+  // make sure it didn't keep trying
+  clock.tick(10000);
+  t.is(client.connectAttempts, 3);
 });
 
 test('when started a second time it will not immediately retry the backoff', async t => {

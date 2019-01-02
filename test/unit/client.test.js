@@ -11,7 +11,12 @@ const WildEmitter = require('wildemitter');
 const defaultOptions = {
   jid: 'anon@example.mypurecloud.com',
   authToken: 'AuthToken',
-  host: 'wss://streaming.example.com'
+  host: 'wss://streaming.example.com',
+  logger: {
+    warn () {},
+    error () {},
+    debug () {}
+  }
 };
 Object.freeze(defaultOptions);
 
