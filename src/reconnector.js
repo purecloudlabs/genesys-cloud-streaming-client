@@ -15,6 +15,25 @@ class Reconnector {
     this.backoff.failAfter(10);
 
     this.backoff.on('ready', (number, delay) => {
+      if (this.client.connected) {
+        this.client.logger.debug('Backoff ready, client already connected');
+        return;
+      }
+      if (this.client._stanzaio.transport &&
+          this.client._stanzaio.transport.conn) {
+        const conn = this.client._stanzaio.transport.conn;
+        if (conn.readyState <= 1) {
+          if (conn.readyState === 1) {
+            this.client.logger.debug('Backoff ready, client not connected, but has websocket open');
+          }
+          if (conn.readyState === 0) {
+            this.client.logger.debug('Backoff ready, client not connected, but has websocket pending');
+          }
+          this.backoff.backoff();
+          return;
+        }
+      }
+      this.client.logger.debug('Backoff ready, attempting reconnect');
       this.client._stanzaio.connect();
       this.backoff.backoff();
     });
