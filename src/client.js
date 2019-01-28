@@ -57,11 +57,6 @@ class Client {
       channelId: null // created on connect
     };
 
-    this.on('_connected', () => {
-      this.connected = true;
-      this._reconnector.stop();
-    });
-
     this.on('_disconnected', () => {
       this.connected = false;
       this._ping.stop();
@@ -75,6 +70,8 @@ class Client {
     this.on('connected', (event) => {
       this.streamId = event.resource;
       this._ping.start();
+      this.connected = true;
+      this._reconnector.stop();
     });
 
     // remapped session:end
@@ -82,10 +79,12 @@ class Client {
       this._ping.stop();
     });
 
-    this.on('auth:failed', (err) => {
+    this.on('sasl:failure', (err) => {
       this.logger.error('Authentication failed connecting to streaming service', err);
-      this.autoReconnect = false;
-      this.disconnect();
+      if (!err || err.condition !== 'temporary-auth-failure') {
+        this.autoReconnect = false;
+        this.disconnect();
+      }
     });
 
     Object.keys(extensions).forEach((extensionName) => {

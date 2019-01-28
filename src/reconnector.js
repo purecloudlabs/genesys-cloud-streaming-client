@@ -41,6 +41,7 @@ class Reconnector {
     this.backoff.on('fail', () => {
       this.client.logger.error('Failed to reconnect to the streaming service. Attempting to connect with new channel.');
       // attempt with a new channel
+      this.cleanupReconnect();
       this.client.connect();
     });
 
@@ -49,9 +50,11 @@ class Reconnector {
     this.client.on('connected', this._cleanupReconnect);
 
     // disable reconnecting when there's an auth failure
-    this.client.on('auth:failed', (err) => {
-      this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', err);
-      this._cleanupReconnect();
+    this.client.on('sasl:failure', (err) => {
+      if (!err || err.condition !== 'temporary-auth-failure') {
+        this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', err);
+        this._cleanupReconnect();
+      }
     });
 
     this._backoffActive = false;
