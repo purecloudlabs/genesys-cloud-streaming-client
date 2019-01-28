@@ -174,13 +174,22 @@ test('reconnect should disconnect but allow autoReconnect', t => {
   sinon.assert.calledOnce(client._stanzaio.disconnect);
 });
 
-test('auth:failed should disable autoReconnect and disconnect', t => {
+test('sasl:failure should disable autoReconnect and disconnect', t => {
   const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
   client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
-  client._stanzaio.emit('auth:failed');
+  client._stanzaio.emit('sasl:failure');
   t.is(client.autoReconnect, false);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
+});
+
+test('temporary auth failure should not disable autoReconnect and disconnect', t => {
+  const client = new Client(getDefaultOptions());
+  t.is(client.autoReconnect, true);
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
+  client._stanzaio.emit('sasl:failure', { condition: 'temporary-auth-failure' });
+  t.is(client.autoReconnect, true);
+  sinon.assert.notCalled(client._stanzaio.disconnect);
 });
 
 test('session:started event sets the client streamId', t => {

@@ -175,7 +175,7 @@ test('when an auth failure occurs it will cease the backoff', async t => {
   clock.tick(600);
   t.is(client.connectAttempts, 3);
 
-  client.emit('auth:failed');
+  client.emit('sasl:failure');
   clock.tick(1100);
   t.is(client.connectAttempts, 3);
   t.is(client.connected, false);
@@ -183,4 +183,27 @@ test('when an auth failure occurs it will cease the backoff', async t => {
   // make sure it didn't keep trying
   clock.tick(10000);
   t.is(client.connectAttempts, 3);
+});
+
+test('when a temporary auth failure occurs it will not cease the backoff', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  reconnect.start();
+
+  // move forward in time to where two connections should have been attempted.
+  clock.tick(350);
+  t.is(client.connectAttempts, 2);
+
+  clock.tick(600);
+  t.is(client.connectAttempts, 3);
+
+  client.emit('sasl:failure', { condition: 'temporary-auth-failure' });
+  clock.tick(1100);
+  t.is(client.connectAttempts, 4);
+  t.is(client.connected, false);
+
+  clock.tick(2500);
+  t.is(client.connectAttempts, 5);
+
+  client.emit('sasl:failure');
 });
