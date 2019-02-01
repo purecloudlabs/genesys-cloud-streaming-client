@@ -114,7 +114,11 @@ class Notification {
     if (this.topicHandlers(topic).length === 0) {
       this.createSubscription(topic, () => {
         this.client.logger.info(`${topic} - Triggering resubscribe.`);
-        this.resubscribe();
+        this.resubscribe().catch((err) => {
+          const msg = 'Error resubscribing to topics';
+          this.client.logger.error(msg, err);
+          this.client._stanzaio.emit('pubsub:error', { msg, err });
+        });
       });
     }
   }
