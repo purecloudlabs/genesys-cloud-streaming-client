@@ -13,7 +13,8 @@ class Client extends WildEmitter {
 
     this.logger = {
       warn () {},
-      info () {}
+      info () {},
+      error () {}
     };
 
     this._stanzaio = new WildEmitter();
@@ -175,7 +176,7 @@ test('notifications should resubscribe (bulk subscribe) to existing topics after
   notification.bulkSubscriptions.test3 = true;
   sinon.assert.calledThrice(notification.client._stanzaio.subscribeToNode);
   await notification.expose.unsubscribe('test2', handler3);
-  sinon.stub(notification, 'bulkSubscribe');
+  sinon.stub(notification, 'bulkSubscribe').returns(Promise.resolve());
   client.emit('pubsub:event', {
     event: {
       updated: {
@@ -188,4 +189,50 @@ test('notifications should resubscribe (bulk subscribe) to existing topics after
   });
   sinon.assert.calledThrice(notification.client._stanzaio.subscribeToNode);
   sinon.assert.calledOnce(notification.bulkSubscribe);
+});
+
+test('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event and emit an error on failure', async t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://streaming.inindca.com/something-else'
+  };
+  const notification = new Notifications(client);
+
+  // subscribing
+  sinon.stub(notification.client._stanzaio, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
+  sinon.stub(notification.client._stanzaio, 'unsubscribeFromNode').callsFake((a, b, c = () => {}) => c());
+  client.emit('connected');
+  client.connected = true;
+  sinon.assert.notCalled(notification.client._stanzaio.subscribeToNode);
+  const handler = sinon.stub();
+  const handler2 = sinon.stub();
+  const handler3 = sinon.stub();
+  const handler4 = sinon.stub();
+  await notification.expose.subscribe('test', handler);
+  await notification.expose.subscribe('test', handler2);
+  await notification.expose.subscribe('test2', handler3);
+  await notification.expose.subscribe('test3', handler4);
+  notification.bulkSubscriptions.test3 = true;
+  sinon.assert.calledThrice(notification.client._stanzaio.subscribeToNode);
+  await notification.expose.unsubscribe('test2', handler3);
+  sinon.stub(notification, 'bulkSubscribe').returns(Promise.reject(new Error('intentional test error')));
+  const errorEvent = new Promise((resolve) => {
+    client._stanzaio.on('pubsub:error', err => {
+      t.is(err.err.message, 'intentional test error');
+      resolve();
+    });
+  });
+  client.emit('pubsub:event', {
+    event: {
+      updated: {
+        node: 'streaming-subscriptions-expiring',
+        published: [
+          { json: {expiring: 60} }
+        ]
+      }
+    }
+  });
+  sinon.assert.calledThrice(notification.client._stanzaio.subscribeToNode);
+  sinon.assert.calledOnce(notification.bulkSubscribe);
+  await errorEvent;
 });
