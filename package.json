@@ -3,17 +3,19 @@
   "version": "8.0.9",
   "description": "client for the PureCloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/purecloud-streaming-client",
-  "main": "dist/streaming-client.min.js",
+  "main": "dist/streaming-client.min.cjs",
   "browser": "dist/streaming-client.js",
   "files": [
     "src",
-    "web"
+    "dist"
   ],
   "pre-push": [
     "test"
   ],
   "scripts": {
-    "build": "webpack && webpack --env.production",
+    "build": "npm run build-web && npm run build-node",
+    "build-web": "webpack && webpack --env.production",
+    "build-node": "webpack --env.node && webpack --env.node --env.production",
     "unit-test": "NODE_ENV=test nyc --reporter=lcov --reporter=cobertura ava test/unit/*.js",
     "test": "semistandard && npm run unit-test && npm run report",
     "semistandard": "semistandard",
@@ -65,7 +67,7 @@
     "limiter": "^1.1.0",
     "purecloud-streaming-client-webrtc-sessions": "^7.0.9",
     "stanza.io": "^9.1.0",
-    "superagent": "^3.8.3",
+    "superagent": "^4.0.0",
     "uuid": "^3.0.1",
     "wildemitter": "^1.2.0"
   },
