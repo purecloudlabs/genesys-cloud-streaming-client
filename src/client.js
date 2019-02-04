@@ -126,23 +126,29 @@ class Client {
 
   on (eventName, ...args) {
     if (REMAPPED_EVENTS[eventName]) {
-      return this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
+      this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
+    } else {
+      this._stanzaio.on(eventName, ...args);
     }
-    return this._stanzaio.on(eventName, ...args);
+    return this;
   }
 
   once (eventName, ...args) {
     if (REMAPPED_EVENTS[eventName]) {
-      return this._stanzaio.once(REMAPPED_EVENTS[eventName], ...args);
+      this._stanzaio.once(REMAPPED_EVENTS[eventName], ...args);
+    } else {
+      this._stanzaio.once(eventName, ...args);
     }
-    return this._stanzaio.once(eventName, ...args);
+    return this;
   }
 
   off (eventName, ...args) {
     if (REMAPPED_EVENTS[eventName]) {
-      return this._stanzaio.off(REMAPPED_EVENTS[eventName], ...args);
+      this._stanzaio.off(REMAPPED_EVENTS[eventName], ...args);
+    } else {
+      this._stanzaio.off(eventName, ...args);
     }
-    return this._stanzaio.off(eventName, ...args);
+    return this;
   }
 
   disconnect () {
