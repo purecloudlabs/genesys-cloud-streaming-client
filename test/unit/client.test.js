@@ -268,10 +268,12 @@ test('it will remap some events for our client to the underlying stanza client',
   const connected = sinon.stub();
   const _connected = sinon.stub();
   const event = sinon.stub();
-  client.on('session:started', connected);
-  client.on('connected', connected);
-  client.on('_connected', _connected);
-  client.once('other:event', event);
+  // event chaining works, too!
+  client
+    .on('session:started', connected)
+    .on('connected', connected)
+    .on('_connected', _connected)
+    .once('other:event', event);
   client._stanzaio.emit('session:started', {});
   sinon.assert.calledTwice(connected);
   sinon.assert.notCalled(_connected);

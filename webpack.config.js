@@ -1,8 +1,14 @@
 const path = require('path');
+const webpack = require('webpack');
 
 module.exports = (env) => {
   const minimize = env && env.production;
+  const node = env && env.node;
+  const file = minimize ? 'streaming-client.min' : 'streaming-client';
+  const extension = node ? '.cjs' : '.js';
+  const filename = file + extension;
   return {
+    target: node ? 'node' : 'web',
     entry: './src/client.js',
     mode: minimize ? 'production' : 'development',
     optimization: {
@@ -11,10 +17,13 @@ module.exports = (env) => {
     devtool: 'source-map',
     output: {
       path: path.resolve(__dirname, 'dist'),
-      filename: minimize ? 'streaming-client.min.js' : 'streaming-client.js',
+      filename,
       library: 'pc-streaming',
       libraryTarget: 'umd'
     },
+    plugins: [
+      new webpack.DefinePlugin({ 'global.GENTLY': false })
+    ],
     module: {
       rules: [
         {
