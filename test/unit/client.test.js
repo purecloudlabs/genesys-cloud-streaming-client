@@ -92,6 +92,25 @@ test.serial('connect will fetch the jid if not provided', t => {
     });
 });
 
+test.serial('connect will fetch the jid if not provided with a custom api host', t => {
+  const client = new Client({
+    host: 'wss://localhost:3000',
+    apiHost: 'https://api.example.com',
+    authToken: defaultOptions.authToken
+  });
+  sinon.stub(client._stanzaio, 'connect').callsFake(() => client._stanzaio.emit('session:started', {}));
+  const apis = mockApi();
+  return client.connect()
+    .then(() => {
+      return client.notifications.bulkSubscribe(['test']);
+    })
+    .then(() => {
+      apis.api.done();
+      t.true(apis.me.isDone());
+      t.true(apis.channel.isDone());
+    });
+});
+
 test('extend add an extension for creating clients', t => {
   class TestExtension {
     on () {}

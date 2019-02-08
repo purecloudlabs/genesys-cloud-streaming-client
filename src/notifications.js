@@ -15,7 +15,8 @@ class Notification {
 
   get pubsubHost () {
     try {
-      return `notifications.${this.client.config.apiHost}`;
+      const host = this.client.config.apiHost.replace(/http(s?):\/\//, '');
+      return `notifications.${host}`;
     } catch (e) {
       return PUBSUB_HOST_DEFAULT;
     }

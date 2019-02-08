@@ -29,6 +29,8 @@ test('pubsubHost', t => {
   });
   const notification = new Notifications(client);
   t.is(notification.pubsubHost, 'notifications.inindca.com');
+  client.config.apiHost = 'https://localhost:3000';
+  t.is(notification.pubsubHost, 'notifications.localhost:3000');
   client.config.apiHost = 'inintca.com';
   t.is(notification.pubsubHost, 'notifications.inintca.com');
   client.config.apiHost = 'mypurecloud.com';
