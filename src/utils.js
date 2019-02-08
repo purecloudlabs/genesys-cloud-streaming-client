@@ -2,6 +2,9 @@ import request from 'superagent';
 
 function buildUri (host, path, version = 'v2') {
   path = path.replace(/^\/+|\/+$/g, ''); // trim leading/trailing /
+  if (host.indexOf('http') === 0) {
+    return `${host}/api/${version}/${path}`;
+  }
   return `https://api.${host}/api/${version}/${path}`;
 }
 
