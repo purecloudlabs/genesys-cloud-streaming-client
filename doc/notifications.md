@@ -33,10 +33,11 @@ Bulk subscriptions should be used in most cases. However, for applications with
 smaller, discrete components and fewer topic subscriptions, handler subscriptions for individual
 topics are useful.
 
-`client.notifications.subscribe(topic, handler) : Promise<void>` - For registering
-a handler for a topic
+`client.notifications.subscribe(topic, handler = () => {}) : Promise<void>` - For registering
+a handler for a topic. Handler is optional. When no handler is provided, use event
+bindings shown above (`on('notify...')`).
 
-`client.notifications.unsubscribe(topic, handler) : Promise<void>` For unregistering
+`client.notifications.unsubscribe(topic, handler = () => {}) : Promise<void>` For unregistering
 a handler for a topic
 
 When unsubscribing, the client will only unsubscribe the topic from the backend if
