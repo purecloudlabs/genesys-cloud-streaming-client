@@ -119,17 +119,18 @@ test('subscribe and unsubscribe do their jobs', async t => {
   // there are still more subscriptions
   sinon.assert.notCalled(notification.client._stanzaio.unsubscribeFromNode);
 
-  await notification.expose.unsubscribe('test');
-  // unsubscribing without a handler won't trigger any unsubscribe
+  await notification.expose.unsubscribe('test', () => {});
+  // unsubscribing with an unused handler won't trigger any unsubscribe
   sinon.assert.notCalled(notification.client._stanzaio.unsubscribeFromNode);
 
-  await notification.expose.unsubscribe('test');
+  await notification.expose.unsubscribe('test', handler);
   // unsubscribing when there's record of a bulk subscription won't trigger any unsubscribe
   sinon.assert.notCalled(notification.client._stanzaio.unsubscribeFromNode);
 
-  delete notification.bulkSubscriptions.test;
   client.connected = false;
-  const unsubscribe = notification.expose.unsubscribe('test', handler);
+  // unsubscribing without a handler removes the bulkScubscription handler
+  const unsubscribe = notification.expose.unsubscribe('test');
+  // well, not until we reconnect
   sinon.assert.notCalled(notification.client._stanzaio.unsubscribeFromNode);
 
   client.emit('connected');
@@ -170,11 +171,10 @@ test('notifications should resubscribe (bulk subscribe) to existing topics after
   const handler = sinon.stub();
   const handler2 = sinon.stub();
   const handler3 = sinon.stub();
-  const handler4 = sinon.stub();
   await notification.expose.subscribe('test', handler);
   await notification.expose.subscribe('test', handler2);
   await notification.expose.subscribe('test2', handler3);
-  await notification.expose.subscribe('test3', handler4);
+  await notification.expose.subscribe('test3');
   notification.bulkSubscriptions.test3 = true;
   sinon.assert.calledThrice(notification.client._stanzaio.subscribeToNode);
   await notification.expose.unsubscribe('test2', handler3);

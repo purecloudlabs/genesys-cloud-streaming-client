@@ -131,13 +131,21 @@ class Notification {
           this.xmppSubscribe(topic, (err, ...args) => {
             if (err) { reject(err); } else { resolve(...args); }
           });
-          this.createSubscription(topic, handler);
+          if (handler) {
+            this.createSubscription(topic, handler);
+          } else {
+            this.bulkSubscriptions[topic] = true;
+          }
         });
       }.bind(this),
 
       unsubscribe: function (topic, handler) {
         return new Promise((resolve, reject) => {
-          this.removeSubscription(topic, handler);
+          if (handler) {
+            this.removeSubscription(topic, handler);
+          } else {
+            delete this.bulkSubscriptions[topic];
+          }
           this.xmppUnsubscribe(topic, (err, ...args) => {
             if (err) { reject(err); } else { resolve(...args); }
           });
