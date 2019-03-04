@@ -107,6 +107,9 @@ class Notification {
         }
       }
     });
+    if (topicsToResubscribe.length === 0) {
+      return Promise.resolve();
+    }
     return this.bulkSubscribe(topicsToResubscribe, { replace: true });
   }
 
