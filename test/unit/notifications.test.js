@@ -108,10 +108,20 @@ test('subscribe and unsubscribe do their jobs', async t => {
   const apiRequest = nock('https://api.example.com')
     .post('/api/v2/notifications/channels/notification-test-channel/subscriptions', () => true)
     .reply(200, { id: 'streaming-someid' });
-  await notification.expose.bulkSubscribe(['test', 'topic.one', 'topic.two']);
+  await notification.expose.bulkSubscribe(['test', 'topic.one', 'topic.two', 'topic.three']);
   // didn't subscribe via xmpp any more (was once previously)
   sinon.assert.calledOnce(notification.client._stanzaio.subscribeToNode);
   apiRequest.done();
+  t.is(notification.bulkSubscriptions['topic.three'], true);
+
+  const apiRequest2 = nock('https://api.example.com')
+    .put('/api/v2/notifications/channels/notification-test-channel/subscriptions', () => true)
+    .reply(200, { id: 'streaming-someid' });
+  await notification.expose.bulkSubscribe(['test', 'topic.one', 'topic.two'], { replace: true });
+  // didn't subscribe via xmpp any more (was once previously)
+  sinon.assert.calledOnce(notification.client._stanzaio.subscribeToNode);
+  apiRequest2.done();
+  t.is(notification.bulkSubscriptions['topic.three'], undefined);
 
   // unsubscribing
   sinon.stub(notification.client._stanzaio, 'unsubscribeFromNode').callsFake((a, b, c) => c());

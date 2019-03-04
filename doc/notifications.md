@@ -5,9 +5,25 @@ The notifications extension is compatible with topics from our [Notifications][1
 
 The extension provides the following API:
 
-`client.notifications.bulkSubscribe(topics) - Promise<void>` - For bulk subscribing to topics
- - If a single topic in the bulk request fails (for example, due to permissions), the batch
+`client.notifications.bulkSubscribe(topics, options = { replace: false }) - Promise<void>`
+  - For bulk subscribing to topics
+  - If a single topic in the bulk request fails (for example, due to permissions), the batch
  fails. the Promise will reject with API message indicating the failure.
+  - parameters
+    - `Object options` Optional; with properties:
+      - `Boolean replace`: true indicates the list of topics should replace the
+          current list of subscribed topics.
+
+Examples:
+
+```js
+await client.notifications.bulkSubscribe(['topic1', 'topic2']);
+// subscribed topics: [ 'topic1', 'topic2' ]
+await client.notifications.bulkSubscribe(['topic3', 'topic4'])
+// subscribed topics: [ 'topic1', 'topic2', 'topic3', 'topic4' ]
+await client.notifications.bulkSubscribe(['topic5', 'topic6'], { replace: true })
+// subscribed topics: [ 'topic5', 'topic6' ]
+```
 
 To listen for notification events for subscribed topics, use one of:
 

@@ -67,9 +67,9 @@ class Notification {
     }
   }
 
-  bulkSubscribe (topics) {
+  bulkSubscribe (topics, options) {
     const requestOptions = {
-      method: 'post',
+      method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
       data: JSON.stringify(topics.map(t => ({ id: t })))
@@ -152,8 +152,11 @@ class Notification {
         });
       }.bind(this),
 
-      bulkSubscribe: function (topics) {
-        return this.bulkSubscribe(topics).then(() => {
+      bulkSubscribe: function (topics, options = { replace: false }) {
+        return this.bulkSubscribe(topics, options).then(() => {
+          if (options.replace) {
+            this.bulkSubscriptions = {};
+          }
           topics.forEach(topic => {
             this.bulkSubscriptions[topic] = true;
           });
