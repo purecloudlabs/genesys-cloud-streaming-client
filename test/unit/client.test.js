@@ -244,13 +244,19 @@ test('it will rate limit extensions sending stanzas', async t => {
     client._testExtension.emit('send', { some: 'data' });
   }
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 45);
+
+  // because timers in JS are not exact, add a 'within' expectation
+  // saying that the value is +/- deviation of target
+  function within (value, target, deviation) {
+    t.true(Math.abs(target - value) <= deviation);
+  }
+  within(client._stanzaio.sendIq.callCount, 45, 3);
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 70);
+  within(client._stanzaio.sendIq.callCount, 70, 3);
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 95);
+  within(client._stanzaio.sendIq.callCount, 95, 3);
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 100);
+  within(client._stanzaio.sendIq.callCount, 100, 3);
 });
 
 test('it will rate limit extensions with their own tokenBucket', async t => {
@@ -266,14 +272,20 @@ test('it will rate limit extensions with their own tokenBucket', async t => {
   for (let i = 0; i < 200; i++) {
     client._tokenBucket.emit('send', { some: 'data' });
   }
+
+  // because timers in JS are not exact, add a 'within' expectation
+  // saying that the value is +/- deviation of target
+  function within (value, target, deviation) {
+    t.true(Math.abs(target - value) <= deviation);
+  }
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 90);
+  within(client._stanzaio.sendIq.callCount, 90, 3);
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 140);
+  within(client._stanzaio.sendIq.callCount, 140, 3);
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 190);
+  within(client._stanzaio.sendIq.callCount, 190, 3);
   await new Promise(resolve => setTimeout(resolve, 1001));
-  t.is(client._stanzaio.sendIq.callCount, 200);
+  within(client._stanzaio.sendIq.callCount, 200, 3);
 });
 
 test('extend throws if an extension is already registered to a namespace', t => {
