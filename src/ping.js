@@ -16,7 +16,8 @@ module.exports = function (client, options) {
     } else {
       client.logger.warn('Missed a ping.', error);
       if (++numberOfFailedPings > failedPingsBeforeDisconnect) {
-        client.logger.error('Missed ' + numberOfFailedPings + ' pings, disconnecting');
+        clearInterval(pingIntervalId);
+        client.logger.error('Missed too many pings, disconnecting', numberOfFailedPings);
         client._stanzaio.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
       }
     }
