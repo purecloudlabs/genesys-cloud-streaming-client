@@ -8,7 +8,7 @@ module.exports = (env) => {
   const extension = node ? '.cjs' : '.js';
   const filename = file + extension;
   return {
-    target: node ? 'node' : 'web',
+    target: 'web',
     entry: './src/client.js',
     mode: minimize ? 'production' : 'development',
     optimization: {
@@ -19,7 +19,7 @@ module.exports = (env) => {
       path: path.resolve(__dirname, 'dist'),
       filename,
       library: 'pc-streaming',
-      libraryTarget: 'umd'
+      libraryTarget: node ? 'commonjs' : 'umd'
     },
     plugins: [
       new webpack.DefinePlugin({ 'global.GENTLY': false })
