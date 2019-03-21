@@ -1,6 +1,6 @@
 'use strict';
 
-const DEFAULT_PING_INTERVAL = 5000;
+const DEFAULT_PING_INTERVAL = 10 * 1000;
 const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
 module.exports = function (client, options) {

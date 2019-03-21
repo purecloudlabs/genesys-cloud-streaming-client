@@ -4,6 +4,9 @@ const test = require('ava');
 const sinon = require('sinon');
 const createPing = require('../../src/ping.js');
 
+const DEFAULT_PING_INTERVAL = 10 * 1000;
+const PING_INTERVAL_WITH_BUFFER = DEFAULT_PING_INTERVAL + 100;
+
 let standardOptions, client, clock;
 let pingCallCount = 0;
 
@@ -41,9 +44,9 @@ test.serial('when started it sends a ping on an interval', t => {
   let ping = createPing(client, standardOptions);
 
   ping.start();
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(pingCallCount, 1);
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(pingCallCount, 2);
 });
 
@@ -53,10 +56,10 @@ test.serial('when started multiple times it sends a ping on a single interval', 
   ping.start();
   ping.start();
   ping.start();
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(pingCallCount, 1);
   ping.start();
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(pingCallCount, 2);
 });
 
@@ -74,10 +77,10 @@ test.serial('when no pings it closes the connection', t => {
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
 
   // move forward again
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
 
   // verify it sends a stream error
   t.is(client._stanzaio.sendStreamError.called, true);
@@ -105,9 +108,9 @@ test.serial('receiving a ping response resets the failure mechanism', t => {
   ping.start();
 
   // move forward in time to one missed
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   // move forward again
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   // verify it doesn't send a stream error
   t.is(client._stanzaio.sendStreamError.callCount, 0);
 });
@@ -149,19 +152,19 @@ test.serial('allows failure number override', t => {
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(client._stanzaio.sendStreamError.called, false);
   // move forward again
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
   t.is(client._stanzaio.sendStreamError.called, true);
 });
 
@@ -170,7 +173,7 @@ test.serial('stop should cause no more pings', t => {
   ping.start();
 
   // move forward in time to one ping
-  clock.tick(5100);
+  clock.tick(PING_INTERVAL_WITH_BUFFER);
 
   ping.stop();
 
