@@ -85,7 +85,7 @@ class Reconnector {
       }, 1000);
       // send request to app to reconnect. app can say `pending` to allow for max 1 hour
       // delay in reconnect, and/or `done` to proceed with reconnect immediately
-      this.client.emit('requestReconnect', (response) => {
+      this.client._stanzaio.emit('requestReconnect', (response) => {
         if (response.pending === true) {
           clearTimeout(failureTimeout);
         }
