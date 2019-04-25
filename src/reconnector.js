@@ -57,6 +57,46 @@ class Reconnector {
       }
     });
 
+    const stanzaio = this.client._stanzaio;
+    stanzaio.disco.addFeature('urn:xmpp:cxfr');
+    const CxfrStanza = stanzaio.stanzas.define({
+      name: 'cxfr',
+      namespace: 'urn:xmpp:cxfr',
+      tags: ['cxfr'],
+      element: 'query',
+      fields: {
+        domain: stanzaio.stanzas.utils.textSub('urn:xmpp:cxfr', 'domain'),
+        server: stanzaio.stanzas.utils.textSub('urn:xmpp:cxfr', 'server')
+      }
+    });
+    stanzaio.stanzas.extendIQ(CxfrStanza);
+
+    this.client.on('stream:data', (data) => {
+      const json = data ? data.toJSON() : null;
+      if (!json || !json.cxfr) {
+        return;
+      }
+      // After 10 minutes, reconnect automatically
+      const timeout = setTimeout(this.client.reconnect, 10 * 60 * 1000);
+      // If no `pending` response received from app, proceed with reconnect
+      const failureTimeout = setTimeout(() => {
+        clearTimeout(timeout);
+        this.client.reconnect();
+      }, 1000);
+      // send request to app to reconnect. app can say `pending` to allow for max 1 hour
+      // delay in reconnect, and/or `done` to proceed with reconnect immediately
+      this.client.emit('requestReconnect', (response) => {
+        if (response.pending === true) {
+          clearTimeout(failureTimeout);
+        }
+        if (response.done) {
+          clearTimeout(failureTimeout);
+          clearTimeout(timeout);
+          this.client.reconnect();
+        }
+      });
+    });
+
     this._backoffActive = false;
   }
 
