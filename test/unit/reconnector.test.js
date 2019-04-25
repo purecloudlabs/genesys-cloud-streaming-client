@@ -23,6 +23,16 @@ class Client extends WildEmitter {
     };
 
     this._stanzaio = {
+      disco: {
+        addFeature () {}
+      },
+      stanzas: {
+        define () {},
+        utils: {
+          textSub () {}
+        },
+        extendIQ () {}
+      },
       connect: () => {
         this.connectAttempts++;
         setTimeout(() => {
@@ -39,6 +49,7 @@ class Client extends WildEmitter {
   }
 
   connect () {}
+  reconnect () {}
 }
 
 test.beforeEach(() => {
@@ -206,4 +217,146 @@ test('when a temporary auth failure occurs it will not cease the backoff', async
   t.is(client.connectAttempts, 5);
 
   client.emit('sasl:failure');
+});
+
+test('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ done: true }), 1);
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client.emit('stream:data', {
+    toJSON: () => ({
+      cxfr: {
+        domain: 'asdf.example.com',
+        server: 'streaming.us-east-1.example.com'
+      }
+    })
+  });
+
+  clock.tick(10);
+
+  await reconnected;
+});
+
+test('will wait to reconnect if called back with pending', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ pending: true }), 1);
+    setTimeout(() => handler({ done: true }), 200);
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client.emit('stream:data', {
+    toJSON: () => ({
+      cxfr: {
+        domain: 'asdf.example.com',
+        server: 'streaming.us-east-1.example.com'
+      }
+    })
+  });
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(300);
+  sinon.assert.calledOnce(client.reconnect);
+
+  await reconnected;
+});
+
+test('will wait no longer than 1 hour after pending callback to reconnect', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ pending: true }), 1);
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client.emit('stream:data', {
+    toJSON: () => ({
+      cxfr: {
+        domain: 'asdf.example.com',
+        server: 'streaming.us-east-1.example.com'
+      }
+    })
+  });
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(10 * 60 * 1000);
+  sinon.assert.calledOnce(client.reconnect);
+
+  await reconnected;
+});
+
+test('will reconnect after a second if no pending or done response is received', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ pending: true }), 2000); // too late
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client.emit('stream:data', {
+    toJSON: () => ({
+      cxfr: {
+        domain: 'asdf.example.com',
+        server: 'streaming.us-east-1.example.com'
+      }
+    })
+  });
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(1000);
+  sinon.assert.calledOnce(client.reconnect);
+
+  await reconnected;
+});
+
+test('will not reconnect if junk is received', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect');
+
+  reconnect.client.emit('stream:data', {
+    toJSON: () => ({})
+  });
+  reconnect.client.emit('stream:data');
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(1000);
+  sinon.assert.notCalled(client.reconnect);
 });
