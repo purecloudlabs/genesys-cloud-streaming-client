@@ -42,6 +42,30 @@ one example of a disconnect that will not trigger a reconnect.
 - The client will emit a `connected` event when the connection is established and
 authenticated.
 
+- The websocket host service may periodically request the client reconnect to facilitate connection
+draining for a deployment, or load balancing. The client has the ability to delay that reconnect up
+to 10 minutes to allow the application to finish any active task which would be disrupted by a reconnect.
+To subscribe to this event, use the `requestReconnect` event name, which emits with a callback. The
+callback accepts an object with either `pending` or `done` property indicating that the reconnect should
+be delayed or can proceed. If the callback is not called within one second, the disconnect will proceed.
+If the callback is called with `{ pending: true }` then the disconnect will proceed after the callback
+is called with `{ done: true }` or 10 minutes, whichever is sooner. Example:
+
+```js
+client.on('requestReconnect', function (callback) {
+  // e.g., no calls are alerting
+  if (this.canReconnectSafely()) {
+    callback({ done: true });
+  } else {
+    callback({ pending: true });
+    // e.g., an event when all calls have disconnected
+    this.on('canReconnectSafely', function () {
+      callback({ done: true });
+    });
+  }
+});
+```
+
 #### Constructor
 
 `new PureCloudStreamingClient(options)`
