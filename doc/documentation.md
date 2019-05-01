@@ -8,7 +8,7 @@ Features:
 
 - [x] PubSub (notifications)
 - [ ] WebRTC
-    - [ ] Softphone*
+    - [x] Softphone
     - [ ] Screen Recording※
     - [ ] Video/Screen Share※
     - [ ] ACD Screen Share※
