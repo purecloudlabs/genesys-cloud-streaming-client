@@ -249,13 +249,11 @@ test('when a connection transfer request comes in, will emit a reconnect request
     client.on('reconnected', resolve);
   });
 
-  reconnect.client._stanzaio.emit('stream:data', {
-    toJSON: () => ({
-      cxfr: {
-        domain: 'asdf.example.com',
-        server: 'streaming.us-east-1.example.com'
-      }
-    })
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
   });
 
   clock.tick(10);
@@ -279,13 +277,11 @@ test('will wait to reconnect if called back with pending', async t => {
     client.on('reconnected', resolve);
   });
 
-  reconnect.client._stanzaio.emit('stream:data', {
-    toJSON: () => ({
-      cxfr: {
-        domain: 'asdf.example.com',
-        server: 'streaming.us-east-1.example.com'
-      }
-    })
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
   });
 
   clock.tick(10);
@@ -311,13 +307,11 @@ test('will wait no longer than 1 hour after pending callback to reconnect', asyn
     client.on('reconnected', resolve);
   });
 
-  reconnect.client._stanzaio.emit('stream:data', {
-    toJSON: () => ({
-      cxfr: {
-        domain: 'asdf.example.com',
-        server: 'streaming.us-east-1.example.com'
-      }
-    })
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
   });
 
   clock.tick(10);
@@ -343,13 +337,11 @@ test('will reconnect after a second if no pending or done response is received',
     client.on('reconnected', resolve);
   });
 
-  reconnect.client._stanzaio.emit('stream:data', {
-    toJSON: () => ({
-      cxfr: {
-        domain: 'asdf.example.com',
-        server: 'streaming.us-east-1.example.com'
-      }
-    })
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
   });
 
   clock.tick(10);
@@ -358,20 +350,4 @@ test('will reconnect after a second if no pending or done response is received',
   sinon.assert.calledOnce(client.reconnect);
 
   await reconnected;
-});
-
-test('will not reconnect if junk is received', async t => {
-  const client = new Client();
-  const reconnect = new Reconnector(client);
-  sinon.stub(client, 'reconnect');
-
-  reconnect.client._stanzaio.emit('stream:data', {
-    toJSON: () => ({})
-  });
-  reconnect.client._stanzaio.emit('stream:data');
-
-  clock.tick(10);
-  sinon.assert.notCalled(client.reconnect);
-  clock.tick(1000);
-  sinon.assert.notCalled(client.reconnect);
 });

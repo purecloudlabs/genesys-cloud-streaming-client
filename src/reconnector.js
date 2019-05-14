@@ -71,11 +71,7 @@ class Reconnector {
     });
     stanzaio.stanzas.extendIQ(CxfrStanza);
 
-    this.client.on('stream:data', (data) => {
-      const json = data ? data.toJSON() : null;
-      if (!json || !json.cxfr) {
-        return;
-      }
+    this.client.on('iq:set:cxfr', () => {
       // After 10 minutes, reconnect automatically
       const timeout = setTimeout(this.client.reconnect, 10 * 60 * 1000);
       // If no `pending` response received from app, proceed with reconnect
