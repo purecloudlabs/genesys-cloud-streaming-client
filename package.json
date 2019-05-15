@@ -65,8 +65,8 @@
   "dependencies": {
     "backoff-web": "^1.0.1",
     "limiter": "^1.1.0",
-    "purecloud-streaming-client-webrtc-sessions": "^7.0.23",
-    "stanza.io": "^9.1.0",
+    "purecloud-streaming-client-webrtc-sessions": "^7.1.0",
+    "stanza": "^11.3.2",
     "superagent": "^4.0.0",
     "uuid": "^3.0.1",
     "wildemitter": "^1.2.0"
