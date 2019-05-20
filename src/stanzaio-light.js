@@ -1,24 +1,23 @@
-'use strict';
+import Disco from 'stanza/plugins/disco';
+import Extdisco from 'stanza/plugins/extdisco';
+import Logging from 'stanza/plugins/logging';
+import Pubsub from 'stanza/plugins/pubsub';
+import Ping from 'stanza/plugins/ping';
+import Client from 'stanza/client';
 
-import { JID } from 'xmpp-jid';
-import Client from 'stanza.io/lib/client';
+export { JID } from 'xmpp-jid';
+export { default as Client } from 'stanza/client';
 
-exports.JID = JID;
-exports.Client = Client;
-
-exports.createClient = function (opts) {
-  var client = new exports.Client(opts);
+export function createClient (opts) {
+  var client = new Client(opts);
   [
-    require('stanza.io/lib/plugins/disco'), // must be first
+    Disco, // must be first
 
-    // TODO: figure out which of these we don't need.
-    require('stanza.io/lib/plugins/extdisco'),
-    require('stanza.io/lib/plugins/hashes'),
-    require('stanza.io/lib/plugins/json'),
-    require('stanza.io/lib/plugins/logging'),
-    require('stanza.io/lib/plugins/ping'),
-    require('stanza.io/lib/plugins/pubsub')
+    Extdisco,
+    Logging,
+    Pubsub,
+    Ping
   ].map(client.use.bind(client));
 
   return client;
-};
+}
