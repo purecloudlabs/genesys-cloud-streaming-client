@@ -1,23 +1,24 @@
 'use strict';
 
 // src imports
-import XMPP from './stanzaio-light';
-import notifications from './notifications';
-import reconnector from './reconnector';
-import ping from './ping';
+import * as XMPP from './stanzaio-light';
+import { Notifications } from './notifications';
+import { Reconnector } from './reconnector';
+import { createPing } from './ping';
 import { requestApi, timeoutPromise } from './utils';
 
 // extension imports
-import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
+import WebrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
 
 // external imports
-import {TokenBucket} from 'limiter';
+import { TokenBucket } from 'limiter';
 
 let extensions = {
-  ping,
-  reconnector,
-  notifications,
-  webrtcSessions
+  // namespace: extender function/class
+  ping: createPing,
+  reconnector: Reconnector,
+  notifications: Notifications,
+  webrtcSessions: WebrtcSessions
 };
 
 function stanzaioOptions (config) {
@@ -204,8 +205,7 @@ class Client {
 
   static extend (namespace, extender) {
     if (extensions[namespace]) {
-      /* eslint no-throw-literal: "off" */
-      throw `Cannot register already existing namespace ${namespace}`;
+      throw new Error(`Cannot register already existing namespace ${namespace}`);
     }
     extensions[namespace] = extender;
   }

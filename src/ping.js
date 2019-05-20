@@ -3,7 +3,7 @@
 const DEFAULT_PING_INTERVAL = 10 * 1000;
 const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
-module.exports = function (client, options) {
+export function createPing (client, options) {
   options = options || {};
   let pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
   let failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
@@ -40,4 +40,4 @@ module.exports = function (client, options) {
       }
     }
   };
-};
+}

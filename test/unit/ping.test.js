@@ -1,8 +1,7 @@
 'use strict';
-
+import { createPing } from '../../src/ping.js';
 const test = require('ava');
 const sinon = require('sinon');
-const createPing = require('../../src/ping.js');
 
 const DEFAULT_PING_INTERVAL = 10 * 1000;
 const PING_INTERVAL_WITH_BUFFER = DEFAULT_PING_INTERVAL + 100;
