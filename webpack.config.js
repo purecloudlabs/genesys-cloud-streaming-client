@@ -1,5 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
+require('babel-polyfill');
 
 module.exports = (env) => {
   const minimize = env && env.production;
@@ -9,7 +10,7 @@ module.exports = (env) => {
   const filename = file + extension;
   return {
     target: 'web',
-    entry: './src/client.js',
+    entry: ['babel-polyfill', './src/client.js'],
     mode: minimize ? 'production' : 'development',
     optimization: {
       minimize
