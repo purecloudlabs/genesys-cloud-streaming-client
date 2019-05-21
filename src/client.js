@@ -43,7 +43,7 @@ const REMAPPED_EVENTS = {
   '_disconnected': 'disconnected'
 };
 
-class Client {
+export default class Client {
   constructor (options) {
     const stanzaio = XMPP.createClient({});
     this._stanzaio = stanzaio;
@@ -210,5 +210,3 @@ class Client {
     extensions[namespace] = extender;
   }
 }
-
-module.exports = Client;
