@@ -1,10 +1,10 @@
 'use strict';
 
+import Client from '../../src/client';
 const test = require('ava');
 const sinon = require('sinon');
 const nock = require('nock');
 
-const Client = require('../../src/client');
 const { TokenBucket } = require('limiter');
 const WildEmitter = require('wildemitter');
 
