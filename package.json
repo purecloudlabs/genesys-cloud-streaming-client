@@ -1,6 +1,6 @@
 {
   "name": "purecloud-streaming-client",
-  "version": "8.2.15",
+  "version": "8.3.0",
   "description": "client for the PureCloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/purecloud-streaming-client",
   "main": "dist/streaming-client.min.cjs",
@@ -65,7 +65,7 @@
   "dependencies": {
     "backoff-web": "^1.0.1",
     "limiter": "^1.1.0",
-    "purecloud-streaming-client-webrtc-sessions": "^7.2.0",
+    "purecloud-streaming-client-webrtc-sessions": "^7.2.1",
     "stanza.io": "^9.1.0",
     "superagent": "^4.0.0",
     "uuid": "^3.0.1",
