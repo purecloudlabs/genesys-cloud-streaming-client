@@ -11,7 +11,7 @@ import { requestApi, timeoutPromise } from './utils';
 import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
 
 // external imports
-import {TokenBucket} from 'limiter';
+import { TokenBucket } from 'limiter';
 
 let extensions = {
   ping,
