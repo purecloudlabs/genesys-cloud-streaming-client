@@ -10,9 +10,43 @@ let clock;
 // controls whether clients can reconnect or not
 let SIMULTATE_ONLINE = false;
 
-class Client extends WildEmitter {
-  constructor (connectTimeout) {
+class MockStanzaIo extends WildEmitter {
+  constructor (connectTimeout, client) {
     super();
+    this.connectTimeout = connectTimeout;
+    this.client = client;
+  }
+  get disco () {
+    return {
+      addFeature () {}
+    };
+  }
+  get stanzas () {
+    return {
+      define () {},
+      utils: {
+        textSub () {}
+      },
+      extendIQ () {}
+    };
+  }
+
+  connect () {
+    this.client.connectAttempts++;
+    setTimeout(() => {
+      if (SIMULTATE_ONLINE) {
+        this.emit('connected');
+        this.client.connected = true;
+      } else {
+        this.emit('disconnected');
+        this.client.connected = false;
+      }
+    }, this.connectTimeout || 10);
+  }
+}
+
+class Client {
+  constructor (connectTimeout) {
     this.connected = false;
     this.connectAttempts = 0;
 
@@ -22,23 +56,15 @@ class Client extends WildEmitter {
       debug () {}
     };
 
-    this._stanzaio = {
-      connect: () => {
-        this.connectAttempts++;
-        setTimeout(() => {
-          if (SIMULTATE_ONLINE) {
-            this.emit('connected');
-            this.connected = true;
-          } else {
-            this.emit('disconnected');
-            this.connected = false;
-          }
-        }, connectTimeout || 10);
-      }
-    };
+    this._stanzaio = new MockStanzaIo(connectTimeout, this);
+  }
+
+  on () {
+    this._stanzaio.on(...arguments);
   }
 
   connect () {}
+  reconnect () {}
 }
 
 test.beforeEach(() => {
@@ -175,7 +201,7 @@ test('when an auth failure occurs it will cease the backoff', async t => {
   clock.tick(600);
   t.is(client.connectAttempts, 3);
 
-  client.emit('sasl:failure');
+  client._stanzaio.emit('sasl:failure');
   clock.tick(1100);
   t.is(client.connectAttempts, 3);
   t.is(client.connected, false);
@@ -197,7 +223,7 @@ test('when a temporary auth failure occurs it will not cease the backoff', async
   clock.tick(600);
   t.is(client.connectAttempts, 3);
 
-  client.emit('sasl:failure', { condition: 'temporary-auth-failure' });
+  client._stanzaio.emit('sasl:failure', { condition: 'temporary-auth-failure' });
   clock.tick(1100);
   t.is(client.connectAttempts, 4);
   t.is(client.connected, false);
@@ -205,5 +231,123 @@ test('when a temporary auth failure occurs it will not cease the backoff', async
   clock.tick(2500);
   t.is(client.connectAttempts, 5);
 
-  client.emit('sasl:failure');
+  client._stanzaio.emit('sasl:failure');
+});
+
+test('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client._stanzaio.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ done: true }), 1);
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
+  });
+
+  clock.tick(10);
+
+  await reconnected;
+});
+
+test('will wait to reconnect if called back with pending', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client._stanzaio.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ pending: true }), 1);
+    setTimeout(() => handler({ done: true }), 200);
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
+  });
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(500);
+  sinon.assert.calledOnce(client.reconnect);
+
+  await reconnected;
+});
+
+test('will wait no longer than 1 hour after pending callback to reconnect', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client._stanzaio.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ pending: true }), 1);
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
+  });
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(10 * 60 * 1000);
+  sinon.assert.calledOnce(client.reconnect);
+
+  await reconnected;
+});
+
+test('will reconnect after a second if no pending or done response is received', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  sinon.stub(client, 'reconnect').callsFake(() => {
+    client._stanzaio.emit('reconnected');
+  });
+
+  client.on('requestReconnect', (handler) => {
+    setTimeout(() => handler({ pending: true }), 2000); // too late
+  });
+
+  const reconnected = new Promise(resolve => {
+    client.on('reconnected', resolve);
+  });
+
+  reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    cxfr: {
+      domain: 'asdf.example.com',
+      server: 'streaming.us-east-1.example.com'
+    }
+  });
+
+  clock.tick(10);
+  sinon.assert.notCalled(client.reconnect);
+  clock.tick(1000);
+  sinon.assert.calledOnce(client.reconnect);
+
+  await reconnected;
 });

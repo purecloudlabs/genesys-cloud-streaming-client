@@ -11,7 +11,7 @@ import { requestApi, timeoutPromise } from './utils';
 import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
 
 // external imports
-import {TokenBucket} from 'limiter';
+import { TokenBucket } from 'limiter';
 
 let extensions = {
   ping,
@@ -198,7 +198,7 @@ class Client {
         return timeoutPromise(resolve => {
           this.once('connected', resolve);
           this._stanzaio.connect(stanzaioOptions(this.config));
-        }, 10 * 1000, 'connecting to streaming service');
+        }, 10 * 1000, 'connecting to streaming service', { jid, channelId });
       });
   }
 
