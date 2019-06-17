@@ -16,10 +16,12 @@ function requestApi (path, { method, data, host, version, contentType, authToken
   return response.send(data); // trigger request
 }
 
-function timeoutPromise (fn, timeoutMs, msg) {
+function timeoutPromise (fn, timeoutMs, msg, details) {
   return new Promise(function (resolve, reject) {
     const timeout = setTimeout(function () {
-      reject(new Error(`Timeout: ${msg}`));
+      const err = new Error(`Timeout: ${msg}`);
+      err.details = details;
+      reject(err);
     }, timeoutMs);
     const done = function () {
       clearTimeout(timeout);
