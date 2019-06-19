@@ -11,7 +11,7 @@ import { requestApi, timeoutPromise } from './utils';
 import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
 
 // external imports
-import {TokenBucket} from 'limiter';
+import { TokenBucket } from 'limiter';
 
 let extensions = {
   ping,
@@ -41,6 +41,8 @@ const REMAPPED_EVENTS = {
   'disconnected': 'session:end',
   '_disconnected': 'disconnected'
 };
+
+const APP_VERSION = '[AIV]{version}[/AIV]';
 
 class Client {
   constructor (options) {
@@ -208,6 +210,10 @@ class Client {
       throw `Cannot register already existing namespace ${namespace}`;
     }
     extensions[namespace] = extender;
+  }
+
+  static get appVersion () {
+    return APP_VERSION;
   }
 }
 

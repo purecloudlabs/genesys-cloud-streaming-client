@@ -1,5 +1,6 @@
 const path = require('path');
 const webpack = require('webpack');
+const WebpackAutoInject = require('webpack-auto-inject-version');
 
 module.exports = (env) => {
   const minimize = env && env.production;
@@ -22,7 +23,16 @@ module.exports = (env) => {
       libraryTarget: node ? 'commonjs' : 'umd'
     },
     plugins: [
-      new webpack.DefinePlugin({ 'global.GENTLY': false })
+      new webpack.DefinePlugin({ 'global.GENTLY': false }),
+      new WebpackAutoInject({
+        components: {
+          AutoIncreaseVersion: false,
+          InjectByTag: {
+            fileRegex: /\.+/,
+            AIVTagRegexp: /(\[AIV])(([a-zA-Z{} ,:;!()_@\-"'\\\/])+)(\[\/AIV])/g // eslint-disable-line
+          }
+        }
+      })
     ],
     module: {
       rules: [
