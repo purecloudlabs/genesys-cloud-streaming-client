@@ -329,5 +329,5 @@ test('it will remap some events for our client to the underlying stanza client',
 });
 
 test('it will return the app version', t => {
-  t.is(Client.appVersion, '[AIV]{version}[/AIV]');
+  t.is(Client.version, '[AIV]{version}[/AIV]');
 });

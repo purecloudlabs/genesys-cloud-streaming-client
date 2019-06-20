@@ -212,7 +212,7 @@ class Client {
     extensions[namespace] = extender;
   }
 
-  static get appVersion () {
+  static get version () {
     return APP_VERSION;
   }
 }
