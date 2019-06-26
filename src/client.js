@@ -35,6 +35,36 @@ function stanzaioOptions (config) {
   return stanzaOptions;
 }
 
+// from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
+function parseJwt (token) {
+  var base64Url = token.split('.')[1];
+  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+
+  return JSON.parse(jsonPayload);
+}
+
+function stanzaOptionsJwt (config) {
+  const jwt = parseJwt(config.jwt);
+  let jidDomain;
+  try {
+    jidDomain = jwt.data.jid.split('@')[1].replace('conference.', '');
+  } catch (e) {
+    throw new Error('failed to parse jid');
+  }
+  let wsHost = config.host.replace(/\/$/, '');
+  let stanzaOptions = {
+    wsURL: `${wsHost}/stream/jwt/${config.jwt}`,
+    transport: 'websocket',
+    server: jidDomain,
+    sasl: ['anonymous']
+  };
+
+  return stanzaOptions;
+}
+
 const REMAPPED_EVENTS = {
   'connected': 'session:started',
   '_connected': 'connected',
@@ -53,7 +83,8 @@ class Client {
       host: options.host,
       apiHost: options.apiHost || options.host.replace('wss://streaming.', ''),
       authToken: options.authToken,
-      jid: options.jid, // todo: fetch on init
+      jwt: options.jwt,
+      jid: options.jid,
       channelId: null // created on connect
     };
 
@@ -169,6 +200,13 @@ class Client {
   }
 
   connect () {
+    if (this.config.jwt) {
+      return timeoutPromise(resolve => {
+        this.once('connected', resolve);
+        this._stanzaio.connect(stanzaOptionsJwt(this.config));
+      }, 10 * 1000, 'connecting to streaming service with jwt');
+    }
+
     let jidPromise;
     if (this.config.jid) {
       jidPromise = Promise.resolve(this.config.jid);
