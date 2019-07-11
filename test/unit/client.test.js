@@ -8,6 +8,9 @@ const Client = require('../../src/client');
 const { TokenBucket } = require('limiter');
 const WildEmitter = require('wildemitter');
 
+const atob = require('atob');
+const btoa = require('btoa');
+
 const defaultOptions = {
   jid: 'anon@example.mypurecloud.com',
   authToken: 'AuthToken',
@@ -19,6 +22,10 @@ const defaultOptions = {
   }
 };
 Object.freeze(defaultOptions);
+
+global.window = global;
+global.window.btoa = btoa;
+global.window.atob = atob;
 
 function getDefaultOptions () {
   return Object.assign({}, defaultOptions);
@@ -109,6 +116,30 @@ test.serial('connect will fetch the jid if not provided with a custom api host',
       t.true(apis.me.isDone());
       t.true(apis.channel.isDone());
     });
+});
+
+test.serial('Will use anonymous authentication to connect if using a JWT instead of an authToken', t => {
+  const client = new Client({
+    host: defaultOptions.host,
+    jwt: 'test.' + window.btoa(JSON.stringify({ data: { jid: 'acd-asdfasdfkj@conference.example.orgspan.com' } }))
+  });
+  sinon.stub(client._stanzaio, 'connect').callsFake(opts => {
+    t.is(opts.sasl.length, 1);
+    t.is(opts.sasl[0], 'anonymous');
+    t.is(opts.server, 'example.orgspan.com');
+    client._stanzaio.emit('session:started', {});
+  });
+  return client.connect();
+});
+
+test.serial('will throw if jid domain cannot be parsed from jid in jwt', t => {
+  const client = new Client({
+    host: defaultOptions.host,
+    jwt: 'test.' + window.btoa(JSON.stringify({ data: { jid: 'example.orgspan.com' } }))
+  });
+  return client.connect()
+    .then(() => t.fail()) // throws in promise chain, so promise should not succeed
+    .catch(() => t.pass()); // it threw, success
 });
 
 test('extend add an extension for creating clients', t => {

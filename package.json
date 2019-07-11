@@ -72,10 +72,12 @@
     "wildemitter": "^1.2.0"
   },
   "devDependencies": {
+    "atob": "^2.1.2",
     "ava": "^0.20.0",
     "babel-loader": "^7.1.2",
     "babel-plugin-istanbul": "^4.1.6",
     "babel-preset-env": "^1.7.0",
+    "btoa": "^1.2.1",
     "mock-socket": "^6.0.4",
     "nock": "^10.0.1",
     "nyc": "^13.3.0",

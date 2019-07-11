@@ -72,10 +72,12 @@ client.on('requestReconnect', function (callback) {
 
 - parameters
   - `Object options` with properties:
-    - `String authToken`: Required; access token for the user
+    - `String authToken`: Required; access token for the user (not required if using guest authentication JWT)
     - `String host`: Required; `wss://streaming.` + `mypurecloud.com || mypurecloud.ie ||
         mypurecloud.jp || mypurecloud.de || mypurecloud.com.au`
-    - `String jid` : Required; JabberId for the user (get from `api/v2/users/me`)
+    - `String jid` : Required; JabberId for the user (get from `api/v2/users/me`) (not required if using guest authentication JWT)
+    - `String jwt` : Optional (Required for guest authentication); Json Web Token fetched from public API for acess
+        to a particular feature in guest mode (see documentation for Screen Share or Web Chat for details)
 
 #### Methods
 
