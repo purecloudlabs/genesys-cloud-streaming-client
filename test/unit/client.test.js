@@ -358,3 +358,7 @@ test('it will remap some events for our client to the underlying stanza client',
   client._stanzaio.emit('connected', {});
   sinon.assert.notCalled(_connected);
 });
+
+test('it will return the app version', t => {
+  t.is(Client.version, '[AIV]{version}[/AIV]');
+});

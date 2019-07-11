@@ -72,6 +72,8 @@ const REMAPPED_EVENTS = {
   '_disconnected': 'disconnected'
 };
 
+const APP_VERSION = '[AIV]{version}[/AIV]';
+
 class Client {
   constructor (options) {
     const stanzaio = XMPP.createClient({});
@@ -246,6 +248,10 @@ class Client {
       throw `Cannot register already existing namespace ${namespace}`;
     }
     extensions[namespace] = extender;
+  }
+
+  static get version () {
+    return APP_VERSION;
   }
 }
 
