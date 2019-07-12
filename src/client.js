@@ -74,7 +74,7 @@ const REMAPPED_EVENTS = {
 
 const APP_VERSION = '[AIV]{version}[/AIV]';
 
-class Client {
+export default class Client {
   constructor (options) {
     const stanzaio = createClient({});
     this._stanzaio = stanzaio;
@@ -253,5 +253,3 @@ class Client {
     return APP_VERSION;
   }
 }
-
-module.exports = Client;

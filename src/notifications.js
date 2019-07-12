@@ -6,7 +6,7 @@ function mergeAndDedup (arr1, arr2) {
   return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
 }
 
-class Notification {
+export default class Notification {
   constructor (client) {
     this.subscriptions = {};
     this.bulkSubscriptions = {};
@@ -184,5 +184,3 @@ class Notification {
     };
   }
 }
-
-module.exports = Notification;

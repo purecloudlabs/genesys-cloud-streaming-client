@@ -2,7 +2,7 @@
 
 const backoff = require('backoff-web');
 
-class Reconnector {
+export default class Reconnector {
   constructor (client) {
     this.client = client;
     this.backoff = backoff.exponential({
@@ -128,5 +128,3 @@ class Reconnector {
     this._backoffActive = false;
   }
 }
-
-module.exports = Reconnector;
