@@ -1,6 +1,7 @@
 'use strict';
 
-const Notifications = require('../../src/notifications');
+import Notifications from '../../src/notifications';
+
 const test = require('ava');
 const sinon = require('sinon');
 const WildEmitter = require('wildemitter');

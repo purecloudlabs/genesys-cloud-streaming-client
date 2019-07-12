@@ -55,7 +55,8 @@
     "require": [
       "esm",
       "@babel/register",
-      "babel-polyfill"
+      "babel-polyfill",
+      "./test/helpers/setup-browser-env.js"
     ]
   },
   "nyc": {
@@ -69,7 +70,7 @@
   "dependencies": {
     "backoff-web": "^1.0.1",
     "limiter": "^1.1.0",
-    "purecloud-streaming-client-webrtc-sessions": "^7.2.8",
+    "purecloud-streaming-client-webrtc-sessions": "^7.2.9",
     "stanza": "^11.0.0",
     "superagent": "^5.1.0",
     "uuid": "^3.0.1",
@@ -85,7 +86,6 @@
     "babel-loader": "^8.0.6",
     "babel-plugin-istanbul": "^5.1.4",
     "babel-polyfill": "^6.26.0",
-    "babel-preset-env": "^1.7.0",
     "btoa": "^1.2.1",
     "esm": "^3.2.25",
     "exports-loader": "^0.7.0",

@@ -2,7 +2,7 @@ import { requestApi } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
-class Notification {
+export default class Notification {
   constructor (client) {
     this.subscriptions = {};
     this.bulkSubscriptions = {};
@@ -168,5 +168,3 @@ class Notification {
     };
   }
 }
-
-module.exports = Notification;

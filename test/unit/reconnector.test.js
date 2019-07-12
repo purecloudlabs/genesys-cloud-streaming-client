@@ -1,8 +1,9 @@
 'use strict';
 
+import Reconnector from '../../src/reconnector';
+
 const test = require('ava');
 const WildEmitter = require('wildemitter');
-const Reconnector = require('../../src/reconnector');
 const sinon = require('sinon');
 
 let clock;

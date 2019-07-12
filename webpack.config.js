@@ -10,7 +10,7 @@ module.exports = (env) => {
   const filename = file + extension;
   return {
     target: node ? 'node' : 'web',
-    entry: './src/client.js',
+    entry: ['babel-polyfill', './src/client.js'],
     mode: minimize ? 'production' : 'development',
     optimization: {
       minimize
@@ -19,8 +19,9 @@ module.exports = (env) => {
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename,
-      library: 'pc-streaming',
-      libraryTarget: 'umd'
+      library: 'PureCloudStreamingClient',
+      libraryTarget: 'umd',
+      libraryExport: 'default'
     },
     plugins: [
       new webpack.DefinePlugin({ 'global.GENTLY': false }),
