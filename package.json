@@ -37,7 +37,7 @@
   },
   "babel": {
     "presets": [
-      "env"
+      "@babel/preset-env"
     ],
     "env": {
       "test": {
@@ -48,19 +48,23 @@
     }
   },
   "ava": {
-    "files": [],
+    "files": [
+      "test/unit/*.js"
+    ],
     "concurrency": 5,
     "failFast": true,
     "failWithoutAssertions": false,
     "tap": false,
     "powerAssert": true,
     "require": [
-      "babel-register"
+      "esm",
+      "@babel/register",
+      "babel-polyfill"
     ]
   },
   "nyc": {
     "require": [
-      "babel-register"
+      "@babel/register"
     ],
     "sourceMap": false,
     "instrument": false
@@ -70,24 +74,32 @@
     "backoff-web": "^1.0.1",
     "limiter": "^1.1.0",
     "purecloud-streaming-client-webrtc-sessions": "^7.2.8",
-    "stanza.io": "^9.1.0",
-    "superagent": "^4.0.0",
+    "stanza": "^11.0.0",
+    "superagent": "^5.1.0",
     "uuid": "^3.0.1",
+    "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
   "devDependencies": {
+    "@babel/core": "^7.5.4",
+    "@babel/preset-env": "^7.5.4",
+    "@babel/register": "^7.4.4",
     "atob": "^2.1.2",
-    "ava": "^0.20.0",
-    "babel-loader": "^7.1.2",
-    "babel-plugin-istanbul": "^4.1.6",
+    "ava": "^2.2.0",
+    "babel-loader": "^8.0.6",
+    "babel-plugin-istanbul": "^5.1.4",
+    "babel-polyfill": "^6.26.0",
     "babel-preset-env": "^1.7.0",
     "btoa": "^1.2.1",
+    "esm": "^3.2.25",
+    "exports-loader": "^0.7.0",
+    "imports-loader": "^0.8.0",
     "mock-socket": "^6.0.4",
     "nock": "^10.0.1",
-    "nyc": "^13.3.0",
-    "semistandard": "^12.0.1",
-    "sinon": "^2.4.1",
-    "snazzy": "^6.0.0",
+    "nyc": "^14.1.1",
+    "semistandard": "^13.0.1",
+    "sinon": "^7.3.2",
+    "snazzy": "^8.0.0",
     "watch": "^1.0.2",
     "webpack": "^4.35.3",
     "webpack-auto-inject-version": "^1.2.2",

@@ -4,6 +4,9 @@ const test = require('ava');
 const sinon = require('sinon');
 const nock = require('nock');
 
+global.window = global;
+global.self = global;
+
 const Client = require('../../src/client');
 const { TokenBucket } = require('limiter');
 const WildEmitter = require('wildemitter');
@@ -24,9 +27,17 @@ const defaultOptions = {
 };
 Object.freeze(defaultOptions);
 
-global.window = global;
 global.window.btoa = btoa;
 global.window.atob = atob;
+
+const crypto = require('crypto');
+global.crypto = {
+  getRandomValues: function (rawBytes) {
+    return {
+      buffer: crypto.randomBytes(rawBytes.length)
+    };
+  }
+};
 
 function getDefaultOptions () {
   return Object.assign({}, defaultOptions);
