@@ -76,7 +76,9 @@ test.afterEach(() => {
   clock.restore();
 });
 
-test('when started it reconnects on backoff', async t => {
+// all tests in this module are serial because we're messing with time
+
+test.serial('when started it reconnects on backoff', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   reconnect.start();
@@ -98,7 +100,7 @@ test('when started it reconnects on backoff', async t => {
   t.is(client.connectAttempts, 4);
 });
 
-test('when started it reconnects on backoff (long reconnect)', async t => {
+test.serial('when started it reconnects on backoff (long reconnect)', async t => {
   const client = new Client(400);
   const reconnect = new Reconnector(client);
   reconnect.start();
@@ -130,7 +132,7 @@ test('when started it reconnects on backoff (long reconnect)', async t => {
   t.is(client.connectAttempts, 3);
 });
 
-test('when started a second time it will not immediately retry the backoff', async t => {
+test.serial('when started a second time it will not immediately retry the backoff', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   reconnect.start();
@@ -147,7 +149,7 @@ test('when started a second time it will not immediately retry the backoff', asy
   t.is(client.connectAttempts, 3);
 });
 
-test('when stopped it will cease the backoff', async t => {
+test.serial('when stopped it will cease the backoff', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   reconnect.start();
@@ -169,7 +171,7 @@ test('when stopped it will cease the backoff', async t => {
   t.is(client.connectAttempts, 3);
 });
 
-test('will attempt a full reconnection after 10 failures', async t => {
+test.serial('will attempt a full reconnection after 10 failures', async t => {
   const client = new Client();
   sinon.stub(client, 'connect');
   const reconnect = new Reconnector(client);
@@ -189,7 +191,7 @@ test('will attempt a full reconnection after 10 failures', async t => {
   sinon.assert.calledOnce(client.connect);
 });
 
-test('when an auth failure occurs it will cease the backoff', async t => {
+test.serial('when an auth failure occurs it will cease the backoff', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   reconnect.start();
@@ -211,7 +213,7 @@ test('when an auth failure occurs it will cease the backoff', async t => {
   t.is(client.connectAttempts, 3);
 });
 
-test('when a temporary auth failure occurs it will not cease the backoff', async t => {
+test.serial('when a temporary auth failure occurs it will not cease the backoff', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   reconnect.start();
@@ -234,7 +236,7 @@ test('when a temporary auth failure occurs it will not cease the backoff', async
   client._stanzaio.emit('sasl:failure');
 });
 
-test('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async t => {
+test.serial('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   sinon.stub(client, 'reconnect').callsFake(() => {
@@ -261,7 +263,7 @@ test('when a connection transfer request comes in, will emit a reconnect request
   await reconnected;
 });
 
-test('will wait to reconnect if called back with pending', async t => {
+test.serial('will wait to reconnect if called back with pending', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   sinon.stub(client, 'reconnect').callsFake(() => {
@@ -292,7 +294,7 @@ test('will wait to reconnect if called back with pending', async t => {
   await reconnected;
 });
 
-test('will wait no longer than 1 hour after pending callback to reconnect', async t => {
+test.serial('will wait no longer than 1 hour after pending callback to reconnect', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   sinon.stub(client, 'reconnect').callsFake(() => {
@@ -322,7 +324,7 @@ test('will wait no longer than 1 hour after pending callback to reconnect', asyn
   await reconnected;
 });
 
-test('will reconnect after a second if no pending or done response is received', async t => {
+test.serial('will reconnect after a second if no pending or done response is received', async t => {
   const client = new Client();
   const reconnect = new Reconnector(client);
   sinon.stub(client, 'reconnect').callsFake(() => {
