@@ -18,7 +18,8 @@ const defaultOptions = {
   logger: {
     warn () {},
     error () {},
-    debug () {}
+    debug () {},
+    info () {}
   }
 };
 Object.freeze(defaultOptions);

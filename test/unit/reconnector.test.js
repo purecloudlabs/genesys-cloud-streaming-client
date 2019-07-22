@@ -47,13 +47,15 @@ class MockStanzaIo extends WildEmitter {
 
 class Client {
   constructor (connectTimeout) {
+    this.connectTimeout = connectTimeout;
     this.connected = false;
     this.connectAttempts = 0;
 
     this.logger = {
       warn () {},
       error () {},
-      debug () {}
+      debug () {},
+      info () {}
     };
 
     this._stanzaio = new MockStanzaIo(connectTimeout, this);
@@ -63,7 +65,9 @@ class Client {
     this._stanzaio.on(...arguments);
   }
 
-  connect () {}
+  connect () {
+    this.connectAttempts = 0;
+  }
   reconnect () {}
 }
 
@@ -201,7 +205,7 @@ test('when an auth failure occurs it will cease the backoff', async t => {
   clock.tick(600);
   t.is(client.connectAttempts, 3);
 
-  client._stanzaio.emit('sasl:failure');
+  client._stanzaio.emit('sasl:failure', { condition: 'not-authorized' });
   clock.tick(1100);
   t.is(client.connectAttempts, 3);
   t.is(client.connected, false);
@@ -232,6 +236,34 @@ test('when a temporary auth failure occurs it will not cease the backoff', async
   t.is(client.connectAttempts, 5);
 
   client._stanzaio.emit('sasl:failure');
+});
+
+test('will reconnect if an authorization error occurs after a connection has connected previously', async t => {
+  const client = new Client();
+  const reconnect = new Reconnector(client);
+  reconnect.start();
+
+  // move forward in time to where two connections should have been attempted.
+  clock.tick(350);
+  t.is(client.connectAttempts, 2);
+
+  clock.tick(600);
+  t.is(client.connectAttempts, 3);
+
+  reconnect._hasConnected = true;
+  client._stanzaio.emit('sasl:failure', { condition: 'not-authorized' });
+  clock.tick(250);
+  reconnect.start();
+  clock.tick(30);
+  t.is(client.connectAttempts, 1);
+  t.is(client.connected, false);
+
+  clock.tick(10);
+  client._stanzaio.emit('sasl:failure'); // now fail permanently to stop tests
+
+  // make sure it didn't keep trying
+  clock.tick(10000);
+  t.is(client.connectAttempts, 1);
 });
 
 test('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async t => {
