@@ -39,19 +39,25 @@ class Reconnector {
     });
 
     this.backoff.on('fail', () => {
-      this.client.logger.error('Failed to reconnect to the streaming service. Attempting to connect with new channel.');
-      // attempt with a new channel
-      this.cleanupReconnect();
-      this.client.connect();
+      this.hardReconnect();
     });
 
     // self bound methods so we can clean up the handlers
     this._cleanupReconnect = this.cleanupReconnect.bind(this);
-    this.client.on('connected', this._cleanupReconnect);
+    this.client.on('connected', () => {
+      this._hasConnected = true;
+      this._cleanupReconnect();
+    });
 
     // disable reconnecting when there's an auth failure
     this.client.on('sasl:failure', (err) => {
-      if (!err || err.condition !== 'temporary-auth-failure') {
+      const temporaryFailure = err && err.condition === 'temporary-auth-failure';
+      const channelExpired = this._hasConnected && err && err.condition === 'not-authorized';
+      if (channelExpired) {
+        this.hardReconnect();
+      } else if (temporaryFailure) {
+        this.client.logger.info('Temporary auth failure, continuing reconnect attempts');
+      } else {
         this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', err);
         this._cleanupReconnect();
       }
@@ -94,6 +100,13 @@ class Reconnector {
     });
 
     this._backoffActive = false;
+  }
+
+  hardReconnect () {
+    this.client.logger.error('Failed to reconnect to the streaming service. Attempting to connect with new channel.');
+    this._cleanupReconnect();
+    this._hasConnected = false;
+    this.client.connect();
   }
 
   cleanupReconnect () {
