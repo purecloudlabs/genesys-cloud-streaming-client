@@ -198,7 +198,7 @@ class Client {
       // trigger a stop on the underlying connection, but allow reconnect
       this.autoReconnect = true;
       this._stanzaio.disconnect();
-    }, 1000, 'reconnecting streaming service');
+    }, 10 * 1000, 'reconnecting streaming service');
   }
 
   connect () {
