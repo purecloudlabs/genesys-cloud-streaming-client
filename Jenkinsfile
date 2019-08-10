@@ -3,6 +3,7 @@
 webappPipeline {
     slaveLabel = 'dev'
     nodeVersion = '10.16.2'
+    useArtifactoryRepo = false
     projectName = 'purecloud-streaming-client'
     manifest = directoryManifest('dist')
     buildType = { env.BRANCH_NAME == 'master' ? 'MAINLINE' : 'FEATURE' }
