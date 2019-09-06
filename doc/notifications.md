@@ -12,7 +12,9 @@ The extension provides the following API:
   - parameters
     - `Object options` Optional; with properties:
       - `Boolean replace`: true indicates the list of topics should replace the
-          current list of subscribed topics.
+          current list of bulk subscribed topics (without removing individually subscribed topics)
+      - `Boolean force`: true indicates that individually subscribed topics should be removed
+          (i.e., forcibly overwrite the list of subscribed topics)
 
 Examples:
 
@@ -58,3 +60,27 @@ a handler for a topic
 
 When unsubscribing, the client will only unsubscribe the topic from the backend if
 there are no more handlers. Since bulk subscriptions don't have a specific handler for each topic, they count as a single "handler" for each topic, so that an unsubscribe later will still reference count it.
+
+#### Mixing Bulk and Individual Subscriptions
+
+Mixing bulk and individual subscriptions may be useful when dealing with an application where
+most topics are managed by a central service, but some smaller components want to subscribe as
+well, without disrupting reference counting.
+
+To support this, calling `bulkSubscribe(topics, { replace: true })` will maintain any individual
+subscriptions made previously with `subscribe(topic, handler)`. In order to forcibly overwrite
+the list of subscriptions, you can provide `force: true` in the options parameter. For example:
+
+```js
+// myUserId defined
+client.notifications.subscribe(`topic1`, () => {});
+
+await client.notifications.bulkSubscribe(['topic2', 'topic3'], { replace: true });
+// subscribed topics: ['topic1', 'topic2', 'topic3']
+
+await client.notifications.bulkSubscribe(['topic4', 'topic5'], { replace: true })
+// subscribed topics: ['topic1', 'topic4', 'topic5']
+
+await client.notifications.bulkSubscribe(['topic4', 'topic5'], { replace: true, force: true })
+// subscribed topics: ['topic4', 'topic5']
+```
