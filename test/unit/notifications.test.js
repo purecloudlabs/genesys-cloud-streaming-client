@@ -245,3 +245,48 @@ test('notifications should resubscribe (bulk subscribe) to existing topics after
   sinon.assert.calledOnce(notification.bulkSubscribe);
   await errorEvent;
 });
+
+test('notifications bulk subscribe should maintain individual subscriptions when bulk subscribing with replace', async t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://streaming.inindca.com/something-else'
+  };
+  const notification = new Notifications(client);
+
+  sinon.stub(notification.client._stanzaio, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
+  sinon.stub(notification.client._stanzaio, 'unsubscribeFromNode').callsFake((a, b, c = () => {}) => c());
+  client.emit('connected');
+  client.connected = true;
+  sinon.stub(notification, 'bulkSubscribe').returns(Promise.resolve());
+
+  const handler = sinon.stub();
+  const handler2 = sinon.stub();
+  notification.expose.subscribe('test', handler);
+  notification.expose.subscribe('test2', handler2);
+
+  notification.expose.bulkSubscribe(['test3', 'test2'], { replace: true, force: false });
+  t.is(notification.subscriptions['test'][0], handler);
+  sinon.assert.calledWithExactly(notification.bulkSubscribe, ['test3', 'test2', 'test'], sinon.match.typeOf('object'));
+});
+
+test('notifications should not resubscribe to something different than bulk subscribe', async t => {
+  const client = new Client();
+  client.config = {
+    wsURL: 'ws://streaming.inindca.com/something-else'
+  };
+  const notification = new Notifications(client);
+
+  sinon.stub(notification.client._stanzaio, 'subscribeToNode').callsFake((a, b, c = () => {}) => c());
+  sinon.stub(notification.client._stanzaio, 'unsubscribeFromNode').callsFake((a, b, c = () => {}) => c());
+  client.emit('connected');
+  client.connected = true;
+  sinon.stub(notification, 'bulkSubscribe').returns(Promise.resolve());
+
+  const handler = sinon.stub();
+  const handler2 = sinon.stub();
+  notification.expose.subscribe('test', handler);
+  notification.expose.subscribe('test2', handler2);
+
+  notification.expose.bulkSubscribe(['test3'], { replace: true, force: true });
+  t.is(notification.subscriptions['test'], undefined);
+});

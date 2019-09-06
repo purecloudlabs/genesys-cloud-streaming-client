@@ -2,6 +2,10 @@ import { requestApi } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
+function mergeAndDedup (arr1, arr2) {
+  return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
+}
+
 class Notification {
   constructor (client) {
     this.subscriptions = {};
@@ -93,8 +97,8 @@ class Notification {
     }
   }
 
-  resubscribe () {
-    const topicsToResubscribe = Object.keys(this.bulkSubscriptions);
+  getActiveIndividualTopics () {
+    const activeTopics = [];
     const topics = Object.keys(this.subscriptions);
     topics.forEach(topic => {
       if (topic === 'streaming-subscriptions-expiring') {
@@ -102,11 +106,14 @@ class Notification {
       }
       const handlers = this.topicHandlers(topic);
       if (handlers.length > 0) {
-        if (topicsToResubscribe.indexOf(topic) === -1) {
-          topicsToResubscribe.push(topic);
-        }
+        activeTopics.push(topic);
       }
     });
+    return activeTopics;
+  }
+
+  resubscribe () {
+    let topicsToResubscribe = mergeAndDedup(Object.keys(this.bulkSubscriptions), this.getActiveIndividualTopics());
     if (topicsToResubscribe.length === 0) {
       return Promise.resolve();
     }
@@ -155,8 +162,17 @@ class Notification {
         });
       }.bind(this),
 
-      bulkSubscribe: function (topics, options = { replace: false }) {
-        return this.bulkSubscribe(topics, options).then(() => {
+      bulkSubscribe: function (topics, options = { replace: false, force: false }) {
+        let toSubscribe = topics.map(t => t); // clone
+
+        if (options.replace && !options.force) {
+          // if this is a bulk subscription, but not a forcible one, keep all individual subscriptions
+          toSubscribe = mergeAndDedup(toSubscribe, this.getActiveIndividualTopics());
+        } else if (options.force) {
+          // if it's a forcible bulk subscribe, wipe out individual subscriptions
+          this.subscriptions = {};
+        }
+        return this.bulkSubscribe(toSubscribe, options).then(() => {
           if (options.replace) {
             this.bulkSubscriptions = {};
           }
