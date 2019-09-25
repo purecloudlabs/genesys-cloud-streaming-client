@@ -1,7 +1,7 @@
 'use strict';
 
 // src imports
-import XMPP from './stanzaio-light';
+import { createClient } from './stanzaio-light';
 import notifications from './notifications';
 import reconnector from './reconnector';
 import ping from './ping';
@@ -74,9 +74,9 @@ const REMAPPED_EVENTS = {
 
 const APP_VERSION = '[AIV]{version}[/AIV]';
 
-class Client {
+export default class Client {
   constructor (options) {
-    const stanzaio = XMPP.createClient({});
+    const stanzaio = createClient({});
     this._stanzaio = stanzaio;
     this.connected = false;
     this.autoReconnect = true;
@@ -244,8 +244,7 @@ class Client {
 
   static extend (namespace, extender) {
     if (extensions[namespace]) {
-      /* eslint no-throw-literal: "off" */
-      throw `Cannot register already existing namespace ${namespace}`;
+      throw new Error(`Cannot register already existing namespace ${namespace}`);
     }
     extensions[namespace] = extender;
   }
@@ -254,5 +253,3 @@ class Client {
     return APP_VERSION;
   }
 }
-
-module.exports = Client;

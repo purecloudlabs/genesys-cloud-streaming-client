@@ -8,7 +8,7 @@ function buildUri (host, path, version = 'v2') {
   return `https://api.${host}/api/${version}/${path}`;
 }
 
-function requestApi (path, { method, data, host, version, contentType, authToken }) {
+export function requestApi (path, { method, data, host, version, contentType, authToken }) {
   let response = request[method](buildUri(host, path, version))
     .set('Authorization', `Bearer ${authToken}`)
     .type(contentType || 'json');
@@ -16,7 +16,7 @@ function requestApi (path, { method, data, host, version, contentType, authToken
   return response.send(data); // trigger request
 }
 
-function timeoutPromise (fn, timeoutMs, msg, details) {
+export function timeoutPromise (fn, timeoutMs, msg, details) {
   return new Promise(function (resolve, reject) {
     const timeout = setTimeout(function () {
       const err = new Error(`Timeout: ${msg}`);
@@ -47,8 +47,3 @@ function timeoutPromise (fn, timeoutMs, msg, details) {
 //
 //   return destination;
 // }
-
-module.exports = {
-  requestApi,
-  timeoutPromise
-};
