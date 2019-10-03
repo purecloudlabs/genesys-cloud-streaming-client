@@ -1,4 +1,5 @@
 import { requestApi } from './utils';
+const debounce = require('debounce-promise');
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 
@@ -15,6 +16,7 @@ export default class Notification {
 
     client.on('pubsub:event', this.pubsubEvent.bind(this));
     client.on('connected', this.subscriptionsKeepAlive.bind(this));
+    this.debouncedResubscribe = debounce(this.resubscribe.bind(this), 100);
   }
 
   get pubsubHost () {
@@ -49,11 +51,12 @@ export default class Notification {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
       return callback();
     }
+    const subscribe = () => this.client._stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
     if (this.client.connected) {
-      this.client._stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
+      subscribe();
     } else {
       this.client.once('connected', () => {
-        this.client._stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
+        subscribe();
       });
     }
   }
@@ -62,13 +65,53 @@ export default class Notification {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
       return callback();
     }
+    const unsubscribe = () => this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
     if (this.client.connected) {
-      this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
+      unsubscribe();
     } else {
       this.client.once('connected', () => {
-        this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
+        unsubscribe();
       });
     }
+  }
+
+  mapCombineTopics (topics) {
+    const prefixes = {};
+    topics.map(t => {
+      const split = t.split('.');
+      const postfix = split.splice(split.length - 1);
+      const prefix = split.join('.');
+      return { prefix, postfix };
+    }).forEach(t => {
+      if (prefixes[t.prefix]) {
+        prefixes[t.prefix].push(t.postfix);
+      } else {
+        prefixes[t.prefix] = [ t.postfix ];
+      }
+    });
+
+    let combinedTopics = [];
+
+    // Max length of 200 in topic names
+    // so recursively break them up if the combined length exceeds 200
+    const combineTopics = (prefix, postFixes) => {
+      const delimiter = postFixes.length === 1 ? '.' : '?';
+      const id = `${prefix}${delimiter}${postFixes.join('&')}`;
+      if (id.length < 200) {
+        combinedTopics.push({ id });
+      } else if (postFixes.length === 1) {
+        this.client.logger.error('Refusing to attempt topic with length > 200', id);
+      } else {
+        combineTopics(prefix, postFixes.slice(0, postFixes.length / 2));
+        combineTopics(prefix, postFixes.slice(postFixes.length / 2));
+      }
+    };
+    Object.keys(prefixes).forEach(prefix => {
+      const postFixes = prefixes[prefix];
+      combineTopics(prefix, postFixes);
+    });
+
+    return combinedTopics;
   }
 
   bulkSubscribe (topics, options) {
@@ -76,7 +119,7 @@ export default class Notification {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
-      data: JSON.stringify(topics.map(t => ({ id: t })))
+      data: JSON.stringify(this.mapCombineTopics(topics))
     };
     const channelId = this.client.config.channelId;
     return requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
@@ -136,26 +179,37 @@ export default class Notification {
 
   get expose () {
     return {
-      subscribe: function (topic, handler) {
-        return new Promise((resolve, reject) => {
-          this.xmppSubscribe(topic, (err, ...args) => {
-            if (err) { reject(err); } else { resolve(...args); }
+      subscribe: function (topic, handler, immediate) {
+        let promise;
+        if (!immediate) {
+          // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
+          promise = this.debouncedResubscribe();
+        } else {
+          promise = new Promise((resolve, reject) => {
+            this.xmppSubscribe(topic, (err, ...args) => {
+              if (err) { reject(err); } else { resolve(...args); }
+            });
           });
-          if (handler) {
-            this.createSubscription(topic, handler);
-          } else {
-            this.bulkSubscriptions[topic] = true;
-          }
-        });
+        }
+        if (handler) {
+          this.createSubscription(topic, handler);
+        } else {
+          this.bulkSubscriptions[topic] = true;
+        }
+        return promise;
       }.bind(this),
 
-      unsubscribe: function (topic, handler) {
+      unsubscribe: function (topic, handler, immediate) {
+        if (handler) {
+          this.removeSubscription(topic, handler);
+        } else {
+          delete this.bulkSubscriptions[topic];
+        }
+        if (!immediate) {
+          // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
+          return this.debouncedResubscribe();
+        }
         return new Promise((resolve, reject) => {
-          if (handler) {
-            this.removeSubscription(topic, handler);
-          } else {
-            delete this.bulkSubscriptions[topic];
-          }
           this.xmppUnsubscribe(topic, (err, ...args) => {
             if (err) { reject(err); } else { resolve(...args); }
           });
@@ -163,7 +217,7 @@ export default class Notification {
       }.bind(this),
 
       bulkSubscribe: function (topics, options = { replace: false, force: false }) {
-        let toSubscribe = topics.map(t => t); // clone
+        let toSubscribe = mergeAndDedup(topics, []);
 
         if (options.replace && !options.force) {
           // if this is a bulk subscription, but not a forcible one, keep all individual subscriptions

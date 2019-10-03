@@ -73,6 +73,7 @@
   "author": "",
   "dependencies": {
     "backoff-web": "^1.0.1",
+    "debounce-promise": "^3.1.2",
     "limiter": "^1.1.0",
     "purecloud-streaming-client-webrtc-sessions": "^7.2.9",
     "stanza": "^11.0.0",
