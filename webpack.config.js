@@ -10,7 +10,7 @@ module.exports = (env) => {
   const filename = file + extension;
   return {
     target: node ? 'node' : 'web',
-    entry: ['babel-polyfill', './src/client.js'],
+    entry: './src/client.js',
     mode: minimize ? 'production' : 'development',
     optimization: {
       minimize
