@@ -115,9 +115,15 @@ export default class Client {
     this.on('sasl:failure', (err) => {
       this.logger.error('Authentication failed connecting to streaming service', err);
       if (!err || err.condition !== 'temporary-auth-failure') {
+        this._ping.stop();
         this.autoReconnect = false;
         this.disconnect();
       }
+    });
+
+    this.on('no_longer_subscribed', (event) => {
+      this._ping.stop();
+      this.reconnect();
     });
 
     Object.keys(extensions).forEach((extensionName) => {
