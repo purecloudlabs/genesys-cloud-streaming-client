@@ -372,3 +372,12 @@ test('it will remap some events for our client to the underlying stanza client',
 test('it will return the app version', t => {
   t.is(Client.version, '[AIV]{version}[/AIV]');
 });
+
+test('it will stop pinging and try to reconnect when it is no longer subscribed', t => {
+  const client = new Client(getDefaultOptions());
+  const reconnectSpy = sinon.spy(client, 'reconnect');
+  const pingSpy = sinon.spy(client._ping, 'stop');
+  client._stanzaio.emit('no_longer_subscribed');
+  sinon.assert.called(reconnectSpy);
+  sinon.assert.called(pingSpy);
+});
