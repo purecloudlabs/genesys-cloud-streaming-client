@@ -18,12 +18,17 @@ export function requestApi (path, { method, data, host, version, contentType, au
 
 export function timeoutPromise (fn, timeoutMs, msg, details) {
   return new Promise(function (resolve, reject) {
+    let timedOut = false;
     const timeout = setTimeout(function () {
+      timedOut = true;
       const err = new Error(`Timeout: ${msg}`);
       err.details = details;
       reject(err);
     }, timeoutMs);
     const done = function () {
+      if (timedOut) {
+        console.warn('timeoutPromise resolved after timing out.', { timeoutMs, msg });
+      }
       clearTimeout(timeout);
       resolve();
     };
