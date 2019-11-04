@@ -375,9 +375,48 @@ test('it will return the app version', t => {
 
 test('it will stop pinging and try to reconnect when it is no longer subscribed', t => {
   const client = new Client(getDefaultOptions());
-  const reconnectSpy = sinon.spy(client, 'reconnect');
+  const reconnectSpy = sinon.spy();
+  client._reconnector.hardReconnect = reconnectSpy;
   const pingSpy = sinon.spy(client._ping, 'stop');
   client._stanzaio.emit('no_longer_subscribed');
-  sinon.assert.called(reconnectSpy);
   sinon.assert.called(pingSpy);
+});
+
+test('it will try and hard reconnect if reconnect attempts limit hasn\'t been reached', t => {
+  const client = new Client(getDefaultOptions());
+  const reconnectSpy = sinon.spy();
+  client._reconnector.hardReconnect = reconnectSpy;
+  client._stanzaio.emit('no_longer_subscribed');
+
+  sinon.assert.called(reconnectSpy);
+
+  reconnectSpy.resetHistory();
+
+  client._stanzaio.emit('no_longer_subscribed');
+  sinon.assert.called(reconnectSpy);
+
+  reconnectSpy.resetHistory();
+
+  client._stanzaio.emit('no_longer_subscribed');
+  sinon.assert.called(reconnectSpy);
+
+  reconnectSpy.resetHistory();
+
+  client._stanzaio.emit('no_longer_subscribed');
+  sinon.assert.notCalled(reconnectSpy);
+  t.pass();
+});
+
+test('should start a timer when no_longer_subscribed is received; timer should decrement reconnect attempts', async t => {
+  const client = new Client(getDefaultOptions());
+  client.reconnectLeakTime = 10;
+  const reconnectSpy = sinon.spy();
+  client._reconnector.hardReconnect = reconnectSpy;
+  client._stanzaio.emit('no_longer_subscribed');
+
+  t.is(client.hardReconnectCount, 1);
+
+  await new Promise(resolve => setTimeout(resolve, 15));
+
+  t.is(client.hardReconnectCount, 0);
 });

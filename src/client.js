@@ -35,6 +35,8 @@ function stanzaioOptions (config) {
   return stanzaOptions;
 }
 
+const HARD_RECONNECT_THRESHOLD = 3;
+
 // from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
 function parseJwt (token) {
   var base64Url = token.split('.')[1];
@@ -81,6 +83,11 @@ export default class Client {
     this.connected = false;
     this.autoReconnect = true;
     this.logger = options.logger || console;
+    this.leakyReconnectTimer = null;
+    this.hardReconnectCount = 0;
+    // 10 minutes
+    this.reconnectLeakTime = 1000 * 60 * 10;
+
     this.config = {
       host: options.host,
       apiHost: options.apiHost || options.host.replace('wss://streaming.', ''),
@@ -123,7 +130,26 @@ export default class Client {
 
     this.on('no_longer_subscribed', (event) => {
       this._ping.stop();
-      this.reconnect();
+
+      if (this.hardReconnectCount >= HARD_RECONNECT_THRESHOLD) {
+        this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect`);
+        clearInterval(this.leakyReconnectTimer);
+        return;
+      }
+
+      this.hardReconnectCount++;
+
+      this.logger.info('no_longer_subscribed received, attempting hard reconnect');
+
+      if (!this.leakyReconnectTimer) {
+        this.leakyReconnectTimer = setInterval(() => {
+          if (this.hardReconnectCount > 0) {
+            this.hardReconnectCount--;
+          }
+        }, this.reconnectLeakTime);
+      }
+
+      this._reconnector.hardReconnect();
     });
 
     Object.keys(extensions).forEach((extensionName) => {
@@ -140,7 +166,7 @@ export default class Client {
         // default rate limit
         // 20 stanzas per 1000 ms,
         // adding up to 25 stanzas over the course of the 1000ms
-        // starting with 20 stanzas
+        // starting th 20 stanzas
         // = 45 stanzas max per 1000 ms
         // = 70 stanzas max per 2000 ms
         extension.tokenBucket = new TokenBucket(20, 25, 1000);
