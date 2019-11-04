@@ -130,6 +130,7 @@ export default class Client {
 
     this.on('no_longer_subscribed', (event) => {
       this._ping.stop();
+      this.autoReconnect = false;
 
       if (this.hardReconnectCount >= HARD_RECONNECT_THRESHOLD) {
         this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect`);
