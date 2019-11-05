@@ -202,14 +202,14 @@ test('Should begin to reconnect when it becomes disconnected', t => {
       client._stanzaio.emit('connected');
       resolve();
     });
-    client._stanzaio.emit('disconnected');
+    client._stanzaio.emit('disconnected', { conn: { url: 'wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr' } });
   });
 });
 
 test('Should not begin to reconnect when it becomes disconnected if autoReconnect is off', async t => {
   const client = new Client(getDefaultOptions());
   client.autoReconnect = false;
-  client._stanzaio.emit('disconnected');
+  client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } });
   sinon.stub(client._stanzaio, 'emit');
   await new Promise(resolve => setTimeout(resolve, 100));
   sinon.assert.notCalled(client._stanzaio.emit);
@@ -218,7 +218,7 @@ test('Should not begin to reconnect when it becomes disconnected if autoReconnec
 test('Disconnecting explicitly will set autoReconnect to false', t => {
   const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
-  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } }));
   client.disconnect();
   t.is(client.autoReconnect, false);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
@@ -227,7 +227,7 @@ test('Disconnecting explicitly will set autoReconnect to false', t => {
 test('reconnect should disconnect but allow autoReconnect', t => {
   const client = new Client(getDefaultOptions());
   client._autoReconnect = false;
-  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } }));
   client._stanzaio.connect = sinon.stub().callsFake(() => client._stanzaio.emit('session:started', {}));
   client.reconnect();
   t.is(client.autoReconnect, true);
@@ -237,7 +237,7 @@ test('reconnect should disconnect but allow autoReconnect', t => {
 test('sasl:failure should disable autoReconnect and disconnect', t => {
   const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
-  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } }));
   client._stanzaio.emit('sasl:failure');
   t.is(client.autoReconnect, false);
   sinon.assert.calledOnce(client._stanzaio.disconnect);
@@ -246,7 +246,7 @@ test('sasl:failure should disable autoReconnect and disconnect', t => {
 test('temporary auth failure should not disable autoReconnect and disconnect', t => {
   const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
-  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected'));
+  client._stanzaio.disconnect = sinon.stub().callsFake(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } }));
   client._stanzaio.emit('sasl:failure', { condition: 'temporary-auth-failure' });
   t.is(client.autoReconnect, true);
   sinon.assert.notCalled(client._stanzaio.disconnect);
@@ -378,7 +378,9 @@ test('it will stop pinging and try to reconnect when it is no longer subscribed'
   const reconnectSpy = sinon.spy();
   client._reconnector.hardReconnect = reconnectSpy;
   const pingSpy = sinon.spy(client._ping, 'stop');
-  client._stanzaio.emit('no_longer_subscribed');
+  let channelId = 'streaming-484824828';
+  client.config.channelId = channelId;
+  client._stanzaio.emit('notify:v2.system.no_longer_subscribed.streaming-123812831', { eventBody: { channelId } });
   sinon.assert.called(pingSpy);
 });
 
@@ -386,25 +388,27 @@ test('it will try and hard reconnect if reconnect attempts limit hasn\'t been re
   const client = new Client(getDefaultOptions());
   const reconnectSpy = sinon.spy();
   client._reconnector.hardReconnect = reconnectSpy;
-  client._stanzaio.emit('no_longer_subscribed');
+  let channelId = 'streaming-484824828';
+  client.config.channelId = channelId;
+  const eventPrefix = `notify:v2.system.no_longer_subscribed.`;
+
+  client._stanzaio.emit(eventPrefix + channelId, { eventBody: { channelId } });
 
   sinon.assert.called(reconnectSpy);
 
   reconnectSpy.resetHistory();
 
-  client._stanzaio.emit('no_longer_subscribed');
+  channelId = 'streaming-11284129848';
+  client.config.channelId = channelId;
+  client._stanzaio.emit(eventPrefix + channelId, { eventBody: { channelId } });
   sinon.assert.called(reconnectSpy);
 
   reconnectSpy.resetHistory();
 
-  client._stanzaio.emit('no_longer_subscribed');
-  sinon.assert.called(reconnectSpy);
-
-  reconnectSpy.resetHistory();
-
-  client._stanzaio.emit('no_longer_subscribed');
+  channelId = 'streaming-99694232382';
+  client.config.channelId = channelId;
+  client._stanzaio.emit(eventPrefix + channelId, { eventBody: { channelId } });
   sinon.assert.notCalled(reconnectSpy);
-  t.pass();
 });
 
 test('should start a timer when no_longer_subscribed is received; timer should decrement reconnect attempts', async t => {
@@ -412,11 +416,28 @@ test('should start a timer when no_longer_subscribed is received; timer should d
   client.reconnectLeakTime = 10;
   const reconnectSpy = sinon.spy();
   client._reconnector.hardReconnect = reconnectSpy;
-  client._stanzaio.emit('no_longer_subscribed');
+  let channelId = 'streaming-484824828';
+  client.config.channelId = channelId;
+  const eventPrefix = `notify:v2.system.no_longer_subscribed.`;
+
+  client._stanzaio.emit(eventPrefix + channelId, { eventBody: { channelId } });
 
   t.is(client.hardReconnectCount, 1);
 
   await new Promise(resolve => setTimeout(resolve, 15));
 
   t.is(client.hardReconnectCount, 0);
+});
+
+test('should not reconnect if channelId is different than current channelId', async t => {
+  const client = new Client(getDefaultOptions());
+  const reconnectSpy = sinon.spy();
+  client._reconnector.hardReconnect = reconnectSpy;
+  let channelId = 'streaming-484824828';
+  client.config.channelId = 'sdfkjsdkfjssldkfj';
+  const eventPrefix = `notify:v2.system.no_longer_subscribed.`;
+
+  client._stanzaio.emit(eventPrefix + channelId, { eventBody: { channelId } });
+
+  sinon.assert.notCalled(reconnectSpy);
 });

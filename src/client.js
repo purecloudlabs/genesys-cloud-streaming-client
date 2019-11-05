@@ -35,7 +35,7 @@ function stanzaioOptions (config) {
   return stanzaOptions;
 }
 
-const HARD_RECONNECT_THRESHOLD = 3;
+const HARD_RECONNECT_THRESHOLD = 2;
 
 // from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
 function parseJwt (token) {
@@ -87,6 +87,7 @@ export default class Client {
     this.hardReconnectCount = 0;
     // 10 minutes
     this.reconnectLeakTime = 1000 * 60 * 10;
+    this.deadChannels = [];
 
     this.config = {
       host: options.host,
@@ -97,11 +98,19 @@ export default class Client {
       channelId: null // created on connect
     };
 
-    this.on('_disconnected', () => {
+    this.on('_disconnected', (event) => {
       this.connected = false;
       this._ping.stop();
 
-      if (this.autoReconnect) {
+      // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
+      const channelIdRegex = /stream\/channels\/([^/]+)/;
+      const matches = event.conn.url.match(channelIdRegex);
+      let channelId = 'failed to parse';
+      if (matches) {
+        channelId = matches[1];
+      }
+      if (this.autoReconnect && !this.deadChannels.includes(channelId)) {
+        this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect.', { channelId });
         this._reconnector.start();
       }
     });
@@ -128,9 +137,16 @@ export default class Client {
       }
     });
 
-    this.on('no_longer_subscribed', (event) => {
+    this.on('notify:v2.system.no_longer_subscribed*', (event, data) => {
       this._ping.stop();
-      this.autoReconnect = false;
+
+      const channelId = data.eventBody.channelId;
+      this.deadChannels.push(channelId);
+
+      if (channelId !== this.config.channelId) {
+        this.logger.warn('received no_longer_subscribed event for a non active channelId');
+        return;
+      }
 
       if (this.hardReconnectCount >= HARD_RECONNECT_THRESHOLD) {
         this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect`);
