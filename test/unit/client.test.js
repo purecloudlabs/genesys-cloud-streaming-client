@@ -209,7 +209,7 @@ test('Should begin to reconnect when it becomes disconnected', t => {
 test('Should not begin to reconnect when it becomes disconnected if autoReconnect is off', async t => {
   const client = new Client(getDefaultOptions());
   client.autoReconnect = false;
-  client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } });
+  client._stanzaio.emit('disconnected', { });
   sinon.stub(client._stanzaio, 'emit');
   await new Promise(resolve => setTimeout(resolve, 100));
   sinon.assert.notCalled(client._stanzaio.emit);

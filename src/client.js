@@ -104,7 +104,8 @@ export default class Client {
 
       // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
       const channelIdRegex = /stream\/channels\/([^/]+)/;
-      const matches = event.conn.url.match(channelIdRegex);
+      const url = (event.conn && event.conn.url) || '';
+      const matches = url.match(channelIdRegex);
       let channelId = 'failed to parse';
       if (matches) {
         channelId = matches[1];
