@@ -103,7 +103,7 @@ export default class Reconnector {
   }
 
   hardReconnect () {
-    this.client.logger.error('Failed to reconnect to the streaming service. Attempting to connect with new channel.');
+    this.client.logger.info('Attempting to reconnect with new channel.');
     this._cleanupReconnect();
     this._hasConnected = false;
     this.client.connect();
