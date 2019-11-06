@@ -150,7 +150,7 @@ export default class Client {
 
       if (this.hardReconnectCount >= HARD_RECONNECT_THRESHOLD) {
         this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect`);
-        clearInterval(this.leakyReconnectTimer);
+        this.cleanupLeakTimer();
         return;
       }
 
@@ -162,6 +162,8 @@ export default class Client {
         this.leakyReconnectTimer = setInterval(() => {
           if (this.hardReconnectCount > 0) {
             this.hardReconnectCount--;
+          } else {
+            this.cleanupLeakTimer();
           }
         }, this.reconnectLeakTime);
       }
@@ -183,7 +185,7 @@ export default class Client {
         // default rate limit
         // 20 stanzas per 1000 ms,
         // adding up to 25 stanzas over the course of the 1000ms
-        // starting th 20 stanzas
+        // starting with 20 stanzas
         // = 45 stanzas max per 1000 ms
         // = 70 stanzas max per 2000 ms
         extension.tokenBucket = new TokenBucket(20, 25, 1000);
@@ -204,6 +206,11 @@ export default class Client {
       this[extensionName] = extension.expose;
       this[`_${extensionName}`] = extension;
     });
+  }
+
+  cleanupLeakTimer () {
+    clearInterval(this.leakyReconnectTimer);
+    this.leakyReconnectTimer = null;
   }
 
   on (eventName, ...args) {
