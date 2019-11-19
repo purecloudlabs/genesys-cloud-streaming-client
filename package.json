@@ -76,7 +76,7 @@
     "backoff-web": "^1.0.1",
     "debounce-promise": "^3.1.2",
     "limiter": "^1.1.0",
-    "purecloud-streaming-client-webrtc-sessions": "^7.2.10",
+    "purecloud-streaming-client-webrtc-sessions": "^7.2.76",
     "stanza": "^11.0.0",
     "superagent": "^5.1.0",
     "uuid": "^3.0.1",
