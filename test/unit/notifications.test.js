@@ -370,3 +370,26 @@ test('notifications | mapCompineTopics should correctly reduce topics', t => {
   t.is(reducedTopics[1].id, 'v2.users.testuser.thisIsAReallyLongTopicForThePurposeOfExceeding200CharsinCombinedTopicNames');
   t.is(reducedTopics[2].id, 'v2.users.testuser?InRealityTheseWouldBeALotOfDisparateTopicsThatWhenJoinedExceed200Chars&athirdreallylongtopicathirdreallylongtopicathird');
 });
+
+test('notifications | mapCompineTopics should not combine already combined topics', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const topics = [
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.conversationsummary',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence',
+    'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice',
+    'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7?geolocation&presence&conversations'
+  ];
+
+  const reducedTopics = notification.mapCombineTopics(topics);
+  t.is(reducedTopics.length, 3);
+  t.is(reducedTopics[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&routingStatus&conversationsummary&outofoffice&presence');
+  t.is(reducedTopics[1].id, 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice');
+  t.is(reducedTopics[2].id, 'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7?geolocation&presence&conversations');
+});
