@@ -78,13 +78,17 @@ export default class Notification {
   mapCombineTopics (topics) {
     const prefixes = {};
     const precombinedTopics = [];
-    topics.filter(t => {
-      if (t.indexOf('?') === -1) {
-        return true;
+    const uncombinedTopics = [];
+
+    topics.forEach(t => {
+      if (t.includes('?')) {
+        precombinedTopics.push({ id: t });
       } else {
-        precombinedTopics.push(t);
+        uncombinedTopics.push(t);
       }
-    }).map(t => {
+    });
+
+    uncombinedTopics.map(t => {
       const split = t.split('.');
       const postfix = split.splice(split.length - 1);
       const prefix = split.join('.');
@@ -118,7 +122,7 @@ export default class Notification {
       combineTopics(prefix, postFixes);
     });
 
-    return combinedTopics.concat(precombinedTopics.map(t => ({ id: t })));
+    return combinedTopics.concat(precombinedTopics);
   }
 
   bulkSubscribe (topics, options) {
