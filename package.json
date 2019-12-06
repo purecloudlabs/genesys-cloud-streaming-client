@@ -1,6 +1,6 @@
 {
   "name": "purecloud-streaming-client",
-  "version": "11.0.0",
+  "version": "11.0.1",
   "description": "client for the PureCloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/purecloud-streaming-client",
   "license": "MIT",
