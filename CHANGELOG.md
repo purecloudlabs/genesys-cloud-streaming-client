@@ -1,7 +1,10 @@
 #Changelog
+## v11.0.2
+* Included channelId in error logs
 
 ## v11.0.1
 * Added changelog file
+* Fixed an issue with topics not being combined correctly - [PR #43](https://github.com/purecloudlabs/purecloud-streaming-client/pull/43)
 
 ## v11.0.0
 * Added a new function `rtcSessionAccepted` to send an 'accept' event
