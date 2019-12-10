@@ -130,7 +130,8 @@ export default class Client {
     });
 
     this.on('sasl:failure', (err) => {
-      this.logger.error('Authentication failed connecting to streaming service', err);
+      const errMessage = `Authentication failed connecting to streaming service\nchannelId: ${this.config.channelId}`;
+      this.logger.error(errMessage, err);
       if (!err || err.condition !== 'temporary-auth-failure') {
         this._ping.stop();
         this.autoReconnect = false;
@@ -150,7 +151,8 @@ export default class Client {
       }
 
       if (this.hardReconnectCount >= HARD_RECONNECT_THRESHOLD) {
-        this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect`);
+        this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect
+          channelId: ${this.config.channelId}`);
         this.cleanupLeakTimer();
         return;
       }
