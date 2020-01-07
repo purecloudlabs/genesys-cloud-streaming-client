@@ -393,3 +393,27 @@ test('notifications | mapCompineTopics should not combine already combined topic
   t.is(reducedTopics[1].id, 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice');
   t.is(reducedTopics[2].id, 'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7?geolocation&presence&conversations');
 });
+
+test('notifications | createSubscription should correctly register handlers for precombined topics', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
+  const singleTopic = 'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7.presence';
+  const noPosfixTopic = 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?';
+  const handler = sinon.stub();
+
+  notification.createSubscription(topic, handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0], handler);
+
+  notification.createSubscription(singleTopic, handler);
+  t.is(notification.subscriptions['v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7.presence'][0], handler);
+
+  notification.createSubscription(noPosfixTopic, handler);
+  t.is(notification.subscriptions['v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99'], undefined);
+});

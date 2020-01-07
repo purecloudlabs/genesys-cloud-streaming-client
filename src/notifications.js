@@ -137,10 +137,28 @@ export default class Notification {
   }
 
   createSubscription (topic, handler) {
-    let handlers = this.topicHandlers(topic);
-    if (!handlers.includes(handler)) {
-      handlers.push(handler);
+    const topics = [];
+
+    // Register handlers for precombined topics
+    if (topic.includes('?')) {
+      const split = topic.split('?');
+      const prefix = split[0];
+      const postfixes = split[1] && split[1].split('&');
+      if (postfixes && postfixes.length) {
+        postfixes.forEach(postfix => {
+          topics.push(`${prefix}.${postfix}`);
+        });
+      }
+    } else {
+      topics.push(topic);
     }
+
+    topics.forEach(t => {
+      let handlers = this.topicHandlers(t);
+      if (!handlers.includes(handler)) {
+        handlers.push(handler);
+      }
+    });
   }
 
   removeSubscription (topic, handler) {
