@@ -82,6 +82,9 @@ export default class Client {
     this._stanzaio = stanzaio;
     this.connected = false;
     this.autoReconnect = true;
+
+    this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
+
     this.logger = options.logger || console;
     this.leakyReconnectTimer = null;
     this.hardReconnectCount = 0;
@@ -101,6 +104,14 @@ export default class Client {
     this.on('_disconnected', (event) => {
       this.connected = false;
       this._ping.stop();
+
+      if (!event) {
+        if (this.autoReconnect) {
+          this.logger.warn('Streaming client disconnected without an event notification. Not able to reconnect.');
+        }
+
+        return;
+      }
 
       // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
       const channelIdRegex = /stream\/channels\/([^/]+)/;
@@ -157,9 +168,15 @@ export default class Client {
         return;
       }
 
-      this.hardReconnectCount++;
+      this.logger.info('no_longer_subscribed received');
 
-      this.logger.info('no_longer_subscribed received, attempting hard reconnect');
+      if (!this.reconnectOnNoLongerSubscribed) {
+        this.logger.info('`reconnectOnNoLongerSubscribed` is false, not attempting to reconnect streaming client');
+        return;
+      }
+
+      this.logger.info('streaming client attempting to reconnect');
+      this.hardReconnectCount++;
 
       if (!this.leakyReconnectTimer) {
         this.leakyReconnectTimer = setInterval(() => {
