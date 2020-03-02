@@ -14,12 +14,6 @@ webappPipeline {
         sh('npm i && npm test && npm run build')
     }
 
-    upsertCMStep = {
-        sh('''
-            echo "bypassing upsert step. Create one manually."
-        ''')
-    }
-
     cmConfig = {
         return [
             managerEmail: 'purecloud-client-media@genesys.com',
