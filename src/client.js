@@ -105,6 +105,16 @@ export default class Client {
       this.connected = false;
       this._ping.stop();
 
+      // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
+      const channelIdRegex = /stream\/channels\/([^/]+)/;
+      const url = (event && event.conn && event.conn.url) || '';
+      const matches = url.match(channelIdRegex);
+      let channelId = 'failed to parse';
+      if (matches) {
+        channelId = matches[1];
+      }
+      this.logger.info('Streaming client disconnected.', { channelId });
+
       if (!event) {
         if (this.autoReconnect) {
           this.logger.warn('Streaming client disconnected without an event notification. Not able to reconnect.');
@@ -113,14 +123,6 @@ export default class Client {
         return;
       }
 
-      // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
-      const channelIdRegex = /stream\/channels\/([^/]+)/;
-      const url = (event.conn && event.conn.url) || '';
-      const matches = url.match(channelIdRegex);
-      let channelId = 'failed to parse';
-      if (matches) {
-        channelId = matches[1];
-      }
       if (this.autoReconnect && !this.deadChannels.includes(channelId)) {
         this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect.', { channelId });
         this._reconnector.start();
@@ -261,6 +263,7 @@ export default class Client {
   }
 
   disconnect () {
+    this.logger.info('streamingClient.disconnect was called');
     return timeoutPromise(resolve => {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
@@ -269,6 +272,7 @@ export default class Client {
   }
 
   reconnect () {
+    this.logger.info('streamingClient.reconnect was called');
     return timeoutPromise(resolve => {
       this._stanzaio.once('session:started', resolve);
       // trigger a stop on the underlying connection, but allow reconnect
@@ -278,6 +282,7 @@ export default class Client {
   }
 
   connect () {
+    this.logger.info('streamingClient.connect was called');
     if (this.config.jwt) {
       return timeoutPromise(resolve => {
         this.once('connected', resolve);
