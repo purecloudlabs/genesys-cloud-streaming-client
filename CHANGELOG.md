@@ -1,4 +1,13 @@
 #Changelog
+## v11.1.3
+* add logging for explicit actions
+
+## v11.1.2
+* bump purecloud-streaming-client-webrtc-sessions to 7.2.29
+
+## v11.1.0
+* Added a config option to disable reconnecting when receiving a no_longer_subscribed message
+
 ## v11.0.2
 * Included channelId in error logs
 
