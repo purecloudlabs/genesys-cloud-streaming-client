@@ -65,11 +65,19 @@ test.serial('when started multiple times it sends a ping on a single interval', 
 });
 
 test.serial('when no pings it closes the connection', t => {
+  const jid = 'myfulljid';
+  const channelId = 'somechannel';
   const client = {
-    logger: { warn () {}, error () {} },
+    config: {
+      channelId
+    },
+    logger: { warn: sinon.stub(), error: sinon.stub() },
     _stanzaio: {
       ping: (jid, cb) => {
         cb(new Error('Missed pong'));
+      },
+      jid: {
+        full: jid
       },
       sendStreamError: sinon.stub()
     }
@@ -87,13 +95,24 @@ test.serial('when no pings it closes the connection', t => {
   t.is(client._stanzaio.sendStreamError.called, true);
   t.is(client._stanzaio.sendStreamError.getCall(0).args[0].condition, 'connection-timeout');
   t.is(client._stanzaio.sendStreamError.getCall(0).args[0].text, 'too many missed pongs');
+  const { channelId: infoChannelId, jid: infoJid } = client.logger.warn.lastCall.args[1];
+  t.is(infoChannelId, channelId);
+  t.is(infoJid, jid);
 });
 
 test.serial('receiving a ping response resets the failure mechanism', t => {
+  const jid = 'myfulljid';
+  const channelId = 'somechannel';
   let pingCount = 0;
   const client = {
-    logger: { warn () {}, error () {} },
+    logger: { warn: sinon.stub(), error: sinon.stub() },
+    config: {
+      channelId
+    },
     _stanzaio: {
+      jid: {
+        full: jid
+      },
       ping: (jid, cb) => {
         pingCount++;
         if (pingCount === 1) {
@@ -137,9 +156,17 @@ test.serial('allows ping interval override', t => {
 });
 
 test.serial('allows failure number override', t => {
+  const jid = 'myfulljid';
+  const channelId = 'somechannel';
   const client = {
-    logger: { warn () {}, error () {} },
+    logger: { warn: sinon.stub(), error: sinon.stub() },
+    config: {
+      channelId
+    },
     _stanzaio: {
+      jid: {
+        full: jid
+      },
       ping: (jid, cb) => {
         cb(new Error('Missed pong'));
       },

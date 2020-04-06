@@ -14,22 +14,16 @@ webappPipeline {
         sh('npm i && npm test && npm run build')
     }
 
-    upsertCMStep = {
-        sh('''
-            echo "bypassing upsert step. Create one manually."
-        ''')
+    cmConfig = {
+        return [
+            managerEmail: 'purecloud-client-media@genesys.com',
+            rollbackPlan: 'Patch version with fix',
+
+            // TODO: kick off a prepublish build of web-directory and link to tests run
+            // against that feature build
+            testResults: 'https://jenkins.ininica.com/job/valve-hawk-tests-test/'
+        ]
     }
-
-    // cmConfig = {
-    //     return [
-    //         managerEmail: 'purecloud-client-media@genesys.com',
-    //         rollbackPlan: 'Patch version with fix',
-
-    //         // TODO: kick off a prepublish build of web-directory and link to tests run
-    //         // against that feature build
-    //         testResults: 'https://jenkins.ininica.com/job/valve-hawk-tests-test/'
-    //     ]
-    // }
 
     shouldTagOnRelease = { false }
 

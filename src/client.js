@@ -82,6 +82,9 @@ export default class Client {
     this._stanzaio = stanzaio;
     this.connected = false;
     this.autoReconnect = true;
+
+    this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
+
     this.logger = options.logger || console;
     this.leakyReconnectTimer = null;
     this.hardReconnectCount = 0;
@@ -104,12 +107,22 @@ export default class Client {
 
       // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
       const channelIdRegex = /stream\/channels\/([^/]+)/;
-      const url = (event.conn && event.conn.url) || '';
+      const url = (event && event.conn && event.conn.url) || '';
       const matches = url.match(channelIdRegex);
       let channelId = 'failed to parse';
       if (matches) {
         channelId = matches[1];
       }
+      this.logger.info('Streaming client disconnected.', { channelId });
+
+      if (!event) {
+        if (this.autoReconnect) {
+          this.logger.warn('Streaming client disconnected without an event notification. Not able to reconnect.');
+        }
+
+        return;
+      }
+
       if (this.autoReconnect && !this.deadChannels.includes(channelId)) {
         this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect.', { channelId });
         this._reconnector.start();
@@ -157,9 +170,15 @@ export default class Client {
         return;
       }
 
-      this.hardReconnectCount++;
+      this.logger.info('no_longer_subscribed received');
 
-      this.logger.info('no_longer_subscribed received, attempting hard reconnect');
+      if (!this.reconnectOnNoLongerSubscribed) {
+        this.logger.info('`reconnectOnNoLongerSubscribed` is false, not attempting to reconnect streaming client');
+        return;
+      }
+
+      this.logger.info('streaming client attempting to reconnect');
+      this.hardReconnectCount++;
 
       if (!this.leakyReconnectTimer) {
         this.leakyReconnectTimer = setInterval(() => {
@@ -244,6 +263,7 @@ export default class Client {
   }
 
   disconnect () {
+    this.logger.info('streamingClient.disconnect was called');
     return timeoutPromise(resolve => {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
@@ -252,6 +272,7 @@ export default class Client {
   }
 
   reconnect () {
+    this.logger.info('streamingClient.reconnect was called');
     return timeoutPromise(resolve => {
       this._stanzaio.once('session:started', resolve);
       // trigger a stop on the underlying connection, but allow reconnect
@@ -261,6 +282,7 @@ export default class Client {
   }
 
   connect () {
+    this.logger.info('streamingClient.connect was called');
     if (this.config.jwt) {
       return timeoutPromise(resolve => {
         this.once('connected', resolve);

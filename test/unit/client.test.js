@@ -215,6 +215,26 @@ test('Should not begin to reconnect when it becomes disconnected if autoReconnec
   sinon.assert.notCalled(client._stanzaio.emit);
 });
 
+test('Should not reconnect if disconnect is triggered with no event and log a message if autoReconnect', async t => {
+  const client = new Client(getDefaultOptions());
+  client.autoReconnect = true;
+  sinon.stub(client._reconnector, 'start');
+  sinon.stub(client.logger, 'warn');
+  client._stanzaio.emit('disconnected');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  sinon.assert.notCalled(client._reconnector.start);
+  sinon.assert.calledWith(client.logger.warn, 'Streaming client disconnected without an event notification. Not able to reconnect.');
+});
+
+test('Should not reconnect if disconnect is triggered with no event', async t => {
+  const client = new Client(getDefaultOptions());
+  client.autoReconnect = false;
+  sinon.stub(client._reconnector, 'start');
+  client._stanzaio.emit('disconnected');
+  await new Promise(resolve => setTimeout(resolve, 100));
+  sinon.assert.notCalled(client._reconnector.start);
+});
+
 test('Disconnecting explicitly will set autoReconnect to false', t => {
   const client = new Client(getDefaultOptions());
   t.is(client.autoReconnect, true);
@@ -381,6 +401,21 @@ test('it will stop pinging and try to reconnect when it is no longer subscribed'
   let channelId = 'streaming-484824828';
   client.config.channelId = channelId;
   client._stanzaio.emit('notify:v2.system.no_longer_subscribed.streaming-123812831', { eventBody: { channelId } });
+  sinon.assert.called(pingSpy);
+  sinon.assert.called(reconnectSpy);
+});
+
+test('it will not try to reconnect on no_longer_subscribed if reconnectOnNoLongerSubscribed is false', t => {
+  const options = getDefaultOptions();
+  options.reconnectOnNoLongerSubscribed = false;
+  const client = new Client(options);
+  const reconnectSpy = sinon.spy();
+  client._reconnector.hardReconnect = reconnectSpy;
+  const pingSpy = sinon.spy(client._ping, 'stop');
+  let channelId = 'streaming-484824828';
+  client.config.channelId = channelId;
+  client._stanzaio.emit('notify:v2.system.no_longer_subscribed.streaming-123852831', { eventBody: { channelId } });
+  sinon.assert.notCalled(reconnectSpy);
   sinon.assert.called(pingSpy);
 });
 
