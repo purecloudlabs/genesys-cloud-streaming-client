@@ -14,10 +14,14 @@ export default function (client, options) {
     if (response && !error) {
       numberOfFailedPings = 0;
     } else {
-      client.logger.warn('Missed a ping.', error);
+      const info = {
+        channelId: client.config.channelId,
+        jid: client._stanzaio.jid.full
+      };
+      client.logger.warn('Missed a ping.', Object.assign({ error }, info));
       if (++numberOfFailedPings > failedPingsBeforeDisconnect) {
         clearInterval(pingIntervalId);
-        client.logger.error('Missed too many pings, disconnecting', numberOfFailedPings);
+        client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings }, info));
         client._stanzaio.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
       }
     }
