@@ -2,7 +2,7 @@ import { requestApi } from './utils';
 const debounce = require('debounce-promise');
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
-const MAX_SUBSCRIBABLE_TOPICS = '5';
+const MAX_SUBSCRIBABLE_TOPICS = '1000';
 
 function mergeAndDedup (arr1, arr2) {
   return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
@@ -123,7 +123,7 @@ export default class Notification {
       combineTopics(prefix, postFixes);
     });
 
-    return combinedTopics.concat(precombinedTopics);
+    return this.truncateTopicList(combinedTopics.concat(precombinedTopics));
   }
 
   truncateTopicList (topics) {
@@ -135,7 +135,7 @@ export default class Notification {
         droppedTopics = droppedTopics.slice(20);
         droppedTopics.push(`...and ${length} more`);
       }
-      this.client.logger.warn('CP: Too many topics to subscribe to, truncating extra topics', { droppedTopics });
+      this.client.logger.warn('Too many topics to subscribe to; truncating extra topics', { droppedTopics });
     }
     return keptTopics;
   }
