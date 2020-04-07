@@ -417,3 +417,45 @@ test('notifications | createSubscription should correctly register handlers for 
   notification.createSubscription(noPosfixTopic, handler);
   t.is(notification.subscriptions['v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99'], undefined);
 });
+
+test('notifications | truncateTopicList should return a topic list of the correct length', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const topicList = [];
+  for (let i = 0; i < 1030; i++) {
+    topicList.push(`v2.users.${i}.presence`);
+  }
+
+  let truncatedTopicList = notification.truncateTopicList(topicList);
+  t.is(truncatedTopicList.length, 1000);
+
+  const truncatedTopicListLogAll = topicList.slice(0, 1010);
+  truncatedTopicList = notification.truncateTopicList(truncatedTopicListLogAll);
+  t.is(truncatedTopicList.length, 1000);
+
+  const shortTopicList = topicList.slice(0, 20);
+  truncatedTopicList = notification.truncateTopicList(shortTopicList);
+  t.is(truncatedTopicList.length, 20);
+});
+
+test('notifications | mapCombineTopics should return a topic list of the correct length', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const topicList = [];
+  for (let i = 0; i < 1030; i++) {
+    topicList.push(`v2.users.${i}.presence`, `v2.users.${i}.geolocation`);
+  }
+
+  let truncatedTopicList = notification.mapCombineTopics(topicList);
+  t.is(truncatedTopicList.length, 1000);
+
+  const shortTopicList = topicList.slice(0, 20);
+  truncatedTopicList = notification.mapCombineTopics(shortTopicList);
+  t.is(truncatedTopicList.length, 10);
+});

@@ -2,6 +2,8 @@ import { requestApi } from './utils';
 const debounce = require('debounce-promise');
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
+const MAX_SUBSCRIBABLE_TOPICS = 1000;
+const DROPPED_TOPICS_DISPLAY_COUNT = 20;
 
 function mergeAndDedup (arr1, arr2) {
   return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
@@ -122,7 +124,21 @@ export default class Notification {
       combineTopics(prefix, postFixes);
     });
 
-    return combinedTopics.concat(precombinedTopics);
+    return this.truncateTopicList(combinedTopics.concat(precombinedTopics));
+  }
+
+  truncateTopicList (topics) {
+    const keptTopics = topics.slice(0, MAX_SUBSCRIBABLE_TOPICS);
+    if (topics.length > MAX_SUBSCRIBABLE_TOPICS) {
+      let droppedTopics = topics.slice(MAX_SUBSCRIBABLE_TOPICS);
+      if (droppedTopics.length > DROPPED_TOPICS_DISPLAY_COUNT) {
+        const length = droppedTopics.length - DROPPED_TOPICS_DISPLAY_COUNT;
+        droppedTopics = droppedTopics.slice(DROPPED_TOPICS_DISPLAY_COUNT);
+        droppedTopics.push(`...and ${length} more`);
+      }
+      this.client.logger.warn('Too many topics to subscribe to; truncating extra topics', { droppedTopics });
+    }
+    return keptTopics;
   }
 
   bulkSubscribe (topics, options) {
