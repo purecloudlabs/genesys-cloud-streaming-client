@@ -4,6 +4,7 @@ const debounce = require('debounce-promise');
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 const MAX_SUBSCRIBABLE_TOPICS = 1000;
 const DROPPED_TOPICS_DISPLAY_COUNT = 20;
+const DEFAULT_PRIORITY = 0;
 
 function mergeAndDedup (arr1, arr2) {
   return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
@@ -13,6 +14,7 @@ export default class Notification {
   constructor (client) {
     this.subscriptions = {};
     this.bulkSubscriptions = {};
+    this.topicPriorities = {};
 
     this.client = client;
 
@@ -124,7 +126,31 @@ export default class Notification {
       combineTopics(prefix, postFixes);
     });
 
-    return this.truncateTopicList(combinedTopics.concat(precombinedTopics));
+    const allTopics = combinedTopics.concat(precombinedTopics);
+    return this.truncateTopicList(this.prioritizeTopicList(allTopics));
+  }
+
+  prioritizeTopicList (topics) {
+    topics.sort((topicA, topicB) => {
+      return (this.getTopicPriority(topicB.id) - this.getTopicPriority(topicA.id));
+    });
+
+    return topics;
+  }
+
+  getTopicPriority (topic) {
+    const maxPriority = Object.keys(this.topicPriorities).reduce((max, current) => {
+      const currentMax = this.topicPriorities[current];
+      return currentMax && currentMax > max ? currentMax : max;
+    }, 0);
+
+    const combinedTopicPriority = maxPriority + 1;
+
+    if (topic && topic.includes('&')) {
+      return combinedTopicPriority;
+    }
+
+    return this.topicPriorities[topic] || DEFAULT_PRIORITY;
   }
 
   truncateTopicList (topics) {
@@ -182,6 +208,12 @@ export default class Notification {
     let handlerIndex = handlers.indexOf(handler);
     if (handlerIndex > -1) {
       handlers.splice(handlerIndex, 1);
+    }
+  }
+
+  removeTopicPriority (topic) {
+    if (this.topicPriorities[topic]) {
+      delete this.topicPriorities[topic];
     }
   }
 
@@ -250,6 +282,9 @@ export default class Notification {
         } else {
           delete this.bulkSubscriptions[topic];
         }
+
+        this.removeTopicPriority(topic);
+
         if (!immediate) {
           // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
           return this.debouncedResubscribe();
@@ -278,6 +313,14 @@ export default class Notification {
           topics.forEach(topic => {
             this.bulkSubscriptions[topic] = true;
           });
+        });
+      }.bind(this),
+
+      setTopicPriorities: function (priorities = {}) {
+        Object.keys(priorities).forEach(priority => {
+          const oldPriority = this.topicPriorities[priority];
+          const newPriority = priorities[priority];
+          this.topicPriorities[priority] = oldPriority && oldPriority > newPriority ? oldPriority : newPriority;
         });
       }.bind(this)
     };
