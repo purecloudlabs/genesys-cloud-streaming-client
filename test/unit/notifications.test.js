@@ -367,8 +367,8 @@ test('notifications | mapCompineTopics should correctly reduce topics', t => {
   const reducedTopics = notification.mapCombineTopics(topics);
   t.is(reducedTopics.length, 3);
   t.is(reducedTopics[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&routingStatus&conversationsummary&outofoffice&presence');
-  t.is(reducedTopics[1].id, 'v2.users.testuser?InRealityTheseWouldBeALotOfDisparateTopicsThatWhenJoinedExceed200Chars&athirdreallylongtopicathirdreallylongtopicathird');
-  t.is(reducedTopics[2].id, 'v2.users.testuser.thisIsAReallyLongTopicForThePurposeOfExceeding200CharsinCombinedTopicNames');
+  t.is(reducedTopics[1].id, 'v2.users.testuser.thisIsAReallyLongTopicForThePurposeOfExceeding200CharsinCombinedTopicNames');
+  t.is(reducedTopics[2].id, 'v2.users.testuser?InRealityTheseWouldBeALotOfDisparateTopicsThatWhenJoinedExceed200Chars&athirdreallylongtopicathirdreallylongtopicathird');
 });
 
 test('notifications | mapCompineTopics should not combine already combined topics', t => {
@@ -472,23 +472,41 @@ test('notifications | prioritizeTopicList orders topics correctly', t => {
     'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.conversationsummary',
     'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice',
     'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence',
-    'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&presence&routingStatus&conversationsummary&outofoffice',
     'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7?geolocation&presence&conversations'
   ];
+
   const topicList = topics.map(t => ({ id: t }));
 
   let prioritizedTopicList = notification.prioritizeTopicList(topicList);
-  t.is(prioritizedTopicList[0].id, 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice');
-  t.is(prioritizedTopicList[2].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+  t.is(prioritizedTopicList[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+  t.is(prioritizedTopicList[1].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus');
 
-  notification.expose.setTopicPriorities({ 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice': 2, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation': -10 });
+  notification.expose.setTopicPriorities({
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice': 2,
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation': -10
+  });
+
   prioritizedTopicList = notification.prioritizeTopicList(topicList);
-  t.is(prioritizedTopicList[0].id, 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice');
-  t.is(prioritizedTopicList[2].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice');
+  t.is(prioritizedTopicList[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice');
+  t.is(prioritizedTopicList[1].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&presence&routingStatus&conversationsummary&outofoffice');
+  t.is(prioritizedTopicList[2].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus');
   t.is(prioritizedTopicList[6].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+
+  notification.expose.setTopicPriorities({
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&routingStatus&conversationsummary&outofoffice': 5,
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence': 2
+  });
+
+  prioritizedTopicList = notification.prioritizeTopicList(topicList);
+  t.is(prioritizedTopicList[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice');
+  t.is(prioritizedTopicList[1].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&presence&routingStatus&conversationsummary&outofoffice');
+  t.is(prioritizedTopicList[3].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.conversationsummary');
+  t.is(prioritizedTopicList[4].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+  t.is(prioritizedTopicList[5].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence');
 });
 
-test('notifications | getTopicPrioritie does its job', t => {
+test('notifications | getTopicPriorities does its job', t => {
   const client = new Client({
     apiHost: 'inindca.com'
   });
@@ -496,8 +514,13 @@ test('notifications | getTopicPrioritie does its job', t => {
 
   notification.expose.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 1, 'test.topic3': 5, 'test.topic4': -1 });
   t.is(notification.getTopicPriority('test.topic'), 2);
-  t.is(notification.getTopicPriority('v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary&outofoffice'), 6);
   t.is(notification.getTopicPriority('test.defaulttopicpriority'), 0);
+  t.is(notification.getTopicPriority('test?topic&topic3&topic4'), 5);
+
+  notification.expose.setTopicPriorities({ 'test.negative1': -1, 'test.negative2': -2, 'test.negative3': -3 });
+  t.is(notification.getTopicPriority('test.negative1'), -1);
+  t.is(notification.getTopicPriority('test?negative1&negative2'), -1);
+  t.is(notification.getTopicPriority('test?negative1&topic3'), 5);
 });
 
 test('notifications | setTopicPriorities adds topicPriorities to list', t => {
@@ -507,13 +530,21 @@ test('notifications | setTopicPriorities adds topicPriorities to list', t => {
   const notification = new Notifications(client);
 
   notification.expose.setTopicPriorities({ 'test.topic': 2 });
-  t.is(notification.topicPriorities['test.topic'], 2);
+  t.is(notification.topicPriorities.test.topic, 2);
 
   notification.expose.setTopicPriorities({ 'test.topic': 3 });
-  t.is(notification.topicPriorities['test.topic'], 3);
+  t.is(notification.topicPriorities.test.topic, 3);
 
   notification.expose.setTopicPriorities({ 'test.topic': 1 });
-  t.is(notification.topicPriorities['test.topic'], 3);
+  t.is(notification.topicPriorities.test.topic, 3);
+
+  notification.expose.setTopicPriorities({ 'test?topic&topic2': 5 });
+  t.is(notification.topicPriorities.test.topic, 5);
+  t.is(notification.topicPriorities.test.topic2, 5);
+
+  notification.expose.setTopicPriorities({ 'test?topic&topic2': -1 });
+  t.is(notification.topicPriorities.test.topic, 5);
+  t.is(notification.topicPriorities.test.topic2, 5);
 });
 
 test('notifications | removeTopicPriority removes topic priorities from list', t => {
@@ -523,8 +554,10 @@ test('notifications | removeTopicPriority removes topic priorities from list', t
   const notification = new Notifications(client);
 
   notification.expose.setTopicPriorities();
-  notification.expose.setTopicPriorities({ 'test.topic': 2 });
-  t.is(notification.topicPriorities['test.topic'], 2);
+  notification.expose.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 5 });
+  t.is(notification.topicPriorities.test.topic, 2);
   notification.removeTopicPriority('test.topic');
-  t.is(notification.topicPriorities['test.topic'], undefined);
+  t.is(notification.topicPriorities.test.topic, undefined);
+  notification.removeTopicPriority('test.topic2');
+  t.is(notification.topicPriorities.test, undefined);
 });

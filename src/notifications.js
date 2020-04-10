@@ -138,19 +138,12 @@ export default class Notification {
     return topics;
   }
 
-  getTopicPriority (topic) {
-    const maxPriority = Object.keys(this.topicPriorities).reduce((max, current) => {
-      const currentMax = this.topicPriorities[current];
-      return currentMax && currentMax > max ? currentMax : max;
-    }, 0);
-
-    const combinedTopicPriority = maxPriority + 1;
-
-    if (topic && topic.includes('&')) {
-      return combinedTopicPriority;
-    }
-
-    return this.topicPriorities[topic] || DEFAULT_PRIORITY;
+  getTopicPriority (topic, returnDefault = true) {
+    const { prefix, postfixes } = this.getTopicParts(topic);
+    const oldPriorities = this.topicPriorities[prefix];
+    const matches = oldPriorities && Object.keys(oldPriorities).filter(p => postfixes.includes(p)).map(p => oldPriorities[p]);
+    const priority = matches && matches.length && matches.reduce((max, current) => current > max ? current : max);
+    return returnDefault ? priority || DEFAULT_PRIORITY : priority;
   }
 
   truncateTopicList (topics) {
@@ -212,8 +205,14 @@ export default class Notification {
   }
 
   removeTopicPriority (topic) {
-    if (this.topicPriorities[topic]) {
-      delete this.topicPriorities[topic];
+    if (this.getTopicPriority(topic, false)) {
+      const { prefix, postfixes } = this.getTopicParts(topic);
+      postfixes.forEach(postfix => {
+        delete this.topicPriorities[prefix][postfix];
+      });
+      if (!Object.keys(this.topicPriorities[prefix]).length) {
+        delete this.topicPriorities[prefix];
+      }
     }
   }
 
@@ -252,6 +251,21 @@ export default class Notification {
         });
       });
     }
+  }
+
+  getTopicParts (topic) {
+    const isCombined = topic.includes('?');
+    const separator = isCombined ? '?' : '.';
+    const split = topic.split(separator);
+    const postfix = isCombined ? split[1] : split.splice(split.length - 1);
+    const prefix = isCombined ? split[0] : split.join('.');
+    let postfixes = [];
+    if (isCombined) {
+      postfixes = postfix.split('&');
+    } else {
+      postfixes = postfix;
+    }
+    return { prefix, postfixes };
   }
 
   get expose () {
@@ -318,9 +332,24 @@ export default class Notification {
 
       setTopicPriorities: function (priorities = {}) {
         Object.keys(priorities).forEach(priority => {
-          const oldPriority = this.topicPriorities[priority];
+          const topicParts = this.getTopicParts(priority);
+          const oldPriorities = this.topicPriorities[topicParts.prefix];
           const newPriority = priorities[priority];
-          this.topicPriorities[priority] = oldPriority && oldPriority > newPriority ? oldPriority : newPriority;
+          if (oldPriorities) {
+            topicParts.postfixes.forEach(postfix => {
+              if (oldPriorities[postfix] && oldPriorities[postfix] < newPriority) {
+                oldPriorities[postfix] = newPriority;
+              } else if (!oldPriorities[postfix]) {
+                oldPriorities[postfix] = newPriority;
+              }
+            });
+          } else {
+            const newTopics = {};
+            topicParts.postfixes.forEach(p => {
+              newTopics[p] = newPriority;
+            });
+            this.topicPriorities[topicParts.prefix] = newTopics;
+          }
         });
       }.bind(this)
     };
