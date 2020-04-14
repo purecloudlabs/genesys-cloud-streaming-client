@@ -268,9 +268,33 @@ export default class Notification {
     return { prefix, postfixes };
   }
 
+  setTopicPriorities (priorities = {}) {
+    Object.keys(priorities).forEach(priority => {
+      const topicParts = this.getTopicParts(priority);
+      const oldPriorities = this.topicPriorities[topicParts.prefix];
+      const newPriority = priorities[priority];
+      if (oldPriorities) {
+        topicParts.postfixes.forEach(postfix => {
+          const oldPriority = oldPriorities[postfix];
+          if ((oldPriority && oldPriority < newPriority) || !oldPriority) {
+            oldPriorities[postfix] = newPriority;
+          }
+        });
+      } else {
+        const newTopics = topicParts.postfixes.reduce((newTopics, p) => {
+          newTopics[p] = newPriority;
+          return newTopics;
+        }, {});
+        this.topicPriorities[topicParts.prefix] = newTopics;
+      }
+    });
+  }
+
   get expose () {
     return {
-      subscribe: function (topic, handler, immediate) {
+      subscribe: function (topic, handler, immediate, priority) {
+        this.setTopicPriorities({ [topic]: priority });
+
         let promise;
         if (!immediate) {
           // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
@@ -310,7 +334,9 @@ export default class Notification {
         });
       }.bind(this),
 
-      bulkSubscribe: function (topics, options = { replace: false, force: false }) {
+      bulkSubscribe: function (topics, options = { replace: false, force: false }, priorities = {}) {
+        this.setTopicPriorities(priorities);
+
         let toSubscribe = mergeAndDedup(topics, []);
 
         if (options.replace && !options.force) {
@@ -327,29 +353,6 @@ export default class Notification {
           topics.forEach(topic => {
             this.bulkSubscriptions[topic] = true;
           });
-        });
-      }.bind(this),
-
-      setTopicPriorities: function (priorities = {}) {
-        Object.keys(priorities).forEach(priority => {
-          const topicParts = this.getTopicParts(priority);
-          const oldPriorities = this.topicPriorities[topicParts.prefix];
-          const newPriority = priorities[priority];
-          if (oldPriorities) {
-            topicParts.postfixes.forEach(postfix => {
-              if (oldPriorities[postfix] && oldPriorities[postfix] < newPriority) {
-                oldPriorities[postfix] = newPriority;
-              } else if (!oldPriorities[postfix]) {
-                oldPriorities[postfix] = newPriority;
-              }
-            });
-          } else {
-            const newTopics = {};
-            topicParts.postfixes.forEach(p => {
-              newTopics[p] = newPriority;
-            });
-            this.topicPriorities[topicParts.prefix] = newTopics;
-          }
         });
       }.bind(this)
     };
