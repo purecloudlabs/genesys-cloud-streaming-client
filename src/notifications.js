@@ -293,7 +293,9 @@ export default class Notification {
   get expose () {
     return {
       subscribe: function (topic, handler, immediate, priority) {
-        this.setTopicPriorities({ [topic]: priority });
+        if (priority) {
+          this.setTopicPriorities({ [topic]: priority });
+        }
 
         let promise;
         if (!immediate) {

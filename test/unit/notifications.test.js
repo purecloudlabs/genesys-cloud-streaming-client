@@ -561,3 +561,34 @@ test('notifications | removeTopicPriority removes topic priorities from list', t
   notification.removeTopicPriority('test.topic2');
   t.is(notification.topicPriorities.test, undefined);
 });
+
+test('notifications | subscribe registers topic priorities if supplied', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const handler = sinon.stub();
+  notification.expose.subscribe('topic.test', handler, false, 1);
+  t.is(notification.topicPriorities.topic.test, 1);
+  notification.expose.subscribe('topic.test2', handler, false);
+  t.is(notification.topicPriorities.topic.test2, undefined);
+});
+
+test('notifications | bulkSubscribe registers topic priorities if supplied', async t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+  sinon.stub(notification, 'bulkSubscribe').returns(Promise.resolve());
+
+  const priorities = {
+    'topic.test.one': 1,
+    'topic.test.two': 2,
+    'topic.test.three': 3
+  };
+  await notification.expose.bulkSubscribe(['topic.test.one', 'topic.test.two', 'topic.test.three'], { replace: false, force: false }, priorities);
+  t.is(notification.topicPriorities['topic.test'].one, 1);
+  t.is(notification.topicPriorities['topic.test'].two, 2);
+  t.is(notification.topicPriorities['topic.test'].three, 3);
+});
