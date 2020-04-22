@@ -459,3 +459,136 @@ test('notifications | mapCombineTopics should return a topic list of the correct
   truncatedTopicList = notification.mapCombineTopics(shortTopicList);
   t.is(truncatedTopicList.length, 10);
 });
+
+test('notifications | prioritizeTopicList orders topics correctly', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const topics = [
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.conversationsummary',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence',
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&presence&routingStatus&conversationsummary&outofoffice',
+    'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7?geolocation&presence&conversations'
+  ];
+
+  const topicList = topics.map(t => ({ id: t }));
+
+  let prioritizedTopicList = notification.prioritizeTopicList(topicList);
+  t.is(prioritizedTopicList[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+  t.is(prioritizedTopicList[1].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus');
+
+  notification.setTopicPriorities({
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice': 2,
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation': -10
+  });
+
+  prioritizedTopicList = notification.prioritizeTopicList(topicList);
+  t.is(prioritizedTopicList[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice');
+  t.is(prioritizedTopicList[1].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&presence&routingStatus&conversationsummary&outofoffice');
+  t.is(prioritizedTopicList[2].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus');
+  t.is(prioritizedTopicList[6].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+
+  notification.setTopicPriorities({
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&routingStatus&conversationsummary&outofoffice': 5,
+    'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence': 2
+  });
+
+  prioritizedTopicList = notification.prioritizeTopicList(topicList);
+  t.is(prioritizedTopicList[0].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.outofoffice');
+  t.is(prioritizedTopicList[1].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99?geolocation&presence&routingStatus&conversationsummary&outofoffice');
+  t.is(prioritizedTopicList[3].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.conversationsummary');
+  t.is(prioritizedTopicList[4].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation');
+  t.is(prioritizedTopicList[5].id, 'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.presence');
+});
+
+test('notifications | getTopicPriorities does its job', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  notification.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 1, 'test.topic3': 5, 'test.topic4': -1 });
+  t.is(notification.getTopicPriority('test.topic'), 2);
+  t.is(notification.getTopicPriority('test.defaulttopicpriority'), 0);
+  t.is(notification.getTopicPriority('test?topic&topic3&topic4'), 5);
+
+  notification.setTopicPriorities({ 'test.negative1': -1, 'test.negative2': -2, 'test.negative3': -3 });
+  t.is(notification.getTopicPriority('test.negative1'), -1);
+  t.is(notification.getTopicPriority('test?negative1&negative2'), -1);
+  t.is(notification.getTopicPriority('test?negative1&topic3'), 5);
+});
+
+test('notifications | setTopicPriorities adds topicPriorities to list', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  notification.setTopicPriorities({ 'test.topic': 2 });
+  t.is(notification.topicPriorities.test.topic, 2);
+
+  notification.setTopicPriorities({ 'test.topic': 3 });
+  t.is(notification.topicPriorities.test.topic, 3);
+
+  notification.setTopicPriorities({ 'test.topic': 1 });
+  t.is(notification.topicPriorities.test.topic, 3);
+
+  notification.setTopicPriorities({ 'test?topic&topic2': 5 });
+  t.is(notification.topicPriorities.test.topic, 5);
+  t.is(notification.topicPriorities.test.topic2, 5);
+
+  notification.setTopicPriorities({ 'test?topic&topic2': -1 });
+  t.is(notification.topicPriorities.test.topic, 5);
+  t.is(notification.topicPriorities.test.topic2, 5);
+});
+
+test('notifications | removeTopicPriority removes topic priorities from list', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  notification.setTopicPriorities();
+  notification.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 5 });
+  t.is(notification.topicPriorities.test.topic, 2);
+  notification.removeTopicPriority('test.topic');
+  t.is(notification.topicPriorities.test.topic, undefined);
+  notification.removeTopicPriority('test.topic2');
+  t.is(notification.topicPriorities.test, undefined);
+});
+
+test('notifications | subscribe registers topic priorities if supplied', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const handler = sinon.stub();
+  notification.expose.subscribe('topic.test', handler, false, 1);
+  t.is(notification.topicPriorities.topic.test, 1);
+  notification.expose.subscribe('topic.test2', handler, false);
+  t.is(notification.topicPriorities.topic.test2, undefined);
+});
+
+test('notifications | bulkSubscribe registers topic priorities if supplied', async t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+  sinon.stub(notification, 'bulkSubscribe').returns(Promise.resolve());
+
+  const priorities = {
+    'topic.test.one': 1,
+    'topic.test.two': 2,
+    'topic.test.three': 3
+  };
+  await notification.expose.bulkSubscribe(['topic.test.one', 'topic.test.two', 'topic.test.three'], { replace: false, force: false }, priorities);
+  t.is(notification.topicPriorities['topic.test'].one, 1);
+  t.is(notification.topicPriorities['topic.test'].two, 2);
+  t.is(notification.topicPriorities['topic.test'].three, 3);
+});
