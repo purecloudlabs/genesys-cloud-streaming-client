@@ -569,9 +569,9 @@ test('notifications | subscribe registers topic priorities if supplied', t => {
   const notification = new Notifications(client);
 
   const handler = sinon.stub();
-  notification.expose.subscribe('topic.test', handler, false, 1);
+  notification.expose.subscribe('topic.test', handler, true, 1);
   t.is(notification.topicPriorities.topic.test, 1);
-  notification.expose.subscribe('topic.test2', handler, false);
+  notification.expose.subscribe('topic.test2', handler, true);
   t.is(notification.topicPriorities.topic.test2, undefined);
 });
 

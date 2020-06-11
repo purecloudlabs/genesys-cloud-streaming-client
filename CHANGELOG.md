@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [v11.3.1](https://github.com/purecloudlabs/purecloud-streaming-client/compare/v11.3.0...v11.3.1)
 ### Changed
 * version bump of purecloud-streaming-client-webrtc-sessions to 7.2.81
- 
+
 # [v11.3.0](https://github.com/purecloudlabs/purecloud-streaming-client/compare/v11.2.0...v11.3.0)
 ### Added
 * [ENGAGEUI-3797] add functionality for optionally setting topic priorities and prioritizing topic list
