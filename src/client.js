@@ -143,7 +143,8 @@ export default class Client {
     });
 
     this.on('sasl:failure', (err) => {
-      const errMessage = `Authentication failed connecting to streaming service\nchannelId: ${this.config.channelId}`;
+      const errMessage = 'Authentication failed connecting to streaming service';
+      err = Object.assign(err || {}, { channelId: this.config.channelId });
       this.logger.error(errMessage, err);
       if (!err || err.condition !== 'temporary-auth-failure') {
         this._ping.stop();
