@@ -418,6 +418,28 @@ test('notifications | createSubscription should correctly register handlers for 
   t.is(notification.subscriptions['v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99'], undefined);
 });
 
+test('notifications | removeSubscription should correctly remove handlers for precombined topics', t => {
+  const client = new Client({
+    apiHost: 'inindca.com'
+  });
+  const notification = new Notifications(client);
+
+  const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
+  const handler = sinon.stub();
+
+  notification.createSubscription(topic, handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0], handler);
+
+  notification.removeSubscription(topic, handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'].length, 0);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'].length, 0);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'].length, 0);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'].length, 0);
+});
+
 test('notifications | truncateTopicList should return a topic list of the correct length', t => {
   const client = new Client({
     apiHost: 'inindca.com'
