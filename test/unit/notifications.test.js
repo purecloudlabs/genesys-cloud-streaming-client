@@ -438,6 +438,16 @@ test('notifications | removeSubscription should correctly remove handlers for pr
   t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'].length, 0);
   t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'].length, 0);
   t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'].length, 0);
+
+  // Subscribe to precombined topic, then remove one individually
+  notification.createSubscription(topic, handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'][0], handler);
+  notification.removeSubscription('v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation', handler);
+
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'].length, 0);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'][0], handler);
+  t.is(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0], handler);
 });
 
 test('notifications | truncateTopicList should return a topic list of the correct length', t => {
