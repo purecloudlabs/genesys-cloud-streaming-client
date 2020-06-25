@@ -1,4 +1,5 @@
 import request from 'superagent';
+import reqlogger from './request-logger';
 
 function buildUri (host, path, version = 'v2') {
   path = path.replace(/^\/+|\/+$/g, ''); // trim leading/trailing /
@@ -8,8 +9,9 @@ function buildUri (host, path, version = 'v2') {
   return `https://api.${host}/api/${version}/${path}`;
 }
 
-export function requestApi (path, { method, data, host, version, contentType, authToken }) {
+export function requestApi (path, { method, data, host, version, contentType, authToken, logger }) {
   let response = request[method](buildUri(host, path, version))
+    .use(reqlogger(logger))
     .set('Authorization', `Bearer ${authToken}`)
     .type(contentType || 'json');
 
