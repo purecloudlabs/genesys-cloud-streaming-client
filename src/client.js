@@ -298,7 +298,8 @@ export default class Client {
       const opts = {
         method: 'get',
         host: this.config.apiHost,
-        authToken: this.config.authToken
+        authToken: this.config.authToken,
+        logger: this.logger
       };
       jidPromise = requestApi('users/me', opts)
         .then(res => res.body.chat.jabberId);
@@ -307,7 +308,8 @@ export default class Client {
     const opts = {
       method: 'post',
       host: this.config.apiHost,
-      authToken: this.config.authToken
+      authToken: this.config.authToken,
+      logger: this.logger
     };
     const channelPromise = requestApi('notifications/channels?connectionType=streaming', opts)
       .then(res => res.body.id);
