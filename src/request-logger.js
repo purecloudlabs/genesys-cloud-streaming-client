@@ -1,6 +1,4 @@
 exports = module.exports = function (logger) {
-  logger = logger || console;
-
   return attachSuperagentLogger.bind(null, logger);
 };
 
