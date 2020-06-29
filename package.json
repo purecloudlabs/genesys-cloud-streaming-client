@@ -7,8 +7,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/streaming-client.cjs",
-  "browser": "dist/streaming-client.min.js",
+  "main": "dist/streaming-client.min.js",
   "files": [
     "src",
     "dist"
@@ -17,15 +16,15 @@
     "test"
   ],
   "scripts": {
-    "build": "npm run build-umd && npm run build-cjs",
-    "build-umd": "webpack && webpack --env.production",
-    "build-cjs": "webpack --env.node",
-    "unit-test": "NODE_ENV=test nyc --reporter=lcov --reporter=cobertura ava test/unit/*.js",
-    "test": "semistandard && npm run unit-test && npm run report",
-    "semistandard": "semistandard",
-    "semistandard:fix": "semistandard --fix",
-    "report": "nyc report && nyc check-coverage --lines 100 --functions 100 --branches 100 --statements 100",
-    "watch-tests": "watch 'npm test' src test"
+    "build": "npm run build:cdn && npm run build:module",
+    "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
+    "build:module": "webpack && webpack --env.production",
+    "test": "semistandard && npm run test:unit && npm run report",
+    "test:unit": "NODE_ENV=test nyc --reporter=lcov --reporter=cobertura ava test/unit/*.js",
+    "test:watch": "watch 'npm test' src test",
+    "test:coverage": "nyc report && nyc check-coverage --lines 100 --functions 100 --branches 100 --statements 100",
+    "lint": "semistandard",
+    "lint:fix": "semistandard --fix"
   },
   "semistandard": {
     "ignore": [
@@ -60,7 +59,6 @@
   },
   "author": "",
   "dependencies": {
-    "@babel/runtime": "^7.10.2",
     "@babel/runtime-corejs3": "^7.10.2",
     "backoff-web": "^1.0.1",
     "core-js": "^3.6.5",
@@ -75,7 +73,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.10.2",
-    "@babel/plugin-transform-object-super": "^7.10.1",
+    "@babel/plugin-transform-runtime": "^7.10.1",
     "@babel/preset-env": "^7.10.2",
     "@babel/register": "^7.8.6",
     "atob": "^2.1.2",

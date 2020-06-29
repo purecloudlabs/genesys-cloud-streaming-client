@@ -3,8 +3,6 @@ module.exports = {
   presets: [
     ['@babel/preset-env',
       {
-        useBuiltIns: 'usage',
-        corejs: { version: '3', proposals: true },
         debug: false, /* set to `true` if you start banging your head against the wall */
         targets: [
           'last 2 versions',
@@ -15,5 +13,9 @@ module.exports = {
       }
     ]
   ],
-  plugins: []
+  plugins: [
+    ['@babel/plugin-transform-runtime', {
+      corejs: 3
+    }]
+  ]
 };
