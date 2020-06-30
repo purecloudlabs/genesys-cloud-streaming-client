@@ -298,8 +298,7 @@ export default class Client {
       const opts = {
         method: 'get',
         host: this.config.apiHost,
-        authToken: this.config.authToken,
-        logger: this.logger
+        authToken: this.config.authToken
       };
       jidPromise = requestApi('users/me', opts)
         .then(res => res.body.chat.jabberId);

@@ -11,7 +11,7 @@ function buildUri (host, path, version = 'v2') {
 
 export function requestApi (path, { method, data, host, version, contentType, authToken, logger }) {
   let response = request[method](buildUri(host, path, version))
-    .use(reqlogger(logger))
+    .use(reqlogger(logger, data))
     .set('Authorization', `Bearer ${authToken}`)
     .type(contentType || 'json');
 

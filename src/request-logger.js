@@ -1,8 +1,9 @@
-exports = module.exports = function (logger) {
-  return attachSuperagentLogger.bind(null, logger);
+exports = module.exports = function (logger, data) {
+  logger = logger || console;
+  return attachSuperagentLogger.bind(null, logger, data);
 };
 
-function attachSuperagentLogger (logger, req) {
+function attachSuperagentLogger (logger, data, req) {
   let start = new Date().getTime();
   let timestamp = new Date().toISOString();
   let method = req.method;
@@ -11,7 +12,7 @@ function attachSuperagentLogger (logger, req) {
     timestamp,
     method.toUpperCase(),
     req.url,
-    JSON.stringify(req.toJSON().data));
+    JSON.stringify(data));
 
   req.on('response', function (res) {
     let now = new Date().getTime();
