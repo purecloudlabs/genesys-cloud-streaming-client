@@ -12,14 +12,14 @@ function attachSuperagentLogger (logger, data, req) {
     timestamp,
     method.toUpperCase(),
     req.url,
-    JSON.stringify(data));
+    data);
 
   req.on('response', function (res) {
     let now = new Date().getTime();
     let elapsed = now - start;
 
     logger.info('%s <<< %s %s %s %s \n Correlation-id: %s \n Body: %s',
-      timestamp,
+      new Date().getTime(),
       method.toUpperCase(),
       res.status,
       req.url,
