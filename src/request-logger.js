@@ -11,7 +11,7 @@ function attachSuperagentLogger (logger, req) {
     timestamp,
     method.toUpperCase(),
     req.url,
-    JSON.stringify(req.body));
+    JSON.stringify(req.toJSON().data));
 
   req.on('response', function (res) {
     let now = new Date().getTime();
