@@ -15,7 +15,7 @@ function attachSuperagentLogger (logger, data, req) {
     data);
 
   req.on('response', function (res) {
-    let now = new Date().getTime();
+    let now = new Date().toISOString();
     let elapsed = now - start;
 
     logger.info('%s <<< %s %s %s %s \n Correlation-id: %s \n Body: %s',
