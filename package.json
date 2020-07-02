@@ -7,7 +7,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/streaming-client.min.js",
+  "main": "dist/src/client.js",
   "files": [
     "src",
     "dist"
@@ -16,9 +16,11 @@
     "test"
   ],
   "scripts": {
+    "prebuild": "rimraf dist",
     "build": "npm run build:cdn && npm run build:module",
     "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
     "build:module": "webpack && webpack --env.production",
+    "build:src": "copyfiles src/** dist/",
     "test": "semistandard && npm run test:unit",
     "test:unit": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
@@ -67,8 +69,10 @@
     "babel-jest": "^26.1.0",
     "babel-loader": "^8.1.0",
     "btoa": "^1.2.1",
+    "copyfiles": "^2.3.0",
     "jest": "^26.1.0",
     "nock": "^10.0.1",
+    "rimraf": "^3.0.2",
     "semistandard": "^13.0.1",
     "webpack": "^4.35.3",
     "webpack-auto-inject-version": "^1.2.2",

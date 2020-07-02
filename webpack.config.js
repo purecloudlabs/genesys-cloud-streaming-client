@@ -30,7 +30,7 @@ module.exports = (env) => {
   filename += minimize ? '.min.js' : '.js';
 
   return {
-    target: 'web',
+    target: cdn ? 'web' : 'node',
     entry: './src/client.js',
     mode: minimize ? 'production' : 'development',
     optimization: {
