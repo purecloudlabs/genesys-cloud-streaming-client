@@ -31,6 +31,24 @@ export function timeoutPromise (fn, timeoutMs, msg, details) {
   });
 }
 
+export function splitIntoIndividualTopics (topicString) {
+  const topics = [];
+
+  if (topicString.includes('?')) {
+    const split = topicString.split('?');
+    const prefix = split[0];
+    const postfixes = split[1] && split[1].split('&');
+    if (postfixes && postfixes.length) {
+      postfixes.forEach(postfix => {
+        topics.push(`${prefix}.${postfix}`);
+      });
+    }
+  } else {
+    topics.push(topicString);
+  }
+  return topics;
+}
+
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {
 //   for (var key in provided) {
