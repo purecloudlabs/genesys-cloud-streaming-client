@@ -17,10 +17,10 @@
   ],
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "npm run build:cdn && npm run build:module",
-    "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
-    "build:module": "webpack && webpack --env.production",
+    "build": "npm run build:src && npm run build:cdn && npm run build:module",
     "build:src": "copyfiles src/** dist/",
+    "build:module": "webpack && webpack --env.production",
+    "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
     "test": "semistandard && npm run test:unit",
     "test:unit": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
