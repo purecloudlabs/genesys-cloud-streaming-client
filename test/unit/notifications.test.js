@@ -13,8 +13,9 @@ class Client extends WildEmitter {
     this.config = config;
 
     this.logger = {
-      warn () { },
+      debug () { },
       info () { },
+      warn () { },
       error () { }
     };
 
@@ -415,6 +416,38 @@ describe('Notifications', () => {
 
     notification.createSubscription(noPosfixTopic, handler);
     expect(notification.subscriptions['v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99']).toBe(undefined);
+  });
+
+  test('notifications | removeSubscription should correctly remove handlers for precombined topics', () => {
+    const client = new Client({
+      apiHost: 'inindca.com'
+    });
+    const notification = new Notifications(client);
+
+    const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
+    const handler = jest.fn();
+
+    notification.createSubscription(topic, handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'][0]).toEqual(handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'][0]).toEqual(handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'][0]).toEqual(handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0]).toEqual(handler);
+
+    notification.removeSubscription(topic, handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'].length).toBe(0);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'].length).toBe(0);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'].length).toBe(0);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'].length).toBe(0);
+
+    // Subscribe to precombined topic, then remove one individually
+    notification.createSubscription(topic, handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'][0]).toEqual(handler);
+    notification.removeSubscription('v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation', handler);
+
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'].length).toBe(0);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'][0]).toEqual(handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'][0]).toEqual(handler);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0]).toEqual(handler);
   });
 
   test('notifications | truncateTopicList should return a topic list of the correct length', () => {

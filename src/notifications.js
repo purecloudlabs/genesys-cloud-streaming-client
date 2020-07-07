@@ -1,4 +1,4 @@
-import { requestApi } from './utils';
+import { requestApi, splitIntoIndividualTopics } from './utils';
 const debounce = require('debounce-promise');
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
@@ -165,28 +165,15 @@ export default class Notification {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
-      data: JSON.stringify(this.mapCombineTopics(topics))
+      data: JSON.stringify(this.mapCombineTopics(topics)),
+      logger: this.client.logger
     };
     const channelId = this.client.config.channelId;
     return requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
   }
 
   createSubscription (topic, handler) {
-    const topics = [];
-
-    // Register handlers for precombined topics
-    if (topic.includes('?')) {
-      const split = topic.split('?');
-      const prefix = split[0];
-      const postfixes = split[1] && split[1].split('&');
-      if (postfixes && postfixes.length) {
-        postfixes.forEach(postfix => {
-          topics.push(`${prefix}.${postfix}`);
-        });
-      }
-    } else {
-      topics.push(topic);
-    }
+    const topics = splitIntoIndividualTopics(topic);
 
     topics.forEach(t => {
       let handlers = this.topicHandlers(t);
@@ -197,11 +184,15 @@ export default class Notification {
   }
 
   removeSubscription (topic, handler) {
-    let handlers = this.topicHandlers(topic);
-    let handlerIndex = handlers.indexOf(handler);
-    if (handlerIndex > -1) {
-      handlers.splice(handlerIndex, 1);
-    }
+    const topics = splitIntoIndividualTopics(topic);
+
+    topics.forEach(t => {
+      let handlers = this.topicHandlers(t);
+      let handlerIndex = handlers.indexOf(handler);
+      if (handlerIndex > -1) {
+        handlers.splice(handlerIndex, 1);
+      }
+    });
   }
 
   removeTopicPriority (topic) {
