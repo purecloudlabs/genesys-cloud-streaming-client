@@ -165,7 +165,8 @@ export default class Notification {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
-      data: JSON.stringify(this.mapCombineTopics(topics))
+      data: JSON.stringify(this.mapCombineTopics(topics)),
+      logger: this.client.logger
     };
     const channelId = this.client.config.channelId;
     return requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);

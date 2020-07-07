@@ -307,7 +307,8 @@ export default class Client {
     const opts = {
       method: 'post',
       host: this.config.apiHost,
-      authToken: this.config.authToken
+      authToken: this.config.authToken,
+      logger: this.logger
     };
     const channelPromise = requestApi('notifications/channels?connectionType=streaming', opts)
       .then(res => res.body.id);
