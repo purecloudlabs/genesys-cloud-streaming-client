@@ -17,6 +17,7 @@ class Client extends WildEmitter {
     this.logger = {
       warn () {},
       info () {},
+      debug () {},
       error () {}
     };
 

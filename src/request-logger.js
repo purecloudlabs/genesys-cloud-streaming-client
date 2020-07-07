@@ -9,23 +9,21 @@ function attachSuperagentLogger (logger, data, req) {
   let timestamp = new Date().toISOString();
   let method = req.method;
 
-  logger.info('%s >>> %s %s \n Body: %s',
-    timestamp,
-    method.toUpperCase(),
-    req.url,
-    data);
+  logger.debug(`request: ${method.toUpperCase()} ${req.url}`, { timestamp, data });
 
   req.on('response', function (res) {
     let now = new Date().toISOString();
-    let elapsed = now - start;
+    let status = res.status;
+    let elapsed = (now - start) + 'ms';
+    let correlationId = res.headers['inin-correlation-id'];
+    let body = JSON.stringify(res.body);
 
-    logger.info('%s <<< %s %s %s %s \n Correlation-id: %s \n Body: %s',
-      new Date().getTime(),
-      method.toUpperCase(),
-      res.status,
-      req.url,
-      elapsed + 'ms',
-      res.headers['inin-correlation-id'],
-      JSON.stringify(res.body));
+    logger.debug(`response: ${method.toUpperCase()} ${req.url}`,
+      { now,
+        status,
+        elapsed,
+        correlationId,
+        body
+      });
   });
 }
