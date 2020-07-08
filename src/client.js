@@ -5,6 +5,7 @@ import { createClient } from './stanzaio-light';
 import notifications from './notifications';
 import reconnector from './reconnector';
 import ping from './ping';
+import './polyfills';
 import { requestApi, timeoutPromise } from './utils';
 
 // extension imports

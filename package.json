@@ -7,7 +7,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/src/client.js",
+  "main": "src/client.js",
   "files": [
     "src",
     "dist"
@@ -17,8 +17,7 @@
   ],
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "npm run build:src && npm run build:cdn && npm run build:module",
-    "build:src": "copyfiles src/** dist/",
+    "build": "npm run build:cdn && npm run build:module",
     "build:module": "webpack && webpack --env.production",
     "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
     "test": "semistandard && npm run test:unit",
@@ -69,9 +68,9 @@
     "babel-jest": "^26.1.0",
     "babel-loader": "^8.1.0",
     "btoa": "^1.2.1",
-    "copyfiles": "^2.3.0",
     "jest": "^26.1.0",
     "nock": "^10.0.1",
+    "pre-push": "^0.1.1",
     "rimraf": "^3.0.2",
     "semistandard": "^13.0.1",
     "webpack": "^4.35.3",
