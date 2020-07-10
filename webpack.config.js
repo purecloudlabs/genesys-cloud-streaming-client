@@ -19,7 +19,7 @@ module.exports = (env) => {
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename,
-      library: 'PureCloudStreamingClient',
+      library: 'GenesysCloudStreamingClient',
       libraryTarget: 'umd',
       libraryExport: 'default'
     },
