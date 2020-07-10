@@ -8,7 +8,7 @@ import ping from './ping';
 import { requestApi, timeoutPromise } from './utils';
 
 // extension imports
-import webrtcSessions from 'purecloud-streaming-client-webrtc-sessions';
+import webrtcSessions from 'genesys-cloud-streaming-client-webrtc-sessions';
 
 // external imports
 import { TokenBucket } from 'limiter';
