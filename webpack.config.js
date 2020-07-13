@@ -4,18 +4,39 @@ const WebpackAutoInject = require('webpack-auto-inject-version');
 
 module.exports = (env) => {
   const minimize = env && env.production;
-  const node = env && env.node;
-  const file = minimize ? 'streaming-client.min' : 'streaming-client';
-  const extension = node ? '.cjs' : '.js';
-  const filename = file + extension;
+  const cdn = env && env.cdn;
+
+  let filename = 'streaming-client';
+  let babelExcludes = [];
+
+  /* if building for the cdn */
+  if (cdn) {
+    /*
+      this is so babel doesn't try to polyfill/transpile core-js (which is the polyfill)
+        and the build tools.
+      But we want it polyfill/transpile all other node_modules when building for the web
+    */
+    babelExcludes = [
+      /\bcore-js\b/,
+      /\bwebpack\/buildin\b/
+    ];
+
+    filename += '.bundle';
+  } else {
+    /* if we are building for 'module', don't polyfill/transpile any dependencies */
+    babelExcludes = [/node_modules/];
+  }
+
+  filename += minimize ? '.min.js' : '.js';
+
   return {
-    target: node ? 'node' : 'web',
+    target: cdn ? 'web' : 'node',
     entry: './src/client.js',
     mode: minimize ? 'production' : 'development',
     optimization: {
       minimize
     },
-    devtool: 'source-map',
+    devtool: minimize ? 'source-map' : '',
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename,
@@ -38,13 +59,9 @@ module.exports = (env) => {
     module: {
       rules: [
         {
-          exclude: /(node_modules)/,
-          test: /\.js$/,
+          test: /\.(c|m)?js$/,
           loader: 'babel-loader',
-          query: {
-            presets: ['@babel/preset-env'],
-            plugins: ['@babel/plugin-transform-runtime']
-          }
+          exclude: babelExcludes
         }
       ]
     }

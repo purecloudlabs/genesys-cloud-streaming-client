@@ -7,8 +7,7 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/streaming-client.min.cjs",
-  "browser": "dist/streaming-client.js",
+  "main": "src/client.js",
   "files": [
     "src",
     "dist"
@@ -17,15 +16,15 @@
     "test"
   ],
   "scripts": {
-    "build": "npm run build-umd && npm run build-cjs",
-    "build-umd": "webpack && webpack --env.production",
-    "build-cjs": "webpack --env.node && webpack --env.node --env.production",
-    "unit-test": "NODE_ENV=test nyc --reporter=lcov --reporter=cobertura ava test/unit/*.js",
-    "test": "semistandard && npm run unit-test && npm run report",
-    "semistandard": "semistandard",
-    "semistandard:fix": "semistandard --fix",
-    "report": "nyc report && nyc check-coverage --lines 100 --functions 100 --branches 100 --statements 100",
-    "watch-tests": "watch 'npm test' src test"
+    "prebuild": "rimraf dist",
+    "build": "npm run build:cdn && npm run build:module",
+    "build:module": "webpack && webpack --env.production",
+    "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
+    "test": "semistandard && npm run test:unit",
+    "test:unit": "jest --runInBand",
+    "test:watch": "jest --watch --runInBand",
+    "lint": "semistandard",
+    "lint:fix": "semistandard --fix"
   },
   "semistandard": {
     "ignore": [
@@ -33,51 +32,25 @@
       "/coverage",
       "/scripts",
       "/dist"
+    ],
+    "globals": [
+      "test",
+      "jest",
+      "expect",
+      "describe",
+      "fail",
+      "beforeEach",
+      "afterEach"
     ]
-  },
-  "babel": {
-    "presets": [
-      "@babel/preset-env"
-    ],
-    "env": {
-      "test": {
-        "plugins": [
-          "istanbul"
-        ]
-      }
-    }
-  },
-  "ava": {
-    "files": [
-      "test/unit/*.js"
-    ],
-    "concurrency": 5,
-    "failFast": true,
-    "failWithoutAssertions": false,
-    "tap": false,
-    "powerAssert": true,
-    "require": [
-      "esm",
-      "@babel/register",
-      "babel-polyfill",
-      "./test/helpers/setup-browser-env.js"
-    ]
-  },
-  "nyc": {
-    "require": [
-      "@babel/register"
-    ],
-    "sourceMap": false,
-    "instrument": false
   },
   "author": "",
   "dependencies": {
-    "@babel/runtime": "^7.6.3",
+    "@babel/runtime-corejs3": "^7.10.4",
     "backoff-web": "^1.0.1",
+    "core-js": "^3.6.5",
     "debounce-promise": "^3.1.2",
     "genesys-cloud-streaming-client-webrtc-sessions": "^8.0.0",
     "limiter": "^1.1.0",
-    "purecloud-streaming-client-webrtc-sessions": "^7.2.81",
     "stanza": "^11.0.0",
     "superagent": "^5.1.0",
     "uuid": "^3.0.1",
@@ -85,26 +58,21 @@
     "wildemitter": "^1.2.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.5.4",
-    "@babel/plugin-transform-runtime": "^7.6.2",
-    "@babel/preset-env": "^7.5.4",
+    "@babel/core": "^7.10.2",
+    "@babel/plugin-transform-runtime": "^7.10.1",
+    "@babel/preset-env": "^7.10.2",
     "@babel/register": "^7.8.6",
+    "@types/jest": "^26.0.3",
+    "@types/nock": "^11.1.0",
     "atob": "^2.1.2",
-    "ava": "^2.2.0",
-    "babel-loader": "^8.0.6",
-    "babel-plugin-istanbul": "^5.1.4",
-    "babel-polyfill": "^6.26.0",
+    "babel-jest": "^26.1.0",
+    "babel-loader": "^8.1.0",
     "btoa": "^1.2.1",
-    "esm": "^3.2.25",
-    "exports-loader": "^0.7.0",
-    "imports-loader": "^0.8.0",
-    "mock-socket": "^6.0.4",
+    "jest": "^26.1.0",
     "nock": "^10.0.1",
-    "nyc": "^14.1.1",
+    "pre-push": "^0.1.1",
+    "rimraf": "^3.0.2",
     "semistandard": "^13.0.1",
-    "sinon": "^7.3.2",
-    "snazzy": "^8.0.0",
-    "watch": "^1.0.2",
     "webpack": "^4.35.3",
     "webpack-auto-inject-version": "^1.2.2",
     "webpack-cli": "^3.3.5"
