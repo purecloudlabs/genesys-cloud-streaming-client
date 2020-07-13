@@ -1,7 +1,7 @@
-# PureCloud Streaming Client (SDK)
+# Genesys Cloud Streaming Client (SDK)
 
-The PureCloud Streaming Client serves as the Javascript Web SDK. It handles
-establishing and maintaining a websocket connection to the PureCloud streaming
+The Genesys Cloud Streaming Client serves as the Javascript Web SDK. It handles
+establishing and maintaining a websocket connection to the Genesys Cloud streaming
 services. This project uses our new XMPP based signaling for real time APIs.
 
 Features:
@@ -15,7 +15,7 @@ Features:
 - [ ] Chat※
 
 \* Coming soon; Until supported in this project, WebRTC softphone applications can be built with
-the [PureCloud WebRTC SDK](https://github.com/mypurecloud/purecloud-webrtc-sdk).
+the [Genesys Cloud WebRTC SDK](https://github.com/mypurecloud/genesys-cloud-webrtc-sdk).
 
 ※ Not yet roadmapped
 
@@ -68,7 +68,7 @@ client.on('requestReconnect', function (callback) {
 
 #### Constructor
 
-`new PureCloudStreamingClient(options)`
+`new GenesysCloudStreamingClient(options)`
 
 - parameters
   - `Object options` with properties:
@@ -82,7 +82,7 @@ client.on('requestReconnect', function (callback) {
 #### Methods
 
 `client.connect() : Promise<void>` - Initialize the WebSocket connection for streaming
-connectivity with PureCloud. `connect` must be called before any events will trigger.
+connectivity with Genesys Cloud. `connect` must be called before any events will trigger.
 
 `client.reconnect() : Promise<void>` - Disconnect (if connected) and reconnect to
 the streaming service

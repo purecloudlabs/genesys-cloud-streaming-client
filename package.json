@@ -1,8 +1,8 @@
 {
-  "name": "purecloud-streaming-client",
+  "name": "genesys-cloud-streaming-client",
   "version": "12.0.0",
-  "description": "client for the PureCloud Streaming APIs (websocket/xmpp interface)",
-  "repository": "https:github.com/purecloudlabs/purecloud-streaming-client",
+  "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
+  "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
@@ -49,8 +49,8 @@
     "backoff-web": "^1.0.1",
     "core-js": "^3.6.5",
     "debounce-promise": "^3.1.2",
+    "genesys-cloud-streaming-client-webrtc-sessions": "^8.0.0",
     "limiter": "^1.1.0",
-    "purecloud-streaming-client-webrtc-sessions": "^7.2.81",
     "stanza": "^11.0.0",
     "superagent": "^5.1.0",
     "uuid": "^3.0.1",
