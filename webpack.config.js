@@ -8,8 +8,6 @@ module.exports = (env) => {
   const cdn = env && env.cdn;
 
   let filename = 'streaming-client';
-  let target;
-  let libraryTarget;
   let mode;
   let externals = [];
   let babelExcludes = [];
@@ -18,8 +16,6 @@ module.exports = (env) => {
   /* if building for the cdn */
   if (cdn) {
     filename += '.bundle';
-    target = 'web';
-    libraryTarget = 'umd';
 
     /*
       this is so babel doesn't try to polyfill/transpile core-js (which is the polyfill)
@@ -55,18 +51,11 @@ module.exports = (env) => {
     };
   } else {
     /* we are building for node */
-    target = 'node';
-    libraryTarget = 'commonjs';
+    const modulesToBundle = [/* left this here just in case it is needed */];
 
-    const modulesToBundle = [
-      'stanza',
-      'xmpp-jid',
-      'whatwg-fetch',
-      'genesys-cloud-streaming-client-webrtc-sessions'
-    ];
-    /* we don't want to bundle node_modules (except the ones that are es6) */
+    /* we don't want to bundle node_modules */
     externals.push(nodeExternals({
-      allowlist: modulesToBundle
+      allowlist: modulesToBundle.map(m => new RegExp(`^${m.replace(/-/g, '\\-')}`))
     }));
 
     /* if we are building for 'module', don't polyfill/transpile most dependencies */
@@ -75,7 +64,7 @@ module.exports = (env) => {
     ];
 
     babelOptions = {
-      sourceType: 'module',
+      sourceType: 'unambiguous',
       presets: ['@babel/preset-env']
     };
   }
@@ -84,7 +73,7 @@ module.exports = (env) => {
   mode = minimize ? 'production' : 'development';
 
   return {
-    target,
+    target: 'web',
     entry: './src/client.js',
     mode,
     optimization: {
@@ -96,7 +85,7 @@ module.exports = (env) => {
       path: path.resolve(__dirname, 'dist'),
       filename,
       library: 'GenesysCloudStreamingClient',
-      libraryTarget,
+      libraryTarget: 'umd',
       libraryExport: 'default'
     },
     plugins: [
