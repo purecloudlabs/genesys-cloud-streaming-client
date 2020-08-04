@@ -4,12 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v12.0.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v12.0.1...HEAD)
+
+# [v12.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v12.0.0...v12.0.1)
+# Changed
+* modified commonjs webpack build/transpile to a commonjs compatible file
+* fixed package.json main field to point to new commonjs built file
+* updates some dependencies
 
 
 # [v12.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v11.3.1...v12.0.0)
 ### Breaking Changes
 * package and library renamed to genesys-cloud-streaming-client
+* changed package.json main field to point to es6 source file
 
 ### Added
 * debug level logging on ajax requests
