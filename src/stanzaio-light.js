@@ -9,6 +9,17 @@ import { Client } from 'stanza/browser-module';
 export { JID } from 'xmpp-jid';
 export { Client } from 'stanza/browser-module';
 
+// HACK: for some reason, in production builds of angular, the imports for these plugins are getting messed.
+// A lot of time has been sunk into figuring out why/how to fix it properly, but to no avail. This is a
+// harmless hack that works around the issue.
+function getActualFunction (dep) {
+  if (dep.default) {
+    return dep.default;
+  }
+
+  return dep;
+}
+
 export function createClient (opts) {
   var client = new Client(opts);
   [
@@ -18,7 +29,7 @@ export function createClient (opts) {
     Logging,
     Pubsub,
     Ping
-  ].map(client.use.bind(client));
+  ].map(plugin => client.use(getActualFunction(plugin)));
 
   return client;
 }
