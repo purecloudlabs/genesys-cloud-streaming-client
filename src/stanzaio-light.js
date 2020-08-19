@@ -12,7 +12,7 @@ export { Client } from 'stanza/browser-module';
 // HACK: for some reason, in production builds of angular, the imports for these plugins are getting messed.
 // A lot of time has been sunk into figuring out why/how to fix it properly, but to no avail. This is a
 // harmless hack that works around the issue.
-function getActualFunction (dep) {
+export function getActualFunction (dep) {
   if (dep.default) {
     return dep.default;
   }
