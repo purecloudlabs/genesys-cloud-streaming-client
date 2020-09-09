@@ -2,23 +2,26 @@
 
 // src imports
 import { createClient } from './stanzaio-light';
-import notifications from './notifications';
+import { Notifications as notifications } from './notifications';
+import { WebrtcExtension as webrtcSessions } from './webrtc';
 import reconnector from './reconnector';
 import ping from './ping';
 import './polyfills';
 import { requestApi, timeoutPromise } from './utils';
 
 // extension imports
-import webrtcSessions from 'genesys-cloud-streaming-client-webrtc-sessions';
+// import webrtcSessions from 'genesys-cloud-streaming-client-webrtc-sessions';
 
 // external imports
 import { TokenBucket } from 'limiter';
+import { Agent } from 'stanza';
 
 let extensions = {
   ping,
   reconnector,
   notifications,
   webrtcSessions
+  // webrtcSessions
 };
 
 function stanzaioOptions (config) {
@@ -29,8 +32,9 @@ function stanzaioOptions (config) {
       username: config.jid,
       password: `authKey:${config.authToken}`
     },
-    wsURL: `${wsHost}/stream/channels/${config.channelId}`,
-    transport: 'websocket'
+    transports: {
+      websocket: `${wsHost}/stream/channels/${config.channelId}`
+    }
   };
 
   return stanzaOptions;
@@ -40,9 +44,9 @@ const HARD_RECONNECT_THRESHOLD = 2;
 
 // from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
 function parseJwt (token) {
-  var base64Url = token.split('.')[1];
-  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
   }).join(''));
 
@@ -78,20 +82,33 @@ const REMAPPED_EVENTS = {
 const APP_VERSION = '[AIV]{version}[/AIV]';
 
 export default class Client {
+  _stanzaio: Agent;
+  connected = false;
+  autoReconnect = true;
+  reconnectOnNoLongerSubscribed: boolean;
+  logger: any;
+  leakyReconnectTimer: any;
+  hardReconnectCount = 0;
+  reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
+  deadChannels = [];
+  config: any;
+  streamId: any;
+
+  _ping: any;
+  _reconnector: any;
+
   constructor (options) {
     const stanzaio = createClient({});
+
+    // TODO: remove this hack when we can. basically stanza messes up the auth mechanism priority.
+    (stanzaio.sasl as any).mechanisms.find(mech => mech.name === 'ANONYMOUS').priority = 0;
+    (stanzaio.sasl as any).mechanisms = (stanzaio.sasl as any).mechanisms.sort((a, b) => b.priority - a.priority);
+
     this._stanzaio = stanzaio;
-    this.connected = false;
-    this.autoReconnect = true;
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
 
     this.logger = options.logger || console;
-    this.leakyReconnectTimer = null;
-    this.hardReconnectCount = 0;
-    // 10 minutes
-    this.reconnectLeakTime = 1000 * 60 * 10;
-    this.deadChannels = [];
 
     this.config = {
       host: options.host,
@@ -131,7 +148,7 @@ export default class Client {
     });
 
     // remapped session:started
-    this.on('connected', (event) => {
+    this.on('connected', async (event) => {
       this.streamId = event.resource;
       this._ping.start();
       this.connected = true;
@@ -150,7 +167,7 @@ export default class Client {
       if (!err || err.condition !== 'temporary-auth-failure') {
         this._ping.stop();
         this.autoReconnect = false;
-        this.disconnect();
+        return this.disconnect();
       }
     });
 
@@ -222,7 +239,7 @@ export default class Client {
             if (message === true) {
               return stanzaio.sendMessage(data);
             }
-            return stanzaio.sendIq(data);
+            return stanzaio.sendIQ(data);
           });
         });
       }
@@ -237,32 +254,58 @@ export default class Client {
     this.leakyReconnectTimer = null;
   }
 
-  on (eventName, ...args) {
+  on (eventName, args) {
     if (REMAPPED_EVENTS[eventName]) {
-      this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
+      this._stanzaio.on(REMAPPED_EVENTS[eventName], args);
     } else {
-      this._stanzaio.on(eventName, ...args);
+      this._stanzaio.on(eventName, args);
     }
     return this;
   }
 
-  once (eventName, ...args) {
+  once (eventName, args) {
     if (REMAPPED_EVENTS[eventName]) {
-      this._stanzaio.once(REMAPPED_EVENTS[eventName], ...args);
+      this._stanzaio.once(REMAPPED_EVENTS[eventName], args);
     } else {
-      this._stanzaio.once(eventName, ...args);
+      this._stanzaio.once(eventName, args);
     }
     return this;
   }
 
-  off (eventName, ...args) {
+  off (eventName, args) {
     if (REMAPPED_EVENTS[eventName]) {
-      this._stanzaio.off(REMAPPED_EVENTS[eventName], ...args);
+      this._stanzaio.off(REMAPPED_EVENTS[eventName], args);
     } else {
-      this._stanzaio.off(eventName, ...args);
+      this._stanzaio.off(eventName, args);
     }
     return this;
   }
+  // on (eventName, ...args) {
+  //   if (REMAPPED_EVENTS[eventName]) {
+  //     this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
+  //   } else {
+  //     this._stanzaio.on(eventName, ...args);
+  //   }
+  //   return this;
+  // }
+
+  // once (eventName, ...args) {
+  //   if (REMAPPED_EVENTS[eventName]) {
+  //     this._stanzaio.once(REMAPPED_EVENTS[eventName], ...args);
+  //   } else {
+  //     this._stanzaio.once(eventName, ...args);
+  //   }
+  //   return this;
+  // }
+
+  // off (eventName, ...args) {
+  //   if (REMAPPED_EVENTS[eventName]) {
+  //     this._stanzaio.off(REMAPPED_EVENTS[eventName], ...args);
+  //   } else {
+  //     this._stanzaio.off(eventName, ...args);
+  //   }
+  //   return this;
+  // }
 
   disconnect () {
     this.logger.info('streamingClient.disconnect was called');
@@ -321,7 +364,9 @@ export default class Client {
         this.autoReconnect = true;
         return timeoutPromise(resolve => {
           this.once('connected', resolve);
-          this._stanzaio.connect(stanzaioOptions(this.config));
+          const options = stanzaioOptions(this.config);
+          this._stanzaio.updateConfig(options);
+          this._stanzaio.connect();
         }, 10 * 1000, 'connecting to streaming service', { jid, channelId });
       });
   }

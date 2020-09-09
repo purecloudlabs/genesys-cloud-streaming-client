@@ -1,13 +1,8 @@
 import Disco from 'stanza/plugins/disco';
-import Extdisco from 'stanza/plugins/extdisco';
-import Logging from 'stanza/plugins/logging';
 import Pubsub from 'stanza/plugins/pubsub';
-import Ping from 'stanza/plugins/ping';
-import fetch from 'whatwg-fetch/fetch'; // eslint-disable-line
-import { Client } from 'stanza/browser-module';
+import Jingle from 'stanza/plugins/jingle';
 
-export { JID } from 'xmpp-jid';
-export { Client } from 'stanza/browser-module';
+import { createClient as createStanzaClient, Agent } from 'stanza';
 
 // HACK: for some reason, in production builds of angular, the imports for these plugins are getting messed.
 // A lot of time has been sunk into figuring out why/how to fix it properly, but to no avail. This is a
@@ -20,15 +15,12 @@ export function getActualFunction (dep) {
   return dep;
 }
 
-export function createClient (opts) {
-  var client = new Client(opts);
+export function createClient (opts): Agent {
+  const client = createStanzaClient(opts);
   [
     Disco, // must be first
-
-    Extdisco,
-    Logging,
-    Pubsub,
-    Ping
+    Jingle,
+    Pubsub
   ].map(plugin => client.use(getActualFunction(plugin)));
 
   return client;

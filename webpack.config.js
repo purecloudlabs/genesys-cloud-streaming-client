@@ -23,30 +23,30 @@ module.exports = (env) => {
       But we want it polyfill/transpile all other node_modules when building for the web
     */
     babelExcludes = [
+      /@babel\//,
       /\bcore-js\b/,
       /\bwebpack\/buildin\b/
     ];
 
     babelOptions = {
       sourceType: 'unambiguous',
-      ignore: [/\/core-js/],
       presets: [
-        ['@babel/preset-env',
-          {
-            debug: false, /* set to `true` if you start banging your head against the wall */
-            targets: [
-              'last 2 versions',
-              '> 5%',
-              'IE 11',
-              'not dead'
-            ]
-          }
-        ]
+        ['@babel/preset-env', {
+          debug: false, /* set to `true` if you start banging your head against the wall */
+          targets: [
+            'last 2 versions',
+            '> 5%',
+            'IE 11',
+            'not dead'
+          ]
+        }],
+        '@babel/preset-typescript'
       ],
       plugins: [
         ['@babel/plugin-transform-runtime', {
           corejs: 3
-        }]
+        }],
+        '@babel/plugin-proposal-class-properties'
       ]
     };
   } else {
@@ -65,7 +65,13 @@ module.exports = (env) => {
 
     babelOptions = {
       sourceType: 'unambiguous',
-      presets: ['@babel/preset-env']
+      presets: [
+        '@babel/preset-env',
+        '@babel/preset-typescript'
+      ],
+      plugins: [
+        '@babel/plugin-proposal-class-properties'
+      ]
     };
   }
 
@@ -74,7 +80,7 @@ module.exports = (env) => {
 
   return {
     target: 'web',
-    entry: './src/client.js',
+    entry: './src/client.ts',
     mode,
     optimization: {
       minimize
@@ -100,10 +106,13 @@ module.exports = (env) => {
         }
       })
     ],
+    resolve: {
+      extensions: ['.ts', '.js', '.cjs', '.mjs', '.json']
+    },
     module: {
       rules: [
         {
-          test: /\.(c|m)?js$/,
+          test: /\.(cjs|mjs|js|ts)$/,
           loader: 'babel-loader',
           exclude: babelExcludes,
           options: babelOptions

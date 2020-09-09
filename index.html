@@ -1,0 +1,45 @@
+<html>
+  <head>
+    <script src="./streaming-client.bundle.js"></script>
+  </head>
+  <body>
+    <script>
+      const client = new GenesysCloudStreamingClient({
+        signalIceConnected: true,
+        host: `wss://streaming.inindca.com`,
+        apiHost: 'inindca.com',
+        authToken: '0HW-ATDpQRBHqHFsGfdkPKB5LOCDmAolJUmZRN-iBwKN3Gb7uSc4pJVyOclye-iJc7FolEB-inMiciobWpeU4A'
+      });
+
+      client.connect();
+
+      let hasAccepted = false;
+
+      // propose
+      client.webrtcSessions.on('requestIncomingRtcSession', (pendingSession) => {
+
+        client.webrtcSessions.rtcSessionAccepted(pendingSession.sessionId);
+        client.webrtcSessions.acceptRtcSession(pendingSession.sessionId);
+      });
+
+      // session-init
+      client.webrtcSessions.on('incomingRtcSession', async (session) => {
+        if (hasAccepted) {
+          return;
+        }
+
+        hasAccepted = true;
+
+        const stream = await window.navigator.mediaDevices.getUserMedia({audio: true, video: false});
+        for (const track of stream.getTracks()) {
+          await session.addTrack(track, stream);
+        }
+        session.accept();
+      });
+
+      client.webrtcSessions.on('rtcSessionError', function () {
+        console.error('rtcSessionError', arguments);
+      });
+    </script>
+  </body>
+</html>

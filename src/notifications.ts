@@ -1,4 +1,7 @@
 import { requestApi, splitIntoIndividualTopics } from './utils';
+// import PubsubEventMessage from 'stanza/plugins/pubsub';
+import Client from './client';
+import { PubsubEvent } from 'stanza/protocol';
 const debounce = require('debounce-promise');
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
@@ -10,7 +13,13 @@ function mergeAndDedup (arr1, arr2) {
   return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
 }
 
-export default class Notification {
+export class Notifications {
+  client: Client;
+  subscriptions: any;
+  bulkSubscriptions: any;
+  topicPriorities: any;
+  debouncedResubscribe: any;
+
   constructor (client) {
     this.subscriptions = {};
     this.bulkSubscriptions = {};
@@ -39,42 +48,46 @@ export default class Notification {
     return this.subscriptions[topic];
   }
 
-  pubsubEvent (msg) {
-    const topic = msg.event.updated.node;
-    const payload = msg.event.updated.published[0].json;
+  pubsubEvent ({ pubsub }: { pubsub: PubsubEvent }) {
+    const topic = pubsub.items?.node;
+    const payload = (pubsub.items?.published[0].content as any).json;
     const handlers = this.topicHandlers(topic);
 
-    this.client._stanzaio.emit('notify', { topic: topic, data: payload });
-    this.client._stanzaio.emit(`notify:${topic}`, payload);
+    this.client._stanzaio.emit('notify' as any, { topic: topic, data: payload });
+    this.client._stanzaio.emit(`notify:${topic}` as any, payload);
     handlers.forEach((handler) => {
       handler(payload);
     });
   }
 
-  xmppSubscribe (topic, callback) {
+  async xmppSubscribe (topic) {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
-      return callback();
+      return Promise.resolve();
     }
-    const subscribe = () => this.client._stanzaio.subscribeToNode(this.pubsubHost, topic, callback);
+    const subscribe = () => this.client._stanzaio.subscribeToNode(this.pubsubHost, topic);
     if (this.client.connected) {
-      subscribe();
+      return subscribe();
     } else {
-      this.client.once('connected', () => {
-        subscribe();
+      return new Promise((resolve, reject) => {
+        this.client.once('connected', () => {
+          return subscribe().then(resolve, reject);
+        });
       });
     }
   }
 
-  xmppUnsubscribe (topic, callback) {
+  xmppUnsubscribe (topic) {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
-      return callback();
+      return Promise.resolve();
     }
-    const unsubscribe = () => this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic, callback);
+    const unsubscribe = () => this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic);
     if (this.client.connected) {
-      unsubscribe();
+      return unsubscribe();
     } else {
-      this.client.once('connected', () => {
-        unsubscribe();
+      return new Promise((resolve, reject) => {
+        this.client.once('connected', () => {
+          return unsubscribe().then(resolve, reject);
+        });
       });
     }
   }
@@ -238,7 +251,7 @@ export default class Notification {
         this.resubscribe().catch((err) => {
           const msg = 'Error resubscribing to topics';
           this.client.logger.error(msg, err);
-          this.client._stanzaio.emit('pubsub:error', { msg, err });
+          this.client._stanzaio.emit('pubsub:error' as any, { msg, err });
         });
       });
     }
