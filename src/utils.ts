@@ -9,7 +9,7 @@ function buildUri (host, path, version = 'v2') {
   return `https://api.${host}/api/${version}/${path}`;
 }
 
-export function requestApi (path, opts: { method?, data?, host?, version?, contentType?, authToken?, logger? }) {
+export function requestApi (this: any, path, opts: { method?, data?, host?, version?, contentType?, authToken?, logger? }) {
   let response = request[opts.method](buildUri(opts.host, path, opts.version))
     .use(reqlogger.bind(this, opts.logger, opts.data))
     .set('Authorization', `Bearer ${opts.authToken}`)
@@ -34,7 +34,7 @@ export function timeoutPromise (fn, timeoutMs, msg, details?) {
 }
 
 export function splitIntoIndividualTopics (topicString) {
-  const topics = [];
+  const topics: string[] = [];
 
   if (topicString.includes('?')) {
     const split = topicString.split('?');
@@ -50,6 +50,29 @@ export function splitIntoIndividualTopics (topicString) {
   }
   return topics;
 }
+
+export const isAcdJid = function (jid: string): boolean {
+  return jid.startsWith('acd-');
+};
+
+export const isScreenRecordingJid = function (jid: string): boolean {
+  return jid.startsWith('screenrecording-');
+};
+
+export const isSoftphoneJid = function (jid: string): boolean {
+  if (!jid) {
+    return false;
+  }
+  return !!jid.match(/.*@.*gjoll.*/i);
+};
+
+export const isPeerVideoJid = function (jid: string): boolean {
+  return isVideoJid(jid) && jid.startsWith('peer-');
+};
+
+export const isVideoJid = function (jid: string): boolean {
+  return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
+};
 
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {

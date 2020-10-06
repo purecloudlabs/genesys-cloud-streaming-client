@@ -2,21 +2,19 @@
 
 const backoff = require('backoff-web');
 
-import { JXT } from 'stanza';
-import Client from './client';
+import { Client } from './client';
+import { DefinitionOptions, childText } from 'stanza/jxt';
 
 const CXFR_NAMESPACE = 'urn:xmpp:cxfr';
-export const Definition = [
-  {
-    path: 'iq.cxfr',
-    element: 'query',
-    namespace: CXFR_NAMESPACE,
-    fields: {
-      domain: JXT.childText(null, 'domain'),
-      server: JXT.childText(null, 'server')
-    }
-  }
-];
+export const CXFRDefinition: DefinitionOptions = {
+  aliases: ['iq.cxfr'],
+  element: 'query',
+  fields: {
+    domain: childText(null, 'domain'),
+    server: childText(null, 'server')
+  },
+  namespace: CXFR_NAMESPACE
+};
 
 export default class Reconnector {
   client: Client;
@@ -42,22 +40,14 @@ export default class Reconnector {
         return;
       }
 
-      // TODO: this.client._stanzaio.transport.conn may not exist in v12
-      if (this.client._stanzaio.transport &&
-          (this.client._stanzaio.transport as any).conn) {
-        const conn = (this.client._stanzaio.transport as any).conn;
-        if (conn.readyState <= 1) {
-          if (conn.readyState === 1) {
-            this.client.logger.debug('Backoff ready, client not connected, but has websocket open');
-          }
-          if (conn.readyState === 0) {
-            this.client.logger.debug('Backoff ready, client not connected, but has websocket pending');
-          }
-          this.backoff.backoff();
-          return;
-        }
+      if (this.client._stanzaio.transport?.hasStream || this.client.connecting) {
+        this.client.logger.debug('Backoff ready, connection is pending');
+        this.backoff.backoff();
+        return;
       }
+
       this.client.logger.debug('Backoff ready, attempting reconnect');
+      this.client.connecting = true;
       this.client._stanzaio.connect();
       this.backoff.backoff();
     });
@@ -74,23 +64,27 @@ export default class Reconnector {
     });
 
     // disable reconnecting when there's an auth failure
-    this.client.on('sasl:failure', (err) => {
-      const temporaryFailure = err && err.condition === 'temporary-auth-failure';
-      const channelExpired = this._hasConnected && err && err.condition === 'not-authorized';
+    this.client._stanzaio.on('sasl', (sasl) => {
+      if (sasl.type !== 'failure') {
+        return;
+      }
+
+      const temporaryFailure = sasl.condition === 'temporary-auth-failure';
+      const channelExpired = this._hasConnected && sasl.condition === 'not-authorized';
       if (channelExpired) {
         return this.hardReconnect();
       } else if (temporaryFailure) {
         this.client.logger.info('Temporary auth failure, continuing reconnect attempts');
       } else {
-        this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', err);
+        this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', sasl);
         this._cleanupReconnect();
       }
     });
 
     const stanzaio = this.client._stanzaio;
-    stanzaio.stanzas.define(Definition);
+    stanzaio.stanzas.define(CXFRDefinition);
 
-    this.client.on('iq:set:cxfr', () => {
+    this.client._stanzaio.on('iq:set:cxfr' as any, (stanza) => {
       // After 10 minutes, reconnect automatically
       const timeout = setTimeout(this.client.reconnect, 10 * 60 * 1000);
       // If no `pending` response received from app, proceed with reconnect
@@ -131,7 +125,6 @@ export default class Reconnector {
     if (this._backoffActive) {
       return;
     }
-    this.client._stanzaio.connect();
     this.backoff.backoff();
     this._backoffActive = true;
   }

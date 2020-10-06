@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v12.0.2...HEAD)
 # Breaking Changes
 * xmppSubscribe and xmppUnsubscribe now return a promise and no longer take a callback
+* most of the methods in webrtcSessions have changed to return promises
+* wild-card event listeners are no longer a thing
+
+# Changed
+* genesys-cloud-webrtc-sessions is no more. A replacement now exists directly in streaming-client
+* upgraded to stanza12
+* streaming-client is not in typescript
 
 # [v12.0.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v12.0.1...v12.0.2)
 # Changed

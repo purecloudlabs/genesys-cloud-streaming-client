@@ -1,6 +1,6 @@
 import { requestApi, splitIntoIndividualTopics } from './utils';
 // import PubsubEventMessage from 'stanza/plugins/pubsub';
-import Client from './client';
+import { Client } from './client';
 import { PubsubEvent } from 'stanza/protocol';
 const debounce = require('debounce-promise');
 
@@ -49,8 +49,12 @@ export class Notifications {
   }
 
   pubsubEvent ({ pubsub }: { pubsub: PubsubEvent }) {
-    const topic = pubsub.items?.node;
-    const payload = (pubsub.items?.published[0].content as any).json;
+    let topic = pubsub.items!.node;
+    if (topic.includes('no_longer_subscribed')) {
+      topic = 'no_longer_subscribed';
+    }
+
+    const payload = (pubsub.items!.published![0].content as any).json;
     const handlers = this.topicHandlers(topic);
 
     this.client._stanzaio.emit('notify' as any, { topic: topic, data: payload });
@@ -94,8 +98,8 @@ export class Notifications {
 
   mapCombineTopics (topics) {
     const prefixes = {};
-    const precombinedTopics = [];
-    const uncombinedTopics = [];
+    const precombinedTopics: Array<{ id: string }> = [];
+    const uncombinedTopics: string[] = [];
 
     topics.forEach(t => {
       if (t.includes('?')) {
@@ -118,7 +122,7 @@ export class Notifications {
       }
     });
 
-    let combinedTopics = [];
+    let combinedTopics: Array<{ id: string }> = [];
 
     // Max length of 200 in topic names
     // so recursively break them up if the combined length exceeds 200
@@ -173,7 +177,7 @@ export class Notifications {
     return keptTopics;
   }
 
-  bulkSubscribe (topics, options) {
+  makeBulkSubscribeRequest (topics, options) {
     const requestOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
@@ -221,7 +225,7 @@ export class Notifications {
   }
 
   getActiveIndividualTopics () {
-    const activeTopics = [];
+    const activeTopics: string[] = [];
     const topics = Object.keys(this.subscriptions);
     topics.forEach(topic => {
       if (topic === 'streaming-subscriptions-expiring') {
@@ -263,7 +267,7 @@ export class Notifications {
     const split = topic.split(separator);
     const postfix = isCombined ? split[1] : split.splice(split.length - 1);
     const prefix = isCombined ? split[0] : split.join('.');
-    let postfixes = [];
+    let postfixes: string[] = [];
     if (isCombined) {
       postfixes = postfix.split('&');
     } else {
@@ -294,73 +298,87 @@ export class Notifications {
     });
   }
 
-  get expose () {
+  subscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean, priority?: number): Promise<any> {
+    if (priority) {
+      this.setTopicPriorities({ [topic]: priority });
+    }
+
+    let promise;
+    if (!immediate) {
+      // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
+      promise = this.debouncedResubscribe();
+    } else {
+      promise = this.xmppSubscribe(topic);
+    }
+    if (handler) {
+      this.createSubscription(topic, handler);
+    } else {
+      this.bulkSubscriptions[topic] = true;
+    }
+    return promise;
+  }
+
+  unsubscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean): Promise<any> {
+    if (handler) {
+      this.removeSubscription(topic, handler);
+    } else {
+      delete this.bulkSubscriptions[topic];
+    }
+
+    this.removeTopicPriority(topic);
+
+    if (!immediate) {
+      // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
+      return this.debouncedResubscribe();
+    }
+    return this.xmppUnsubscribe(topic);
+  }
+
+  async bulkSubscribe (
+    topics: string[],
+    options: BulkSubscribeOpts = { replace: false, force: false },
+    priorities: {[topicName: string]: number} = {}
+  ): Promise<any> {
+    this.setTopicPriorities(priorities);
+
+    let toSubscribe = mergeAndDedup(topics, []);
+
+    if (options.replace && !options.force) {
+      // if this is a bulk subscription, but not a forcible one, keep all individual subscriptions
+      toSubscribe = mergeAndDedup(toSubscribe, this.getActiveIndividualTopics());
+    } else if (options.force) {
+      // if it's a forcible bulk subscribe, wipe out individual subscriptions
+      this.subscriptions = {};
+    }
+    await this.makeBulkSubscribeRequest(toSubscribe, options);
+    if (options.replace) {
+      this.bulkSubscriptions = {};
+    }
+    topics.forEach(topic => {
+      this.bulkSubscriptions[topic] = true;
+    });
+  }
+
+  get expose (): NotificationsAPI {
     return {
-      subscribe: function (topic, handler, immediate, priority) {
-        if (priority) {
-          this.setTopicPriorities({ [topic]: priority });
-        }
-
-        let promise;
-        if (!immediate) {
-          // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
-          promise = this.debouncedResubscribe();
-        } else {
-          promise = new Promise((resolve, reject) => {
-            this.xmppSubscribe(topic, (err, ...args) => {
-              if (err) { reject(err); } else { resolve(...args); }
-            });
-          });
-        }
-        if (handler) {
-          this.createSubscription(topic, handler);
-        } else {
-          this.bulkSubscriptions[topic] = true;
-        }
-        return promise;
-      }.bind(this),
-
-      unsubscribe: function (topic, handler, immediate) {
-        if (handler) {
-          this.removeSubscription(topic, handler);
-        } else {
-          delete this.bulkSubscriptions[topic];
-        }
-
-        this.removeTopicPriority(topic);
-
-        if (!immediate) {
-          // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
-          return this.debouncedResubscribe();
-        }
-        return new Promise((resolve, reject) => {
-          this.xmppUnsubscribe(topic, (err, ...args) => {
-            if (err) { reject(err); } else { resolve(...args); }
-          });
-        });
-      }.bind(this),
-
-      bulkSubscribe: function (topics, options = { replace: false, force: false }, priorities = {}) {
-        this.setTopicPriorities(priorities);
-
-        let toSubscribe = mergeAndDedup(topics, []);
-
-        if (options.replace && !options.force) {
-          // if this is a bulk subscription, but not a forcible one, keep all individual subscriptions
-          toSubscribe = mergeAndDedup(toSubscribe, this.getActiveIndividualTopics());
-        } else if (options.force) {
-          // if it's a forcible bulk subscribe, wipe out individual subscriptions
-          this.subscriptions = {};
-        }
-        return this.bulkSubscribe(toSubscribe, options).then(() => {
-          if (options.replace) {
-            this.bulkSubscriptions = {};
-          }
-          topics.forEach(topic => {
-            this.bulkSubscriptions[topic] = true;
-          });
-        });
-      }.bind(this)
+      subscribe: this.subscribe.bind(this),
+      unsubscribe: this.unsubscribe.bind(this),
+      bulkSubscribe: this.bulkSubscribe.bind(this)
     };
   }
+}
+
+export interface NotificationsAPI {
+  subscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean, priority?: number): Promise<any>;
+  unsubscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean): Promise<any>;
+  bulkSubscribe (
+    topics: string[],
+    options?: BulkSubscribeOpts,
+    priorities?: {[topicName: string]: number}
+  ): Promise<any>;
+}
+
+export interface BulkSubscribeOpts {
+  replace?: boolean;
+  force?: boolean;
 }
