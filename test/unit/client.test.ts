@@ -34,7 +34,7 @@ function getDefaultOptions () {
 
 class TestExtension extends WildEmitter { }
 
-Client.extend('testExtension', TestExtension);
+Client.extend('testExtension', TestExtension as any);
 
 function mockApi () {
   nock.restore();
@@ -151,7 +151,7 @@ describe('Client', () => {
         return { foo () { } };
       }
     }
-    Client.extend('test1234', TestExtension);
+    Client.extend('test1234', TestExtension as any);
     const client = new Client(getDefaultOptions());
     expect(typeof (client as any)._test1234.on).toBe('function');
     expect(typeof (client as any).test1234.foo).toBe('function');
@@ -172,7 +172,7 @@ describe('Client', () => {
       }
     }
 
-    Client.extend('testIqAndMessageHandlers', TestExtension);
+    Client.extend('testIqAndMessageHandlers', TestExtension as any);
     const client = new Client(getDefaultOptions());
     client._stanzaio.emit('iq', testIq as any);
     client._stanzaio.emit('message', testMessage);
@@ -294,7 +294,7 @@ describe('Client', () => {
     expect(true).toBeTruthy(); // session end stops ping, no observable behavior on the client
   });
 
-  test('extension.on(send) will send a stanza', async () => {
+  it('extension.on(send) will send a stanza', async () => {
     const client = new Client(getDefaultOptions());
     jest.spyOn(client._stanzaio, 'sendIQ').mockResolvedValue({} as any);
     (client as any)._testExtension.emit('send', { some: 'stanza' });
@@ -343,7 +343,7 @@ describe('Client', () => {
         this.tokenBucket = new TokenBucket(40, 50, 1000);
         this.tokenBucket.content = 40;
       }
-    });
+    } as any);
     const client = new Client(getDefaultOptions());
     jest.spyOn(client._stanzaio, 'sendIQ').mockResolvedValue({} as any);
     for (let i = 0; i < 200; i++) {

@@ -1,7 +1,7 @@
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { WebrtcExtension } from '../../src/webrtc';
-import { GenesysCloudMediaSession, MediaSessionEvents } from '../../src/media-session';
+import { GenesysCloudMediaSession, MediaSessionEvents } from '../../src/types/media-session';
 import { v4 } from 'uuid';
 import { JingleAction } from 'stanza/Constants';
 import * as utils from '../../src/utils';

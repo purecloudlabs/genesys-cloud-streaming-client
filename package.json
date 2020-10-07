@@ -60,6 +60,7 @@
     "collectCoverageFrom": [
       "./src/**/*.ts"
     ],
+    "setupFiles": ["<rootDir>/test/setup.js"],
     "coverageDirectory": "./coverage",
     "coverageReporters": [
       "text",

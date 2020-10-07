@@ -16,7 +16,7 @@ export const CXFRDefinition: DefinitionOptions = {
   namespace: CXFR_NAMESPACE
 };
 
-export default class Reconnector {
+export class Reconnector {
   client: Client;
   backoff: any;
   _hasConnected = false;
@@ -73,9 +73,7 @@ export default class Reconnector {
       const channelExpired = this._hasConnected && sasl.condition === 'not-authorized';
       if (channelExpired) {
         return this.hardReconnect();
-      } else if (temporaryFailure) {
-        this.client.logger.info('Temporary auth failure, continuing reconnect attempts');
-      } else {
+      } else if (!temporaryFailure) {
         this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', sasl);
         this._cleanupReconnect();
       }

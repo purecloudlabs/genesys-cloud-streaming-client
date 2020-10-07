@@ -1,7 +1,7 @@
 import { requestApi, splitIntoIndividualTopics } from './utils';
 // import PubsubEventMessage from 'stanza/plugins/pubsub';
 import { Client } from './client';
-import { PubsubEvent } from 'stanza/protocol';
+import { PubsubEvent, PubsubSubscription, PubsubSubscriptionWithOptions } from 'stanza/protocol';
 const debounce = require('debounce-promise');
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
@@ -41,7 +41,7 @@ export class Notifications {
     }
   }
 
-  topicHandlers (topic) {
+  topicHandlers (topic: string): Array<(obj?: any) => void> {
     if (!this.subscriptions[topic]) {
       this.subscriptions[topic] = [];
     }
@@ -64,7 +64,7 @@ export class Notifications {
     });
   }
 
-  async xmppSubscribe (topic) {
+  async xmppSubscribe (topic: string): Promise<PubsubSubscriptionWithOptions | void> {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
       return Promise.resolve();
     }
@@ -80,7 +80,7 @@ export class Notifications {
     }
   }
 
-  xmppUnsubscribe (topic) {
+  xmppUnsubscribe (topic: string): Promise<PubsubSubscription | void> {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
       return Promise.resolve();
     }
@@ -96,7 +96,7 @@ export class Notifications {
     }
   }
 
-  mapCombineTopics (topics) {
+  mapCombineTopics (topics: string[]): Array<{ id: string}> {
     const prefixes = {};
     const precombinedTopics: Array<{ id: string }> = [];
     const uncombinedTopics: string[] = [];
@@ -147,7 +147,7 @@ export class Notifications {
     return this.truncateTopicList(this.prioritizeTopicList(allTopics));
   }
 
-  prioritizeTopicList (topics) {
+  prioritizeTopicList (topics: Array<{ id: string }>): Array<{ id: string}> {
     topics.sort((topicA, topicB) => {
       return (this.getTopicPriority(topicB.id) - this.getTopicPriority(topicA.id));
     });
@@ -155,7 +155,7 @@ export class Notifications {
     return topics;
   }
 
-  getTopicPriority (topic, returnDefault = true) {
+  getTopicPriority (topic: string, returnDefault = true): number {
     const { prefix, postfixes } = this.getTopicParts(topic);
     const oldPriorities = this.topicPriorities[prefix];
     const matches = oldPriorities && Object.keys(oldPriorities).filter(p => postfixes.includes(p)).map(p => oldPriorities[p]);
@@ -163,21 +163,21 @@ export class Notifications {
     return returnDefault ? priority || DEFAULT_PRIORITY : priority;
   }
 
-  truncateTopicList (topics) {
+  truncateTopicList (topics: Array<{ id: string}>): Array<{ id: string}> {
     const keptTopics = topics.slice(0, MAX_SUBSCRIBABLE_TOPICS);
     if (topics.length > MAX_SUBSCRIBABLE_TOPICS) {
       let droppedTopics = topics.slice(MAX_SUBSCRIBABLE_TOPICS);
       if (droppedTopics.length > DROPPED_TOPICS_DISPLAY_COUNT) {
         const length = droppedTopics.length - DROPPED_TOPICS_DISPLAY_COUNT;
         droppedTopics = droppedTopics.slice(DROPPED_TOPICS_DISPLAY_COUNT);
-        droppedTopics.push(`...and ${length} more`);
+        droppedTopics.push(`...and ${length} more` as any);
       }
       this.client.logger.warn('Too many topics to subscribe to; truncating extra topics', { droppedTopics });
     }
     return keptTopics;
   }
 
-  makeBulkSubscribeRequest (topics, options) {
+  makeBulkSubscribeRequest (topics: string[], options): Promise<any> {
     const requestOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
@@ -189,7 +189,7 @@ export class Notifications {
     return requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
   }
 
-  createSubscription (topic, handler) {
+  createSubscription (topic: string, handler: (obj?: any) => void): void {
     const topics = splitIntoIndividualTopics(topic);
 
     topics.forEach(t => {
@@ -200,7 +200,7 @@ export class Notifications {
     });
   }
 
-  removeSubscription (topic, handler) {
+  removeSubscription (topic: string, handler: (obj?: any) => void): void {
     const topics = splitIntoIndividualTopics(topic);
 
     topics.forEach(t => {
@@ -212,7 +212,7 @@ export class Notifications {
     });
   }
 
-  removeTopicPriority (topic) {
+  removeTopicPriority (topic: string): void {
     if (this.getTopicPriority(topic, false)) {
       const { prefix, postfixes } = this.getTopicParts(topic);
       postfixes.forEach(postfix => {
@@ -224,7 +224,7 @@ export class Notifications {
     }
   }
 
-  getActiveIndividualTopics () {
+  getActiveIndividualTopics (): string[] {
     const activeTopics: string[] = [];
     const topics = Object.keys(this.subscriptions);
     topics.forEach(topic => {
@@ -239,7 +239,7 @@ export class Notifications {
     return activeTopics;
   }
 
-  resubscribe () {
+  resubscribe (): Promise<any> {
     let topicsToResubscribe = mergeAndDedup(Object.keys(this.bulkSubscriptions), this.getActiveIndividualTopics());
     if (topicsToResubscribe.length === 0) {
       return Promise.resolve();
@@ -247,7 +247,7 @@ export class Notifications {
     return this.bulkSubscribe(topicsToResubscribe, { replace: true });
   }
 
-  subscriptionsKeepAlive () {
+  subscriptionsKeepAlive (): void {
     const topic = 'streaming-subscriptions-expiring';
     if (this.topicHandlers(topic).length === 0) {
       this.createSubscription(topic, () => {
@@ -261,7 +261,7 @@ export class Notifications {
     }
   }
 
-  getTopicParts (topic) {
+  getTopicParts (topic: string): { prefix: string, postfixes: string[] } {
     const isCombined = topic.includes('?');
     const separator = isCombined ? '?' : '.';
     const split = topic.split(separator);
@@ -269,14 +269,14 @@ export class Notifications {
     const prefix = isCombined ? split[0] : split.join('.');
     let postfixes: string[] = [];
     if (isCombined) {
-      postfixes = postfix.split('&');
+      postfixes = (postfix as string).split('&');
     } else {
-      postfixes = postfix;
+      postfixes = postfix as string[];
     }
     return { prefix, postfixes };
   }
 
-  setTopicPriorities (priorities = {}) {
+  setTopicPriorities (priorities = {}): void {
     Object.keys(priorities).forEach(priority => {
       const topicParts = this.getTopicParts(priority);
       const oldPriorities = this.topicPriorities[topicParts.prefix];

@@ -1,4 +1,4 @@
-import { GenesysCloudMediaSession } from '../../src/media-session';
+import { GenesysCloudMediaSession } from '../../src/types/media-session';
 import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import { EventEmitter } from 'events';
 import { ICESession } from 'stanza/jingle';

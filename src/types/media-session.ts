@@ -83,7 +83,7 @@ export class GenesysCloudMediaSession extends MediaSession {
         return sender.replaceTrack(track);
       }
 
-      await (this.pc as any).addTrack(track, stream);
+      this.pc.addTrack(track, stream as MediaStream);
       return;
     });
   }

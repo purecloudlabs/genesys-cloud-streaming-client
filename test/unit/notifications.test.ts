@@ -467,15 +467,15 @@ describe('Notifications', () => {
       topicList.push(`v2.users.${i}.presence`);
     }
 
-    let truncatedTopicList = notification.truncateTopicList(topicList);
+    let truncatedTopicList = notification.truncateTopicList(topicList as any);
     expect(truncatedTopicList.length).toBe(1000);
 
     const truncatedTopicListLogAll = topicList.slice(0, 1010);
-    truncatedTopicList = notification.truncateTopicList(truncatedTopicListLogAll);
+    truncatedTopicList = notification.truncateTopicList(truncatedTopicListLogAll as any);
     expect(truncatedTopicList.length).toBe(1000);
 
     const shortTopicList = topicList.slice(0, 20);
-    truncatedTopicList = notification.truncateTopicList(shortTopicList);
+    truncatedTopicList = notification.truncateTopicList(shortTopicList as any);
     expect(truncatedTopicList.length).toBe(20);
   });
 

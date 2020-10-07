@@ -1,6 +1,6 @@
 'use strict';
 
-import Reconnector, { CXFRDefinition } from '../../src/reconnector';
+import { Reconnector, CXFRDefinition } from '../../src/reconnector';
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { parse } from 'stanza/jxt';

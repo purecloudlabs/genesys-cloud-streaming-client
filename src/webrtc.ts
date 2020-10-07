@@ -3,12 +3,12 @@ import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { EventEmitter } from 'events';
 import { ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
-import { GenesysCloudMediaSession, MediaSessionEvents, SessionType } from './media-session';
+import { GenesysCloudMediaSession, MediaSessionEvents, SessionType } from './types/media-session';
 import LRU from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
-import { isAcdJid, isPeerVideoJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room

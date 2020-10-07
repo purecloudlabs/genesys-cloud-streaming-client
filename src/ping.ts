@@ -11,42 +11,48 @@ export interface PingOptions {
   jid?: string;
 }
 
-export default function (client: Client, options: PingOptions = {}) {
-  let pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
-  let failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
-  let numberOfFailedPings = 0;
-  let pingIntervalId: any = null;
+export class Ping {
+  private pingInterval: number;
+  private failedPingsBeforeDisconnect: number;
+  private numberOfFailedPings: number;
+  private pingIntervalId: any;
 
-  async function performPing (): Promise<void> {
+  constructor (private client: Client, private options: PingOptions = {}) {
+    this.pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
+    this.failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
+    this.numberOfFailedPings = 0;
+    this.pingIntervalId = null;
+  }
+
+  private async performPing (): Promise<void> {
     try {
-      await client._stanzaio.ping(options.jid);
-      numberOfFailedPings = 0;
+      await this.client._stanzaio.ping(this.options.jid);
+      this.numberOfFailedPings = 0;
 
     } catch (err) {
       const info = {
-        channelId: client.config.channelId,
-        jid: client._stanzaio.jid
+        channelId: this.client.config.channelId,
+        jid: this.client._stanzaio.jid
       };
-      client.logger.warn('Missed a ping.', Object.assign({ error: err }, info));
-      if (++numberOfFailedPings > failedPingsBeforeDisconnect) {
-        clearInterval(pingIntervalId);
-        client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings }, info));
-        client._stanzaio.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
+      this.client.logger.warn('Missed a ping.', Object.assign({ error: err }, info));
+      if (++this.numberOfFailedPings > this.failedPingsBeforeDisconnect) {
+        clearInterval(this.pingIntervalId);
+        this.client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings: this.numberOfFailedPings }, info));
+        this.client._stanzaio.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
       }
     }
   }
 
-  return {
-    start () {
-      if (pingIntervalId === null) {
-        pingIntervalId = setInterval(performPing, pingInterval);
-      }
-    },
-    stop () {
-      if (pingIntervalId !== null) {
-        clearInterval(pingIntervalId);
-        pingIntervalId = null;
-      }
+  start () {
+    if (this.pingIntervalId === null) {
+      this.pingIntervalId = setInterval(this.performPing.bind(this), this.pingInterval);
     }
-  };
+  }
+
+  stop () {
+    if (this.pingIntervalId !== null) {
+      clearInterval(this.pingIntervalId);
+      this.pingIntervalId = null;
+    }
+  }
 }

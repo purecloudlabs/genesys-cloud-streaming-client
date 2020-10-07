@@ -1,6 +1,6 @@
 'use strict';
 
-import createPing from '../../src/ping';
+import { Ping } from '../../src/ping';
 
 // const test = require('ava');
 // const sinon = require('sinon');
@@ -11,6 +11,9 @@ const PING_INTERVAL_WITH_BUFFER = DEFAULT_PING_INTERVAL + 100;
 let standardOptions;
 let client;
 let pingCallCount = 0;
+let count = 0;
+
+const flushPromises = () => new Promise(setImmediate);
 
 describe('Ping', () => {
   // we have to reset the doubles for every test.
@@ -23,6 +26,8 @@ describe('Ping', () => {
 
     client = {
       logger: { warn () { }, error () { } },
+      count: count++,
+      config: {},
       _stanzaio: {
         ping: (jid, cb) => {
           pingCallCount++;
@@ -40,12 +45,12 @@ describe('Ping', () => {
   });
 
   test('accepts null options', () => {
-    createPing({} as any);
-    expect('made it').toBeTruthy();
+    const ping = new Ping({} as any);
+    expect(ping).toBeTruthy();
   });
 
   test('when started it sends a ping on an interval', () => {
-    let ping = createPing(client, standardOptions);
+    let ping = new Ping(client, standardOptions);
 
     ping.start();
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
@@ -55,7 +60,7 @@ describe('Ping', () => {
   });
 
   test('when started multiple times it sends a ping on a single interval', () => {
-    let ping = createPing(client, standardOptions);
+    let ping = new Ping(client, standardOptions);
 
     ping.start();
     ping.start();
@@ -81,16 +86,16 @@ describe('Ping', () => {
         sendStreamError: jest.fn()
       }
     };
-    let ping = createPing(client as any, standardOptions);
+    let ping = new Ping(client as any, standardOptions);
     ping.start();
 
     // move forward in time to one ping
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+    await flushPromises();
 
     // move forward again
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
-
-    await Promise.resolve();
+    await flushPromises();
 
     // verify it sends a stream error
     expect(client._stanzaio.sendStreamError).toHaveBeenCalled();
@@ -124,7 +129,7 @@ describe('Ping', () => {
         sendStreamError: jest.fn()
       }
     };
-    let ping = createPing(client as any, standardOptions);
+    let ping = new Ping(client as any, standardOptions);
     ping.start();
 
     // move forward in time to one missed
@@ -140,7 +145,7 @@ describe('Ping', () => {
       jid: 'anon@example.mypurecloud.com',
       pingInterval: 60000
     };
-    let ping = createPing(client, options);
+    let ping = new Ping(client, options);
     ping.start();
 
     // move forward in time to the standard ping interval
@@ -155,7 +160,7 @@ describe('Ping', () => {
     client._stanzaio.ping(standardOptions, val => val);
   });
 
-  test('allows failure number override', async () => {
+  it('allows failure number override', async () => {
     const jid = 'myfulljid';
     const channelId = 'somechannel';
     const client = {
@@ -169,7 +174,7 @@ describe('Ping', () => {
         sendStreamError: jest.fn()
       }
     };
-    let ping = createPing(client as any, {
+    let ping = new Ping(client as any, {
       jid: 'aonon@example.mypurecloud.com',
       failedPingsBeforeDisconnect: 4
     });
@@ -177,28 +182,28 @@ describe('Ping', () => {
 
     // move forward in time to one ping
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
-    await Promise.resolve();
+    await flushPromises();
     expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
     // move forward again
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
-    await Promise.resolve();
+    await flushPromises();
     expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
     // move forward again
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
-    await Promise.resolve();
+    await flushPromises();
     expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
     // move forward again
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
-    await Promise.resolve();
+    await flushPromises();
     expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
     // move forward again
     jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
-    await Promise.resolve();
+    await flushPromises();
     expect(client._stanzaio.sendStreamError).toHaveBeenCalled();
   });
 
   test('stop should cause no more pings', () => {
-    let ping = createPing(client, standardOptions);
+    let ping = new Ping(client, standardOptions);
     ping.start();
 
     // move forward in time to one ping
@@ -213,7 +218,7 @@ describe('Ping', () => {
   });
 
   test('more than one stop is okay', () => {
-    let ping = createPing(standardOptions);
+    let ping = new Ping(client, standardOptions);
     ping.start();
 
     ping.stop();
@@ -222,12 +227,12 @@ describe('Ping', () => {
   });
 
   test('more than one start is okay', () => {
-    let ping = createPing(standardOptions);
+    let ping = new Ping(client, standardOptions);
     ping.start();
     jest.advanceTimersByTime(11000);
     ping.start();
 
     ping.stop();
-    expect(pingCallCount).toBe(0);
+    expect(pingCallCount).toBe(1);
   });
 });

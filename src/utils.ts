@@ -66,10 +66,6 @@ export const isSoftphoneJid = function (jid: string): boolean {
   return !!jid.match(/.*@.*gjoll.*/i);
 };
 
-export const isPeerVideoJid = function (jid: string): boolean {
-  return isVideoJid(jid) && jid.startsWith('peer-');
-};
-
 export const isVideoJid = function (jid: string): boolean {
   return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
 };

@@ -1,26 +1,23 @@
 'use strict';
 
 // src imports
-import { Notifications as notifications, Notifications, NotificationsAPI } from './notifications';
-import { WebrtcExtension as webrtcSessions, WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
-import reconnector from './reconnector';
-import ping from './ping';
+import { Notifications, NotificationsAPI } from './notifications';
+import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
+import { Reconnector } from './reconnector';
+import { Ping } from './ping';
 import './polyfills';
 import { requestApi, timeoutPromise } from './utils';
 import { createClient as createStanzaClient, Agent } from 'stanza';
 
-// extension imports
-// import webrtcSessions from 'genesys-cloud-streaming-client-webrtc-sessions';
-
 // external imports
 import { TokenBucket } from 'limiter';
+import { StreamingClientExtension } from './types/streaming-client-extension';
 
 let extensions = {
-  ping,
-  reconnector,
-  notifications,
-  webrtcSessions
-  // webrtcSessions
+  ping: Ping,
+  reconnector: Reconnector,
+  notifications: Notifications,
+  webrtcSessions: WebrtcExtension
 };
 
 function stanzaioOptions (config) {
@@ -29,8 +26,7 @@ function stanzaioOptions (config) {
     jid: config.jid,
     credentials: {
       username: config.jid,
-      // TODO: don't commit this
-      password: `authKey:${config.authToken}asdfds`
+      password: `authKey:${config.authToken}`
     },
     transports: {
       websocket: `${wsHost}/stream/channels/${config.channelId}`
@@ -96,7 +92,7 @@ export class Client {
 
   notifications!: NotificationsAPI;
   _notifications!: Notifications;
-  reconnector!: reconnector;
+  reconnector!: Reconnector;
   webrtcSessions!: WebrtcExtensionAPI;
   _webrtcSessions!: WebrtcExtension;
 
@@ -213,7 +209,7 @@ export class Client {
     });
 
     Object.keys(extensions).forEach((extensionName) => {
-      const extension = new extensions[extensionName](this, options);
+      const extension: StreamingClientExtension = new extensions[extensionName](this, options);
 
       if (typeof extension.handleIq === 'function') {
         stanzaio.on('iq', extension.handleIq.bind(extension));
@@ -230,12 +226,12 @@ export class Client {
         // = 45 stanzas max per 1000 ms
         // = 70 stanzas max per 2000 ms
         extension.tokenBucket = new TokenBucket(20, 25, 1000);
-        extension.tokenBucket.content = 25;
+        (extension.tokenBucket as any).content = 25;
       }
 
       if (typeof extension.on === 'function') {
         extension.on('send', function (data, message = false) {
-          return extension.tokenBucket.removeTokens(1, () => {
+          return extension.tokenBucket!.removeTokens(1, () => {
             if (message === true) {
               return stanzaio.sendMessage(data);
             }
@@ -357,11 +353,11 @@ export class Client {
 
   }
 
-  static extend (namespace, extender) {
+  static extend (namespace, extension: StreamingClientExtension | ((client: Client) => void)) {
     if (extensions[namespace]) {
       throw new Error(`Cannot register already existing namespace ${namespace}`);
     }
-    extensions[namespace] = extender;
+    extensions[namespace] = extension;
   }
 
   static get version () {

@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # Changed
 * genesys-cloud-webrtc-sessions is no more. A replacement now exists directly in streaming-client
 * upgraded to stanza12
-* streaming-client is not in typescript
+* streaming-client is now in typescript
 
 # [v12.0.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v12.0.1...v12.0.2)
 # Changed

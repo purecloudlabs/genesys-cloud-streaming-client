@@ -23,10 +23,4 @@ describe('jid utils', () => {
     expect(utils.isVideoJid('sdkfjk@test.com')).toBeFalsy();
   });
 
-  it('isPeerVideoJid', () => {
-    expect(utils.isPeerVideoJid('acd-sdkfjk@conference.test.com')).toBeFalsy();
-    expect(utils.isPeerVideoJid('sdkfjk@test.com')).toBeFalsy();
-    expect(utils.isPeerVideoJid('sdkfjk@conference.test.com')).toBeFalsy();
-    expect(utils.isPeerVideoJid('peer-sdkfjk@conference.test.com')).toBeTruthy();
-  });
 });
