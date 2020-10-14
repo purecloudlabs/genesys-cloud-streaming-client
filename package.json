@@ -7,8 +7,9 @@
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/streaming-client.js",
+  "main": "dist/es/index.js",
   "module": "dist/npm/module.js",
+  "browser": "dist/streaming-client-browser.js",
   "files": [
     "src",
     "dist"
@@ -16,7 +17,7 @@
   "pre-push": [
     "test"
   ],
-  "types": "./src/index",
+  "types": "dist/es/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "ts-node scripts/build",

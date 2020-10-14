@@ -48,7 +48,7 @@ export interface InitRtcSessionOptions {
 
 export class WebrtcExtension extends EventEmitter {
   ignoredSessions = new LRU({ max: 10, maxAge: 10 * 60 * 60 * 6 });
-  jingleJs = Jingle.SessionManager;
+  jingleJs: Jingle.SessionManager;
 
   logger: any;
   pendingSessions: {[sessionId: string]: ProposeStanza} = {};
