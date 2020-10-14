@@ -9,6 +9,7 @@ import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
+import { Jingle } from 'stanza';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -47,6 +48,7 @@ export interface InitRtcSessionOptions {
 
 export class WebrtcExtension extends EventEmitter {
   ignoredSessions = new LRU({ max: 10, maxAge: 10 * 60 * 60 * 6 });
+  jingleJs = Jingle.SessionManager;
 
   logger: any;
   pendingSessions: {[sessionId: string]: ProposeStanza} = {};
@@ -70,6 +72,7 @@ export class WebrtcExtension extends EventEmitter {
     this.logger = client.logger;
     client._stanzaio.stanzas.define(definitions);
     client._stanzaio.jingle.prepareSession = this.prepareSession.bind(this);
+    this.jingleJs = client._stanzaio.jingle as any;
     this.addEventListeners();
     this.proxyEvents();
     this.configureStanzaJingle();
