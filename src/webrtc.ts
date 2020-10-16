@@ -72,7 +72,7 @@ export class WebrtcExtension extends EventEmitter {
     this.logger = client.logger;
     client._stanzaio.stanzas.define(definitions);
     client._stanzaio.jingle.prepareSession = this.prepareSession.bind(this);
-    this.jingleJs = client._stanzaio.jingle as any;
+    this.jingleJs = client._stanzaio.jingle;
     this.addEventListeners();
     this.proxyEvents();
     this.configureStanzaJingle();
