@@ -26,9 +26,7 @@
     "compile:module": "tsc -p . --outDir ./dist/es --target es2015 --module es2015",
     "compile:rollup": "rollup -c rollup.config.js",
     "compile:webpack": "webpack --mode production",
-    "build:quick": "rimraf dist && webpack --env.cdn",
-    "build:module": "webpack && webpack --env.production",
-    "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
+    "compile:webpack:ie": "webpack --env.ie --mode production",
     "test": "semistandard && npm run test:unit",
     "test:unit": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
@@ -61,7 +59,9 @@
     "collectCoverageFrom": [
       "./src/**/*.ts"
     ],
-    "setupFiles": ["<rootDir>/test/setup.js"],
+    "setupFiles": [
+      "<rootDir>/test/setup.js"
+    ],
     "coverageDirectory": "./coverage",
     "coverageReporters": [
       "text",
@@ -70,7 +70,6 @@
   },
   "author": "",
   "dependencies": {
-    "@babel/runtime": "^7.11.2",
     "@babel/runtime-corejs3": "^7.10.4",
     "backoff-web": "^1.0.1",
     "core-js": "^3.6.5",
@@ -80,17 +79,20 @@
     "lru-cache": "^6.0.0",
     "stanza": "^12.13.1",
     "superagent": "^5.1.0",
+    "unorm": "^1.6.0",
     "uuid": "^8.3.0",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.10.2",
+    "@babel/core": "^7.12.0",
     "@babel/plugin-proposal-class-properties": "^7.10.4",
-    "@babel/plugin-transform-runtime": "^7.10.1",
-    "@babel/preset-env": "^7.10.2",
+    "@babel/plugin-proposal-decorators": "^7.10.5",
+    "@babel/plugin-transform-runtime": "^7.12.0",
+    "@babel/preset-env": "^7.12.0",
     "@babel/preset-typescript": "^7.10.4",
     "@babel/register": "^7.8.6",
+    "@babel/runtime": "^7.12.0",
     "@rollup/plugin-node-resolve": "^9.0.0",
     "@types/jest": "^26.0.3",
     "@types/nock": "^11.1.0",

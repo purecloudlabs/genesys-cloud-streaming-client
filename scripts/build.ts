@@ -24,6 +24,7 @@ Child('cp -r dist/cjs/* dist/npm/');
 Child('cp dist/es/index.module.js dist/npm/module.js');
 Child(`cp ${__dirname}/../*.md dist/npm`);
 Child('npm run compile:webpack');
+Child('npm run compile:webpack:ie');
 
 delete Pkg.files;
 
