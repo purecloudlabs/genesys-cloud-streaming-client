@@ -78,6 +78,7 @@ client.on('requestReconnect', function (callback) {
     - `String jid` : Required; JabberId for the user (get from `api/v2/users/me`) (not required if using guest authentication JWT)
     - `String jwt` : Optional (Required for guest authentication); Json Web Token fetched from public API for acess
         to a particular feature in guest mode (see documentation for Screen Share or Web Chat for details)
+    - `Boolean optOutOfWebrtcStatsTelemetry` : Optional; if true, streaming-client will not send webrtc stats to server (packet loss, bitrate, jitter, etc...)
 
 #### Methods
 

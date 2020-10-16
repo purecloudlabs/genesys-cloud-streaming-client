@@ -53,7 +53,7 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "jsdom",
-    "testRegex": "test/.*\\.ts$",
+    "testRegex": "test/.*test\\.ts$",
     "testMatch": null,
     "collectCoverage": true,
     "collectCoverageFrom": [
@@ -76,11 +76,13 @@
     "debounce-promise": "^3.1.2",
     "genesys-cloud-streaming-client-webrtc-sessions": "^8.0.3",
     "limiter": "^1.1.0",
+    "lodash.throttle": "^4.1.1",
     "lru-cache": "^6.0.0",
     "stanza": "^12.13.1",
     "superagent": "^5.1.0",
     "unorm": "^1.6.0",
     "uuid": "^8.3.0",
+    "webrtc-stats-gatherer": "^9.0.1",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
