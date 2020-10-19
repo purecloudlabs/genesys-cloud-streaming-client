@@ -76,6 +76,17 @@ const REMAPPED_EVENTS = {
   '_disconnected': 'disconnected'
 };
 
+export interface ClientOptions {
+  host: string;
+  apiHost?: string;
+  authToken?: string;
+  jwt?: string;
+  jid?: string;
+  reconnectOnNoLongerSubscribed?: boolean;
+  logger?: any;
+  optOutOfWebrtcStatsTelemetry?: boolean;
+}
+
 export class Client {
   _stanzaio: Agent;
   connected = false;
@@ -99,7 +110,7 @@ export class Client {
   _ping: any;
   _reconnector: any;
 
-  constructor (options) {
+  constructor (options: ClientOptions) {
     const stanzaio = createStanzaClient({});
 
     // TODO: remove this hack when we can. basically stanza messes up the auth mechanism priority.
