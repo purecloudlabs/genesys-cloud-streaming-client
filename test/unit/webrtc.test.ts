@@ -1,5 +1,3 @@
-/* tslint:disable:no-string-literal */
-
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { WebrtcExtension } from '../../src/webrtc';
@@ -7,8 +5,6 @@ import { GenesysCloudMediaSession, MediaSessionEvents } from '../../src/types/me
 import { v4 } from 'uuid';
 import { JingleAction } from 'stanza/Constants';
 import * as utils from '../../src/utils';
-import { EventEmitter } from 'events';
-import { wait } from '../helpers/testing-utils';
 
 class Client extends WildEmitter {
   connected = false;
@@ -710,78 +706,5 @@ describe('getSessionTypeByJid', () => {
     jest.spyOn(utils, 'isVideoJid').mockReturnValue(false);
 
     expect(webrtc.getSessionTypeByJid('sldkjf')).toEqual('unknown');
-  });
-});
-
-describe('proxyStatsForSession', () => {
-  it('should call throttledSendStats', () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
-    const session: any = new EventEmitter();
-    session.sid = 'mysid';
-    session.sessionType = 'softphone';
-    session.conversationId = 'myconvoid';
-
-    webrtc['throttledSendStats'] = jest.fn();
-
-    webrtc.proxyStatsForSession(session);
-    session.emit(MediaSessionEvents.stats, {
-      actionName: 'test'
-    });
-
-    expect(webrtc['statsToSend']).toEqual([
-      {
-        actionName: 'test',
-        conference: 'myconvoid',
-        session: 'mysid',
-        sessionType: 'softphone',
-        actionDate: expect.anything()
-      }
-    ]);
-    expect(webrtc['throttledSendStats']).toHaveBeenCalled();
-  });
-});
-
-describe('sendStats', () => {
-  // fake timers apparently doesn't work with lodash.throttle/debounce
-  it('should send stats from throttle fn', async () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
-
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
-
-    webrtc['statsToSend'].push({} as any);
-    webrtc['throttledSendStats']();
-    expect(sendSpy).not.toHaveBeenCalled();
-    await wait(3050);
-    expect(sendSpy).toHaveBeenCalled();
-
-  });
-
-  it('should send stats', async () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
-
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
-    webrtc['statsToSend'].push({} as any);
-
-    await webrtc.sendStats();
-    expect(sendSpy).toHaveBeenCalled();
-    expect(webrtc['statsToSend'].length).toBe(0);
-  });
-
-  it('should log failure but done nothing', async () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
-
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockRejectedValue(null);
-    const logSpy = jest.spyOn(webrtc.logger, 'error');
-
-    webrtc['statsToSend'].push({} as any);
-
-    await webrtc.sendStats();
-    expect(sendSpy).toHaveBeenCalled();
-    expect(webrtc['statsToSend'].length).toBe(0);
-    expect(logSpy).toHaveBeenCalled();
   });
 });

@@ -10,9 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * most of the methods in webrtcSessions have changed to return promises
 * wild-card event listeners are no longer a thing
 
-# Added
-* For improvement metrics, we now send time series stats data to Genesys Cloud API. Added `optOutOfWebrtcStatsTelemetry` property to client config
-
 # Changed
 * genesys-cloud-webrtc-sessions is no more. A replacement now exists directly in streaming-client
 * upgraded to stanza12

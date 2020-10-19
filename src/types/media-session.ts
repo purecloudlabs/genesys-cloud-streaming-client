@@ -1,7 +1,6 @@
 import { MediaSession } from 'stanza/jingle';
 import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import WildEmitter from 'wildemitter';
-import StatsGatherer from 'webrtc-stats-gatherer';
 
 export enum MediaSessionEvents {
   accepted = 'accepted',
@@ -11,8 +10,7 @@ export enum MediaSessionEvents {
   unmute = 'unmute',
   sessionState = 'sessionState',
   connectionState = 'connectionState',
-  terminated = 'terminated',
-  stats = 'stats'
+  terminated = 'terminated'
 }
 
 export interface GenesysCloudMediaSession extends WildEmitter {
@@ -25,20 +23,9 @@ export interface GenesysCloudMediaSession extends WildEmitter {
 export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
 
 export class GenesysCloudMediaSession extends MediaSession {
-  private statsGatherer?: StatsGatherer;
-
   constructor (options: any, public sessionType: SessionType, private allowIPv6: boolean) {
     super(options);
     WildEmitter.mixin(this);
-
-    if (!options.optOutOfWebrtcStatsTelemetry) {
-      this.setupStatsGatherer();
-    }
-  }
-
-  setupStatsGatherer () {
-    this.statsGatherer = new StatsGatherer(this.pc);
-    this.statsGatherer.on('stats', this.emit.bind(this, MediaSessionEvents.stats));
   }
 
   onIceStateChange () {

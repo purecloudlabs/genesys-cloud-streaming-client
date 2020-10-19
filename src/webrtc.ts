@@ -8,10 +8,8 @@ import LRU from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
 import { Jingle } from 'stanza';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, requestApi } from './utils';
-import { GetStatsEvent } from 'webrtc-stats-gatherer';
-import throttle from 'lodash.throttle';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -57,12 +55,8 @@ export class WebrtcExtension extends EventEmitter {
   config: {
     iceTransportPolicy?: 'relay' | 'all',
     iceServers: any[],
-    allowIPv6: boolean,
-    optOutOfWebrtcStatsTelemetry?: boolean
+    allowIPv6: boolean
   };
-  private statsToSend: GetStatsEvent[] = [];
-  private throttleSendStatsInterval = 3000;
-  private throttledSendStats: any;
 
   get jid (): string {
     return this.client._stanzaio.jid;
@@ -73,8 +67,7 @@ export class WebrtcExtension extends EventEmitter {
     this.config = {
       iceTransportPolicy: clientOptions.iceTransportPolicy,
       iceServers: clientOptions.iceServers,
-      allowIPv6: clientOptions.allowIPv6 === true,
-      optOutOfWebrtcStatsTelemetry: clientOptions.optOutOfWebrtcStatsTelemetry
+      allowIPv6: clientOptions.allowIPv6 === true
     };
     this.logger = client.logger;
     client._stanzaio.stanzas.define(definitions);
@@ -83,7 +76,6 @@ export class WebrtcExtension extends EventEmitter {
     this.addEventListeners();
     this.proxyEvents();
     this.configureStanzaJingle();
-    this.throttledSendStats = throttle(this.sendStats.bind(this), this.throttleSendStatsInterval, { leading: false, trailing: true });
   }
 
   configureStanzaJingle () {
@@ -95,43 +87,8 @@ export class WebrtcExtension extends EventEmitter {
 
   prepareSession (options: any) {
     options.iceServers = this.config.iceServers || options.iceServers;
-    options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
 
-    const session = new GenesysCloudMediaSession(options, this.getSessionTypeByJid(options.peerID), this.config.allowIPv6);
-    this.proxyStatsForSession(session);
-    return session;
-  }
-
-  // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
-  // This should be moved when the sdk is the primary consumer
-  proxyStatsForSession (session: GenesysCloudMediaSession) {
-    session.on(MediaSessionEvents.stats, (statsEvent: GetStatsEvent) => {
-      statsEvent.conference = (session as any).conversationId;
-      statsEvent.session = session.sid;
-      (statsEvent as any).actionDate = Date.now();
-      (statsEvent as any).sessionType = session.sessionType;
-
-      this.statsToSend.push(statsEvent);
-      this.throttledSendStats();
-    });
-  }
-
-  async sendStats () {
-    const stats = this.statsToSend;
-    this.statsToSend.length = 0;
-
-    const data = {
-      appName: 'streamingclient',
-      appVersion: Client.version,
-      actions: stats
-    };
-
-    // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
-    try {
-      await requestApi('diagnostics/newrelic/insights', { method: 'post', data });
-    } catch (err) {
-      this.logger.error('Failed to send stats', { err, stats });
-    }
+    return new GenesysCloudMediaSession(options, this.getSessionTypeByJid(options.peerID), this.config.allowIPv6);
   }
 
   addEventListeners () {

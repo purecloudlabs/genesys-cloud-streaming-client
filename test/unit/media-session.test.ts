@@ -17,16 +17,6 @@ class FakeParent extends EventEmitter {
 }
 
 describe('GenesysCloudMediaSession', () => {
-  describe('constructor', () => {
-    it('should not setupStatsGatherer', () => {
-      const parent = new FakeParent();
-
-      const session = new GenesysCloudMediaSession({ parent, optOutOfWebrtcStatsTelemetry: true }, 'softphone', false);
-
-      expect(session['statsGatherer']).toBeFalsy();
-    });
-  });
-
   describe('onIceStateChange', () => {
     it('should send session-info active stanza on connected', () => {
       const parent = new FakeParent();
