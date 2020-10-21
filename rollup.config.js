@@ -6,6 +6,7 @@ export default {
     'crypto',
     'events',
     'limiter',
+    'lodash.throttle',
     'lru-cache',
     'node-fetch',
     'punycode',
@@ -19,6 +20,7 @@ export default {
     'stanza/Namespaces',
     'stream',
     'tslib',
+    'webrtc-stats-gatherer',
     'wildemitter',
     'ws'
   ],

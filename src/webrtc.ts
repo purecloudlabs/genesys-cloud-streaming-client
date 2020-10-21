@@ -1,4 +1,3 @@
-import { Client } from './client';
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { EventEmitter } from 'events';
 import { ReceivedMessage } from 'stanza/protocol';
@@ -12,6 +11,7 @@ import { Jingle } from 'stanza';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, requestApi } from './utils';
 import { GetStatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
+import Client from '.';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -68,7 +68,7 @@ export class WebrtcExtension extends EventEmitter {
     return this.client._stanzaio.jid;
   }
 
-  constructor (public client: Client, clientOptions: any = {}) {
+  constructor (public client: any, clientOptions: any = {}) {
     super();
     this.config = {
       iceTransportPolicy: clientOptions.iceTransportPolicy,
@@ -117,8 +117,11 @@ export class WebrtcExtension extends EventEmitter {
   }
 
   async sendStats () {
-    const stats = this.statsToSend;
-    this.statsToSend.length = 0;
+    const stats = this.statsToSend.splice(0, this.statsToSend.length);
+
+    if (!stats.length) {
+      return;
+    }
 
     const data = {
       appName: 'streamingclient',
@@ -128,7 +131,13 @@ export class WebrtcExtension extends EventEmitter {
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
     try {
-      await requestApi('diagnostics/newrelic/insights', { method: 'post', data });
+      await requestApi('diagnostics/newrelic/insights', {
+        method: 'post',
+        host: this.client.config.apiHost,
+        authToken: this.client.config.authToken,
+        logger: this.client.logger,
+        data
+      });
     } catch (err) {
       this.logger.error('Failed to send stats', { err, stats });
     }

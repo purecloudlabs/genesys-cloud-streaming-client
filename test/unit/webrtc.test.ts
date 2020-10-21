@@ -764,9 +764,22 @@ describe('sendStats', () => {
 
     const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
     webrtc['statsToSend'].push({} as any);
+    sendSpy.mockReset();
 
     await webrtc.sendStats();
     expect(sendSpy).toHaveBeenCalled();
+    expect(webrtc['statsToSend'].length).toBe(0);
+  });
+
+  it('should not send stats if theres nothing to send', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any);
+
+    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    sendSpy.mockReset();
+
+    await webrtc.sendStats();
+    expect(sendSpy).not.toHaveBeenCalled();
     expect(webrtc['statsToSend'].length).toBe(0);
   });
 
