@@ -71,7 +71,6 @@
   "author": "",
   "dependencies": {
     "@babel/runtime-corejs3": "^7.10.4",
-    "async": "^3.2.0",
     "backoff-web": "^1.0.1",
     "core-js": "^3.6.5",
     "debounce-promise": "^3.1.2",
