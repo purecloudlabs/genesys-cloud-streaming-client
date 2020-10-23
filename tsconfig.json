@@ -12,7 +12,8 @@
       "outDir": "./dist/cjs",
       "strict": true,
       "target": "es2018",
-      "noImplicitAny": false
+      "noImplicitAny": false,
+      "resolveJsonModule": true
   },
   "include": ["src"],
   "exclude": ["dist"]

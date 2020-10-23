@@ -81,7 +81,7 @@
     "superagent": "^5.1.0",
     "unorm": "^1.6.0",
     "uuid": "^8.3.0",
-    "webrtc-stats-gatherer": "^9.0.1",
+    "webrtc-stats-gatherer": "^9.0.3",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
