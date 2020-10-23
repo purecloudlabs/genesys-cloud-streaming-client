@@ -14,14 +14,10 @@ export function formatStatsEvent (event: StatsEvent, extraDetails: any = {}) {
     const e: GetStatsEvent = event as any;
     details = e;
 
-    e.tracks.forEach((track) => {
-      Object.assign(details, deepFlatten(track, `track_${track.track}`));
-    });
+    Object.assign(details, deepFlatten(e.tracks, 'localTrack'));
     delete details.tracks;
 
-    e.remoteTracks.forEach((track) => {
-      Object.assign(details, deepFlatten(track, `remoteTrack_${track.track}`));
-    });
+    Object.assign(details, deepFlatten(e.remoteTracks, `remoteTrack`));
     delete details.remoteTracks;
   } else {
     details = {};
