@@ -9,9 +9,10 @@ import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, requestApi } from './utils';
-import { GetStatsEvent } from 'webrtc-stats-gatherer';
+import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import Client from '.';
+import { formatStatsEvent } from './stats-formatter';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -60,7 +61,7 @@ export class WebrtcExtension extends EventEmitter {
     allowIPv6: boolean,
     optOutOfWebrtcStatsTelemetry?: boolean
   };
-  private statsToSend: GetStatsEvent[] = [];
+  private statsToSend: any[] = [];
   private throttleSendStatsInterval = 3000;
   private throttledSendStats: any;
 
@@ -105,13 +106,17 @@ export class WebrtcExtension extends EventEmitter {
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: GenesysCloudMediaSession) {
-    session.on(MediaSessionEvents.stats, (statsEvent: GetStatsEvent) => {
-      statsEvent.conference = (session as any).conversationId;
-      statsEvent.session = session.sid;
-      (statsEvent as any).actionDate = Date.now();
-      (statsEvent as any).sessionType = session.sessionType;
+    session.on(MediaSessionEvents.stats, (statsEvent: StatsEvent) => {
+      const extraDetails = {
+        conference: (session as any).conversationId,
+        session: session.sid,
+        sessionType: session.sessionType
+      };
 
-      this.statsToSend.push(statsEvent);
+      // format the event to what the api expects
+      const event = formatStatsEvent(statsEvent, extraDetails);
+
+      this.statsToSend.push(event);
       this.throttledSendStats();
     });
   }

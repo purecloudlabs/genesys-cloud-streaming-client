@@ -1,0 +1,18 @@
+{
+  "actionName": "WebrtcStats",
+  "actionDate": 1603398170652,
+  "details": {
+    "_eventType": "failure",
+    "session": "70285efa-90e5-4c50-933a-61ebeb070d9a",
+    "sessionType": "softphone",
+    "conference": "2660d40f-44d6-4a3b-a899-329b426806ae",
+    "failTime": 18412849,
+    "iceRW": 42,
+    "numLocalHostCandidates": 1,
+    "numLocalSrflxCandidates": 2,
+    "numLocalRelayCandidates": 3,
+    "numRemoteHostCandidates": 4,
+    "numRemoteSrflxCandidates": 5,
+    "numRemoteRelayCandidates": 6
+  }
+}
