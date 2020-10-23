@@ -141,7 +141,6 @@ export class Client {
       this.connected = false;
       this._ping.stop();
 
-      // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
       this.logger.info('Streaming client disconnected.');
 
       const channelId = this.config.channelId;

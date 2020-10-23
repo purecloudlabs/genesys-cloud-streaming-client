@@ -1,4 +1,4 @@
-import { GenesysCloudMediaSession } from '../../src/types/media-session';
+import { GenesysCloudMediaSession, MediaSessionEvents } from '../../src/types/media-session';
 import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import { EventEmitter } from 'events';
 import { ICESession } from 'stanza/jingle';
@@ -120,6 +120,18 @@ describe('GenesysCloudMediaSession', () => {
     });
   });
 
+  describe('onIceEndOfCandidates', () => {
+    it('should emit event', () => {
+      const parent = new FakeParent();
+      jest.spyOn(ICESession.prototype as any, 'onIceEndOfCandidates').mockImplementation();
+      const session = new GenesysCloudMediaSession({ parent }, 'softphone', true);
+
+      const spy = jest.spyOn(session, 'emit');
+      session.onIceEndOfCandidates();
+      expect(spy).toHaveBeenCalledWith(MediaSessionEvents.endOfCandidates);
+    });
+  });
+
   describe('addTrack', () => {
     let session: GenesysCloudMediaSession;
 
@@ -128,51 +140,7 @@ describe('GenesysCloudMediaSession', () => {
       session = new GenesysCloudMediaSession({ parent }, 'softphone', true);
     });
 
-    it('should use exiting sender', async () => {
-      const spy = jest.fn();
-      (session.pc.getSenders as jest.Mock).mockReturnValue([
-        {
-          track: {
-            kind: 'video'
-          },
-          replaceTrack: spy
-        }
-      ]);
-
-      const track = {
-        id: 'lsdkfj',
-        kind: 'video'
-      };
-
-      await session.addTrack(track as any);
-
-      expect(spy).toHaveBeenCalledWith(track);
-      expect(session.pc.addTrack).not.toHaveBeenCalled();
-    });
-
-    it('should use exiting sender', async () => {
-      const spy = jest.fn();
-      (session.pc.getSenders as jest.Mock).mockReturnValue([
-        {
-          track: {
-            kind: 'audio'
-          },
-          replaceTrack: spy
-        }
-      ]);
-
-      const track = {
-        id: 'lsdkfj',
-        kind: 'audio'
-      };
-
-      await session.addTrack(track as any);
-
-      expect(spy).toHaveBeenCalledWith(track);
-      expect(session.pc.addTrack).not.toHaveBeenCalled();
-    });
-
-    it('should use available sender', async () => {
+    it('should call replace track if there is a transceiver with an empty sender', async () => {
       const spy = jest.fn();
       const sender = {
         track: null,
@@ -199,7 +167,7 @@ describe('GenesysCloudMediaSession', () => {
 
       await session.addTrack(track as any);
 
-      expect(spy).toHaveBeenCalledWith(track);
+      expect(spy).toHaveBeenCalled();
       expect(session.pc.getTransceivers).toHaveBeenCalled();
       expect(session.pc.addTrack).not.toHaveBeenCalled();
     });
@@ -218,7 +186,7 @@ describe('GenesysCloudMediaSession', () => {
           sender,
           receiver: {
             track: {
-              kind: 'audio'
+              kind: 'video'
             }
           }
         }
@@ -226,7 +194,7 @@ describe('GenesysCloudMediaSession', () => {
 
       const track = {
         id: 'lsdkfj',
-        kind: 'video'
+        kind: 'audio'
       };
 
       await session.addTrack(track as any);

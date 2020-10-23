@@ -1,0 +1,11 @@
+{
+  "name": "failure",
+  "failTime": 18412849,
+  "iceRW": 42,
+  "numLocalHostCandidates": 1,
+  "numLocalSrflxCandidates": 2,
+  "numLocalRelayCandidates": 3,
+  "numRemoteHostCandidates": 4,
+  "numRemoteSrflxCandidates": 5,
+  "numRemoteRelayCandidates": 6
+}

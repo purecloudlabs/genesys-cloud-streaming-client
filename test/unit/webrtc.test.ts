@@ -9,6 +9,7 @@ import { JingleAction } from 'stanza/Constants';
 import * as utils from '../../src/utils';
 import { EventEmitter } from 'events';
 import { wait } from '../helpers/testing-utils';
+import * as statsFormatter from '../../src/stats-formatter';
 
 class Client extends WildEmitter {
   connected = false;
@@ -724,20 +725,24 @@ describe('proxyStatsForSession', () => {
 
     webrtc['throttledSendStats'] = jest.fn();
 
+    const formattedStats = {
+      actionName: 'test',
+      actionDate: expect.anything(),
+      details: {
+        conference: 'myconvoid',
+        session: 'mysid',
+        sessionType: 'softphone',
+      }
+    };
+
+    jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
+
     webrtc.proxyStatsForSession(session);
     session.emit(MediaSessionEvents.stats, {
       actionName: 'test'
     });
 
-    expect(webrtc['statsToSend']).toEqual([
-      {
-        actionName: 'test',
-        conference: 'myconvoid',
-        session: 'mysid',
-        sessionType: 'softphone',
-        actionDate: expect.anything()
-      }
-    ]);
+    expect(webrtc['statsToSend']).toEqual([formattedStats]);
     expect(webrtc['throttledSendStats']).toHaveBeenCalled();
   });
 });
@@ -764,9 +769,22 @@ describe('sendStats', () => {
 
     const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
     webrtc['statsToSend'].push({} as any);
+    sendSpy.mockReset();
 
     await webrtc.sendStats();
     expect(sendSpy).toHaveBeenCalled();
+    expect(webrtc['statsToSend'].length).toBe(0);
+  });
+
+  it('should not send stats if theres nothing to send', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any);
+
+    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    sendSpy.mockReset();
+
+    await webrtc.sendStats();
+    expect(sendSpy).not.toHaveBeenCalled();
     expect(webrtc['statsToSend'].length).toBe(0);
   });
 

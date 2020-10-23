@@ -74,7 +74,6 @@
     "backoff-web": "^1.0.1",
     "core-js": "^3.6.5",
     "debounce-promise": "^3.1.2",
-    "genesys-cloud-streaming-client-webrtc-sessions": "^8.0.3",
     "limiter": "^1.1.0",
     "lodash.throttle": "^4.1.1",
     "lru-cache": "^6.0.0",
@@ -82,7 +81,7 @@
     "superagent": "^5.1.0",
     "unorm": "^1.6.0",
     "uuid": "^8.3.0",
-    "webrtc-stats-gatherer": "^9.0.1",
+    "webrtc-stats-gatherer": "^9.0.3",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },

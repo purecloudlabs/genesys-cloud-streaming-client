@@ -1,4 +1,3 @@
-import { Client } from './client';
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { EventEmitter } from 'events';
 import { ReceivedMessage } from 'stanza/protocol';
@@ -10,8 +9,10 @@ import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, requestApi } from './utils';
-import { GetStatsEvent } from 'webrtc-stats-gatherer';
+import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
+import Client from '.';
+import { formatStatsEvent } from './stats-formatter';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -60,7 +61,7 @@ export class WebrtcExtension extends EventEmitter {
     allowIPv6: boolean,
     optOutOfWebrtcStatsTelemetry?: boolean
   };
-  private statsToSend: GetStatsEvent[] = [];
+  private statsToSend: any[] = [];
   private throttleSendStatsInterval = 3000;
   private throttledSendStats: any;
 
@@ -68,7 +69,7 @@ export class WebrtcExtension extends EventEmitter {
     return this.client._stanzaio.jid;
   }
 
-  constructor (public client: Client, clientOptions: any = {}) {
+  constructor (public client: any, clientOptions: any = {}) {
     super();
     this.config = {
       iceTransportPolicy: clientOptions.iceTransportPolicy,
@@ -105,20 +106,27 @@ export class WebrtcExtension extends EventEmitter {
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: GenesysCloudMediaSession) {
-    session.on(MediaSessionEvents.stats, (statsEvent: GetStatsEvent) => {
-      statsEvent.conference = (session as any).conversationId;
-      statsEvent.session = session.sid;
-      (statsEvent as any).actionDate = Date.now();
-      (statsEvent as any).sessionType = session.sessionType;
+    session.on(MediaSessionEvents.stats, (statsEvent: StatsEvent) => {
+      const extraDetails = {
+        conference: (session as any).conversationId,
+        session: session.sid,
+        sessionType: session.sessionType
+      };
 
-      this.statsToSend.push(statsEvent);
+      // format the event to what the api expects
+      const event = formatStatsEvent(statsEvent, extraDetails);
+
+      this.statsToSend.push(event);
       this.throttledSendStats();
     });
   }
 
   async sendStats () {
-    const stats = this.statsToSend;
-    this.statsToSend.length = 0;
+    const stats = this.statsToSend.splice(0, this.statsToSend.length);
+
+    if (!stats.length) {
+      return;
+    }
 
     const data = {
       appName: 'streamingclient',
@@ -128,7 +136,13 @@ export class WebrtcExtension extends EventEmitter {
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
     try {
-      await requestApi('diagnostics/newrelic/insights', { method: 'post', data });
+      await requestApi('diagnostics/newrelic/insights', {
+        method: 'post',
+        host: this.client.config.apiHost,
+        authToken: this.client.config.authToken,
+        logger: this.client.logger,
+        data
+      });
     } catch (err) {
       this.logger.error('Failed to send stats', { err, stats });
     }

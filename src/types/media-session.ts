@@ -12,7 +12,8 @@ export enum MediaSessionEvents {
   sessionState = 'sessionState',
   connectionState = 'connectionState',
   terminated = 'terminated',
-  stats = 'stats'
+  stats = 'stats',
+  endOfCandidates = 'endOfCandidates'
 }
 
 export interface GenesysCloudMediaSession extends WildEmitter {
@@ -75,6 +76,11 @@ export class GenesysCloudMediaSession extends MediaSession {
     return super.onIceCandidate(e);
   }
 
+  onIceEndOfCandidates () {
+    super.onIceEndOfCandidates();
+    this.emit(MediaSessionEvents.endOfCandidates);
+  }
+
   addTrack (track: MediaStreamTrack, stream?: MediaStream): Promise<void> {
     if (track.kind === 'audio') {
       this.includesAudio = true;
@@ -83,17 +89,13 @@ export class GenesysCloudMediaSession extends MediaSession {
       this.includesVideo = true;
     }
     return this.processLocal('addtrack', async () => {
-      // find a sender with the same kind of track
-      let sender = this.pc.getSenders().find(sender => sender.track && sender.track.kind === track.kind);
+      // find an available sender with the correct type
+      const availableTransceiver = this.pc.getTransceivers().find((transceiver) => {
+        return !transceiver.sender.track && transceiver.receiver.track?.kind === track.kind;
+      });
 
-      if (!sender) {
-        // find a transceiver whose receiver is the same kind but sender doesn't have a track
-        const transceiver = this.pc.getTransceivers().find(transceiver => !transceiver.sender.track && transceiver.receiver.track?.kind === track.kind);
-        sender = transceiver?.sender;
-      }
-
-      if (sender) {
-        return sender.replaceTrack(track);
+      if (availableTransceiver) {
+        return availableTransceiver.sender.replaceTrack(track);
       }
 
       this.pc.addTrack(track, stream as MediaStream);
