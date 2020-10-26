@@ -71,9 +71,7 @@ function stanzaOptionsJwt (config) {
 
 const REMAPPED_EVENTS = {
   'connected': 'session:started',
-  '_connected': 'connected',
-  'disconnected': 'session:end',
-  '_disconnected': 'disconnected'
+  '_connected': 'connected'
 };
 
 export interface ClientOptions {
@@ -132,7 +130,7 @@ export class Client {
       channelId: null // created on connect
     };
 
-    this.on('_disconnected', (event) => {
+    this.on('disconnected', (event) => {
       if (this._stanzaio.transport || this.connecting) {
         this.logger.info('disconnected event received, but reconnection is in progress');
         return;
@@ -160,7 +158,7 @@ export class Client {
     });
 
     // remapped session:end
-    this.on('disconnected', (event) => {
+    this.on('session:end', (event) => {
       this._ping.stop();
     });
 
