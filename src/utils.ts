@@ -51,6 +51,18 @@ export function splitIntoIndividualTopics (topicString) {
   return topics;
 }
 
+export function applyMixins (derivedCtor: any, constructors: any[]) {
+  constructors.forEach((baseCtor) => {
+    Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
+      Object.defineProperty(
+        derivedCtor.prototype,
+        name,
+        Object.getOwnPropertyDescriptor(baseCtor.prototype, name) as any
+      );
+    });
+  });
+}
+
 export const isAcdJid = function (jid: string): boolean {
   return jid.startsWith('acd-');
 };
@@ -86,3 +98,4 @@ export const isVideoJid = function (jid: string): boolean {
 //
 //   return destination;
 // }
+

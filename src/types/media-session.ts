@@ -1,27 +1,10 @@
 import { MediaSession } from 'stanza/jingle';
 import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
-import WildEmitter from 'wildemitter';
-import StatsGatherer from 'webrtc-stats-gatherer';
-
-export enum MediaSessionEvents {
-  accepted = 'accepted',
-  iceConnectionType = 'iceConnectionType',
-  peerTrackAdded = 'peerTrackAdded',
-  peerTrackRemoved = 'peerTrackRemoved',
-  unmute = 'unmute',
-  sessionState = 'sessionState',
-  connectionState = 'connectionState',
-  terminated = 'terminated',
-  stats = 'stats',
-  endOfCandidates = 'endOfCandidates'
-}
-
-export interface GenesysCloudMediaSession extends WildEmitter {
-  on: (event: MediaSessionEvents, listener: (...data: any) => void) => void;
-  once: (event: MediaSessionEvents, listener: (...data: any) => void) => void;
-  off: (event: MediaSessionEvents, listener: (...data: any) => void) => void;
-  emit: (event: MediaSessionEvents, ...data: any) => void;
-}
+import StatsGatherer, { StatsEvent } from 'webrtc-stats-gatherer';
+import StrictEventEmitter from 'strict-event-emitter-types';
+import { EventEmitter } from 'events';
+import { applyMixins } from '../utils';
+import { JingleReason, JingleInfo } from 'stanza/protocol';
 
 export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
 
@@ -30,7 +13,6 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   constructor (options: any, public sessionType: SessionType, private allowIPv6: boolean) {
     super(options);
-    WildEmitter.mixin(this);
 
     if (!options.optOutOfWebrtcStatsTelemetry) {
       this.setupStatsGatherer();
@@ -39,7 +21,7 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   setupStatsGatherer () {
     this.statsGatherer = new StatsGatherer(this.pc);
-    this.statsGatherer.on('stats', this.emit.bind(this, MediaSessionEvents.stats));
+    this.statsGatherer.on('stats', this.emit.bind(this, 'stats'));
   }
 
   onIceStateChange () {
@@ -78,7 +60,7 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   onIceEndOfCandidates () {
     super.onIceEndOfCandidates();
-    this.emit(MediaSessionEvents.endOfCandidates);
+    this.emit('endOfCandidates');
   }
 
   addTrack (track: MediaStreamTrack, stream?: MediaStream): Promise<void> {
@@ -103,3 +85,19 @@ export class GenesysCloudMediaSession extends MediaSession {
     });
   }
 }
+
+export interface SessionEvents {
+  iceConnectionType: ({localCandidateType: string, relayed: boolean, remoteCandidateType: string});
+  peerTrackAdded: (track: MediaStreamTrack, stream?: MediaStream) => void;
+  peerTrackRemoved: (track: MediaStreamTrack, stream?: MediaStream) => void;
+  mute: JingleInfo;
+  unmute: JingleInfo;
+  sessionState: 'starting' | 'pending' | 'active';
+  connectionState: 'starting' | 'connecting' | 'connected' | 'interrupted' | 'disconnected' | 'failed';
+  terminated: JingleReason;
+  stats: StatsEvent;
+  endOfCandidates: void;
+}
+
+applyMixins(GenesysCloudMediaSession, [ EventEmitter ]);
+export interface GenesysCloudMediaSession extends StrictEventEmitter<EventEmitter, SessionEvents> { }

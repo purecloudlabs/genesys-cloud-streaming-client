@@ -1,4 +1,4 @@
-import { GenesysCloudMediaSession, MediaSessionEvents } from '../../src/types/media-session';
+import { GenesysCloudMediaSession } from '../../src/types/media-session';
 import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import { EventEmitter } from 'events';
 import { ICESession } from 'stanza/jingle';
@@ -128,7 +128,7 @@ describe('GenesysCloudMediaSession', () => {
 
       const spy = jest.spyOn(session, 'emit');
       session.onIceEndOfCandidates();
-      expect(spy).toHaveBeenCalledWith(MediaSessionEvents.endOfCandidates);
+      expect(spy).toHaveBeenCalledWith('endOfCandidates');
     });
   });
 

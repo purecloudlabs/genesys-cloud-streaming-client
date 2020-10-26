@@ -3,7 +3,7 @@
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { WebrtcExtension } from '../../src/webrtc';
-import { GenesysCloudMediaSession, MediaSessionEvents } from '../../src/types/media-session';
+import { GenesysCloudMediaSession } from '../../src/types/media-session';
 import { v4 } from 'uuid';
 import { JingleAction } from 'stanza/Constants';
 import * as utils from '../../src/utils';
@@ -123,7 +123,18 @@ describe('proxyEvents', () => {
       emit: jest.fn()
     };
 
-    const events = Object.values(MediaSessionEvents);
+    const events = [
+      'iceConnectionType',
+      'peerTrackAdded',
+      'peerTrackRemoved',
+      'mute',
+      'unmute',
+      'sessionState',
+      'connectionState',
+      'terminated',
+      'stats',
+      'endOfCandidates'
+    ];
 
     for (const e of events) {
       const fakeData = { str: v4() };
@@ -738,7 +749,7 @@ describe('proxyStatsForSession', () => {
     jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
 
     webrtc.proxyStatsForSession(session);
-    session.emit(MediaSessionEvents.stats, {
+    session.emit('stats', {
       actionName: 'test'
     });
 

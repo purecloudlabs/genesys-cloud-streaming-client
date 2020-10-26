@@ -2,7 +2,7 @@ import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { EventEmitter } from 'events';
 import { ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
-import { GenesysCloudMediaSession, MediaSessionEvents, SessionType } from './types/media-session';
+import { GenesysCloudMediaSession, SessionType } from './types/media-session';
 import LRU from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
@@ -106,7 +106,7 @@ export class WebrtcExtension extends EventEmitter {
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: GenesysCloudMediaSession) {
-    session.on(MediaSessionEvents.stats, (statsEvent: StatsEvent) => {
+    session.on('stats', (statsEvent: StatsEvent) => {
       const extraDetails = {
         conference: (session as any).conversationId,
         session: session.sid,
@@ -181,9 +181,21 @@ export class WebrtcExtension extends EventEmitter {
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
-    for (const e of Object.values(MediaSessionEvents)) {
-      this.client._stanzaio.jingle.on(e, (session: GenesysCloudMediaSession, data?: any) => {
-        session.emit(e, data);
+    const eventsToProxy = [
+      'iceConnectionType',
+      'peerTrackAdded',
+      'peerTrackRemoved',
+      'mute',
+      'unmute',
+      'sessionState',
+      'connectionState',
+      'terminated',
+      'stats',
+      'endOfCandidates'
+    ];
+    for (const e of eventsToProxy) {
+      this.client._stanzaio.jingle.on(e, (session: GenesysCloudMediaSession, ...data: any) => {
+        session.emit(e as any, ...data);
       });
     }
 
@@ -393,13 +405,13 @@ export class WebrtcExtension extends EventEmitter {
   }
 
   async refreshIceServers (): Promise<any[]> {
-    const server = this.client._stanzaio.config.server!;
+    const server = this.client._stanzaio.config.server;
     const turnServersPromise = this.client._stanzaio.getServices(server, 'turn', '1');
     const stunServersPromise = this.client._stanzaio.getServices(server, 'stun', '1');
 
     const [turnServers, stunServers] = await Promise.all([turnServersPromise, stunServersPromise]);
     this.logger.debug('STUN/TURN server discovery result', { turnServers, stunServers });
-    const iceServers = [...(turnServers.services as any), ...(stunServers.services as any)].map(service => {
+    const iceServers = [...(turnServers.services), ...(stunServers.services)].map(service => {
       const port = service.port ? `:${service.port}` : '';
       const ice: RTCIceServer & { type: string } = { type: service.type, urls: `${service.type}:${service.host}${port}` };
       if (['turn', 'turns'].includes(service.type)) {
