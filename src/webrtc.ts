@@ -2,7 +2,7 @@ import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { EventEmitter } from 'events';
 import { ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
-import { GenesysCloudMediaSession, SessionType } from './types/media-session';
+import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/media-session';
 import LRU from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
@@ -181,7 +181,7 @@ export class WebrtcExtension extends EventEmitter {
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
-    const eventsToProxy = [
+    const eventsToProxy: Array<keyof SessionEvents> = [
       'iceConnectionType',
       'peerTrackAdded',
       'peerTrackRemoved',
