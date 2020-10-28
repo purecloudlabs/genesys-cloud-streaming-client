@@ -1,17 +1,19 @@
 'use strict';
 
-import Reconnector from '../../src/reconnector';
+import { Reconnector, CXFRDefinition } from '../../src/reconnector';
 import WildEmitter from 'wildemitter';
+import { Agent, createClient } from 'stanza';
+import { parse } from 'stanza/jxt';
 
 // controls whether clients can reconnect or not
 let SIMULTATE_ONLINE = false;
 
 class MockStanzaIo extends WildEmitter {
-  constructor (connectTimeout, client) {
+  emit!: (event: string, ...data: any) => void;
+  constructor (public connectTimeout, public client) {
     super();
-    this.connectTimeout = connectTimeout;
-    this.client = client;
   }
+
   get disco () {
     return {
       addFeature () { }
@@ -42,10 +44,20 @@ class MockStanzaIo extends WildEmitter {
 }
 
 class Client {
-  constructor (connectTimeout) {
+  connectAttempts = 0;
+  connected = false;
+  connecting = false;
+  logger = {
+    debug () { },
+    info () { },
+    warn () { },
+    error () { }
+  };
+
+  _stanzaio: WildEmitter & Agent;
+
+  constructor (public connectTimeout?) {
     this.connectTimeout = connectTimeout;
-    this.connected = false;
-    this.connectAttempts = 0;
 
     this.logger = {
       warn () { },
@@ -54,11 +66,11 @@ class Client {
       info () { }
     };
 
-    this._stanzaio = new MockStanzaIo(connectTimeout, this);
+    this._stanzaio = new MockStanzaIo(connectTimeout, this) as any;
   }
 
-  on () {
-    this._stanzaio.on(...arguments);
+  on (event: string, cb: (...args: any) => void) {
+    (this._stanzaio.on as any)(...arguments);
   }
 
   connect () {
@@ -79,215 +91,233 @@ describe('Reconnector', () => {
 
   // all tests in this module are serial because we're messing with time
 
-  test('when started it reconnects on backoff', () => {
+  it('when started it reconnects on backoff', () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     reconnect.start();
 
     // move forward in time to where two connections should have been attempted.
     jest.advanceTimersByTime(350);
-    expect(client.connectAttempts).toBe(2);
+    expect(client.connectAttempts).toBe(1);
+    client.connecting = false;
 
     jest.advanceTimersByTime(600);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
+    client.connecting = false;
 
     SIMULTATE_ONLINE = true;
     jest.advanceTimersByTime(1100);
-    expect(client.connectAttempts).toBe(4);
+    expect(client.connectAttempts).toBe(3);
     expect(client.connected).toBe(true);
+    client.connecting = false;
 
     // make sure it didn't keep trying
     jest.advanceTimersByTime(10000);
-    expect(client.connectAttempts).toBe(4);
+    expect(client.connectAttempts).toBe(3);
   });
 
-  test('when started it reconnects on backoff (long reconnect)', () => {
+  it('when started it reconnects on backoff (long reconnect)', () => {
     const client = new Client(400);
     const reconnect = new Reconnector(client);
     reconnect.start();
 
     // move forward in time to where two connections should have been attempted.
-    jest.advanceTimersByTime(200);
-    client._stanzaio.transport = { conn: { readyState: 0 } };
+    delete client._stanzaio.transport;
     jest.advanceTimersByTime(350);
     expect(client.connectAttempts).toBe(1);
+    expect(client.connecting).toBeTruthy();
 
-    client._stanzaio.transport = { conn: { readyState: 1 } };
     jest.advanceTimersByTime(450);
     expect(client.connectAttempts).toBe(1);
 
     jest.advanceTimersByTime(1100);
-    expect(client.connectAttempts).toBe(1);
-    client._stanzaio.transport = { conn: { readyState: 3 } };
-
-    jest.advanceTimersByTime(3000);
-    expect(client.connectAttempts).toBe(2);
-
     SIMULTATE_ONLINE = true;
     jest.advanceTimersByTime(6000);
-    expect(client.connectAttempts).toBe(3);
-    expect(client.connected).toBe(true);
-
-    // make sure it didn't keep trying
-    jest.advanceTimersByTime(10000);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(1);
   });
 
-  test('when started a second time it will not immediately retry the backoff', () => {
+  it('should not connect if has transport stream', () => {
+    const client = new Client(400);
+    const reconnect = new Reconnector(client);
+
+    // move forward in time to where two connections should have been attempted.
+    client._stanzaio.transport = {
+      hasStream: true
+    } as any;
+
+    const spy = jest.spyOn(reconnect.backoff, 'backoff');
+    client.connected = false;
+    reconnect.start();
+
+    jest.advanceTimersByTime(350);
+    expect(client.connectAttempts).toBe(0);
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+
+  it('when stopped it will cease the backoff', () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     reconnect.start();
 
     // move forward in time to where two connections should have been attempted.
     jest.advanceTimersByTime(350);
-    expect(client.connectAttempts).toBe(2);
+    expect(client.connectAttempts).toBe(1);
 
-    // Will not throw an error
-    reconnect.start();
-    expect(client.connectAttempts).toBe(2);
-
+    client.connecting = false;
     jest.advanceTimersByTime(600);
-    expect(client.connectAttempts).toBe(3);
-  });
-
-  test('when stopped it will cease the backoff', () => {
-    const client = new Client();
-    const reconnect = new Reconnector(client);
-    reconnect.start();
-
-    // move forward in time to where two connections should have been attempted.
-    jest.advanceTimersByTime(350);
     expect(client.connectAttempts).toBe(2);
-
-    jest.advanceTimersByTime(600);
-    expect(client.connectAttempts).toBe(3);
+    client.connecting = false;
 
     reconnect.stop();
     jest.advanceTimersByTime(1100);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
     expect(client.connected).toBe(false);
+    client.connecting = false;
 
     // make sure it didn't keep trying
     jest.advanceTimersByTime(10000);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
   });
 
-  test('will attempt a full reconnection after 10 failures', () => {
+  it('will attempt a full reconnection after 10 failures', () => {
     const client = new Client();
     jest.spyOn(client, 'connect').mockReturnValue(undefined);
     const reconnect = new Reconnector(client);
     reconnect.start();
 
-    // move forward in time to where two connections should have been attempted.
-    jest.advanceTimersByTime(350);
-    expect(client.connectAttempts).toBe(2);
-
     expect(client.connect).not.toHaveBeenCalled();
 
-    // Fail a lot more
-    jest.advanceTimersByTime(50000);
-    expect(client.connectAttempts).toBeGreaterThan(10);
+    // simulate 10 straight failures in backoff
+    reconnect.backoff.backoffNumber_ = 10;
+    client.connecting = false;
+    jest.advanceTimersByTime(2000);
 
-    // make sure client connect was called
     expect(client.connect).toHaveBeenCalledTimes(1);
   });
 
-  test('when an auth failure occurs it will cease the backoff', () => {
+  it('when an auth failure occurs it will cease the backoff', () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     reconnect.start();
 
     // move forward in time to where two connections should have been attempted.
     jest.advanceTimersByTime(350);
-    expect(client.connectAttempts).toBe(2);
+    expect(client.connectAttempts).toBe(1);
+    client.connecting = false;
 
     jest.advanceTimersByTime(600);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
+    client.connecting = false;
 
-    client._stanzaio.emit('sasl:failure', { condition: 'not-authorized' });
+    client._stanzaio.emit('sasl', { type: 'failure', condition: 'not-authorized' });
     jest.advanceTimersByTime(1100);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
     expect(client.connected).toBe(false);
+    client.connecting = false;
 
     // make sure it didn't keep trying
     jest.advanceTimersByTime(10000);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
   });
 
-  test('when a temporary auth failure occurs it will not cease the backoff', () => {
+  it('when a temporary auth failure occurs it will not cease the backoff', () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     reconnect.start();
 
     // move forward in time to where two connections should have been attempted.
     jest.advanceTimersByTime(350);
-    expect(client.connectAttempts).toBe(2);
+    expect(client.connectAttempts).toBe(1);
+    client.connecting = false;
 
     jest.advanceTimersByTime(600);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
+    client.connecting = false;
 
-    client._stanzaio.emit('sasl:failure', { condition: 'temporary-auth-failure' });
+    client._stanzaio.emit('sasl', { type: 'failure', condition: 'temporary-auth-failure' });
     jest.advanceTimersByTime(1100);
-    expect(client.connectAttempts).toBe(4);
+    expect(client.connectAttempts).toBe(3);
     expect(client.connected).toBe(false);
+    client.connecting = false;
 
     jest.advanceTimersByTime(2500);
-    expect(client.connectAttempts).toBe(5);
+    expect(client.connectAttempts).toBe(4);
 
-    client._stanzaio.emit('sasl:failure');
+    client._stanzaio.emit('sasl', { type: 'failure' });
   });
 
-  test('will reconnect if an authorization error occurs after a connection has connected previously', () => {
+  it('will reconnect if an authorization error occurs after a connection has connected previously', () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     reconnect.start();
 
     // move forward in time to where two connections should have been attempted.
     jest.advanceTimersByTime(350);
-    expect(client.connectAttempts).toBe(2);
+    expect(client.connectAttempts).toBe(1);
+    client.connecting = false;
 
     jest.advanceTimersByTime(600);
-    expect(client.connectAttempts).toBe(3);
+    expect(client.connectAttempts).toBe(2);
+    client.connecting = false;
 
     reconnect._hasConnected = true;
-    client._stanzaio.emit('sasl:failure', { condition: 'not-authorized' });
+    client._stanzaio.emit('sasl', { type: 'failure', condition: 'not-authorized' });
+    client.connecting = false;
     jest.advanceTimersByTime(250);
     reconnect.start();
-    jest.advanceTimersByTime(30);
+    client.connecting = false;
+    jest.advanceTimersByTime(300);
     expect(client.connectAttempts).toBe(1);
     expect(client.connected).toBe(false);
 
     jest.advanceTimersByTime(10);
-    client._stanzaio.emit('sasl:failure'); // now fail permanently to stop tests
+    client._stanzaio.emit('sasl', { type: 'failure' }); // now fail permanently to stop tests
+    client.connecting = false;
 
     // make sure it didn't keep trying
     jest.advanceTimersByTime(10000);
     expect(client.connectAttempts).toBe(1);
   });
 
-  test('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async () => {
+  it('when a connection transfer request comes in, will emit a reconnect request to the consuming application', async () => {
+    // use a "real" stanza client to check the cxfr event
+    const stanzaio = createClient({});
     const client = new Client();
+    client._stanzaio = stanzaio as any;
     const reconnect = new Reconnector(client);
     jest.spyOn(client, 'reconnect').mockImplementation(() => {
       client._stanzaio.emit('reconnected');
     });
 
+    client._stanzaio = stanzaio as any;
+    stanzaio.stanzas.define(CXFRDefinition);
+
     client.on('requestReconnect', (handler) => {
+      // handler({ done: true });
       setTimeout(() => handler({ done: true }), 1);
+      jest.advanceTimersByTime(10);
     });
 
     const reconnected = new Promise(resolve => {
       client.on('reconnected', resolve);
     });
 
-    reconnect.client._stanzaio.emit('iq:set:cxfr', {
-      cxfr: {
-        domain: 'asdf.example.com',
-        server: 'streaming.us-east-1.example.com'
-      }
-    });
+    const xml = parse(`
+      <iq type='set' xmlns='jabber:client' from='jabber.org' to='user@jabber.org'><query xmlns='urn:xmpp:cxfr'><domain>jabber.org</domain><server>123.123.123.122</server></query></iq>
+    `);
+    const json = stanzaio.stanzas.import(xml);
+
+    stanzaio.emit('stream:data', json, 'iq');
+
+    // reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    //   cxfr: {
+    //     domain: 'asdf.example.com',
+    //     server: 'streaming.us-east-1.example.com'
+    //   }
+    // });
 
     jest.advanceTimersByTime(10);
+    await Promise.resolve();
 
     await reconnected;
   });
@@ -308,7 +338,7 @@ describe('Reconnector', () => {
       client.on('reconnected', resolve);
     });
 
-    reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    reconnect.client._stanzaio.emit('iq:set:cxfr' as any, {
       cxfr: {
         domain: 'asdf.example.com',
         server: 'streaming.us-east-1.example.com'
@@ -338,7 +368,7 @@ describe('Reconnector', () => {
       client.on('reconnected', resolve);
     });
 
-    reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    reconnect.client._stanzaio.emit('iq:set:cxfr' as any, {
       cxfr: {
         domain: 'asdf.example.com',
         server: 'streaming.us-east-1.example.com'
@@ -368,7 +398,7 @@ describe('Reconnector', () => {
       client.on('reconnected', resolve);
     });
 
-    reconnect.client._stanzaio.emit('iq:set:cxfr', {
+    reconnect.client._stanzaio.emit('iq:set:cxfr' as any, {
       cxfr: {
         domain: 'asdf.example.com',
         server: 'streaming.us-east-1.example.com'
@@ -381,5 +411,16 @@ describe('Reconnector', () => {
     expect(client.reconnect).toHaveBeenCalledTimes(1);
 
     await reconnected;
+  });
+
+  it('should not backoff if already active', () => {
+    const client = new Client();
+    const reconnect = new Reconnector(client);
+
+    const spy = jest.spyOn(reconnect.backoff, 'backoff');
+    reconnect._backoffActive = true;
+
+    reconnect.start();
+    expect(spy).not.toHaveBeenCalled();
   });
 });

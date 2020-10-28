@@ -1,113 +1,65 @@
-const path = require('path');
-const webpack = require('webpack');
-const WebpackAutoInject = require('webpack-auto-inject-version');
-const nodeExternals = require('webpack-node-externals');
+const Path = require('path');
 
-module.exports = (env) => {
-  const minimize = env && env.production;
-  const cdn = env && env.cdn;
+module.exports = (env = {}) => {
+  let babelLoader;
+  let entry = './dist/npm/module.js';
+  let filename = 'streaming-client.browser.js';
 
-  let filename = 'streaming-client';
-  let mode;
-  let externals = [];
-  let babelExcludes = [];
-  let babelOptions;
+  if (env.ie) {
+    console.log('Building for IE compatibility');
+    filename = 'streaming-client.browser.ie.js';
 
-  /* if building for the cdn */
-  if (cdn) {
-    filename += '.bundle';
-
-    /*
-      this is so babel doesn't try to polyfill/transpile core-js (which is the polyfill)
-        and the build tools.
-      But we want it polyfill/transpile all other node_modules when building for the web
-    */
-    babelExcludes = [
-      /\bcore-js\b/,
-      /\bwebpack\/buildin\b/
+    entry = [
+      './node_modules/unorm/lib/unorm.js',
+      './node_modules/whatwg-fetch/fetch.js',
+      './dist/npm/module.js'
     ];
 
-    babelOptions = {
-      sourceType: 'unambiguous',
-      ignore: [/\/core-js/],
-      presets: [
-        ['@babel/preset-env',
-          {
-            debug: false, /* set to `true` if you start banging your head against the wall */
+    babelLoader = {
+      test: /\.(cjs|mjs|js)$/,
+      loader: 'babel-loader',
+      exclude: [
+        /@babel\//,
+        /\bcore-js\b/,
+        /\bwebpack\/buildin\b/
+      ],
+      options: {
+        sourceType: 'unambiguous',
+        plugins: [
+          ['@babel/plugin-proposal-decorators', { decoratorsBeforeExport: true }],
+          ['@babel/plugin-proposal-class-properties'],
+          ['@babel/transform-runtime']
+        ],
+        presets: [
+          ['@babel/preset-env', {
+            corejs: { version: 3 },
+            useBuiltIns: 'usage',
             targets: [
               'last 2 versions',
               '> 5%',
               'IE 11',
               'not dead'
             ]
-          }
+          }]
         ]
-      ],
-      plugins: [
-        ['@babel/plugin-transform-runtime', {
-          corejs: 3
-        }]
-      ]
-    };
-  } else {
-    /* we are building for node */
-    const modulesToBundle = [/* left this here just in case it is needed */];
-
-    /* we don't want to bundle node_modules */
-    externals.push(nodeExternals({
-      allowlist: modulesToBundle.map(m => new RegExp(`^${m.replace(/-/g, '\\-')}`))
-    }));
-
-    /* if we are building for 'module', don't polyfill/transpile most dependencies */
-    babelExcludes = [
-      new RegExp(`/node_modules/(?!${modulesToBundle.join('|')}/)`)
-    ];
-
-    babelOptions = {
-      sourceType: 'unambiguous',
-      presets: ['@babel/preset-env']
+      }
     };
   }
 
-  filename += minimize ? '.min.js' : '.js';
-  mode = minimize ? 'production' : 'development';
-
   return {
-    target: 'web',
-    entry: './src/client.js',
-    mode,
-    optimization: {
-      minimize
-    },
-    externals,
-    devtool: minimize ? 'source-map' : '',
+    entry,
+
     output: {
-      path: path.resolve(__dirname, 'dist'),
       filename,
       library: 'GenesysCloudStreamingClient',
-      libraryTarget: 'umd',
-      libraryExport: 'default'
+      libraryTarget: 'window',
+      libraryExport: 'default',
+      path: Path.resolve('dist')
     },
-    plugins: [
-      new webpack.DefinePlugin({ 'global.GENTLY': false }),
-      new WebpackAutoInject({
-        components: {
-          AutoIncreaseVersion: false,
-          InjectByTag: {
-            fileRegex: /\.+/,
-            AIVTagRegexp: /(\[AIV])(([a-zA-Z{} ,:;!()_@\-"'\\\/])+)(\[\/AIV])/g // eslint-disable-line
-          }
-        }
-      })
-    ],
+
     module: {
       rules: [
-        {
-          test: /\.(c|m)?js$/,
-          loader: 'babel-loader',
-          exclude: babelExcludes,
-          options: babelOptions
-        }
+        babelLoader || {}
       ]
     }
   };

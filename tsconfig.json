@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+      "allowJs": false,
+      "allowSyntheticDefaultImports": true,
+      "declaration": true,
+      "esModuleInterop": true,
+      "forceConsistentCasingInFileNames": true,
+      "importHelpers": true,
+      "lib": ["dom", "es2018"],
+      "module": "commonjs",
+      "moduleResolution": "node",
+      "outDir": "./dist/cjs",
+      "strict": true,
+      "target": "es2018",
+      "noImplicitAny": false,
+      "resolveJsonModule": true
+  },
+  "include": ["src"],
+  "exclude": ["dist"]
+}

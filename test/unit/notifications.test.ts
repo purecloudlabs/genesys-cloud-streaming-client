@@ -3,34 +3,39 @@
 import WildEmitter from 'wildemitter';
 import nock from 'nock';
 
-import Notifications from '../../src/notifications';
+import { Notifications } from '../../src/notifications';
+import { Agent } from 'stanza';
 
 const exampleTopics = require('../helpers/example-topics.json');
 
 class Client extends WildEmitter {
-  constructor (config) {
+  connected = false;
+  emit!: (event: string, ...data: any) => void;
+  logger = {
+    debug () { },
+    info () { },
+    warn () { },
+    error () { }
+  };
+
+  _stanzaio: WildEmitter & Agent = new WildEmitter() as any;
+
+  constructor (public config: any) {
     super();
-    this.config = config;
 
-    this.logger = {
-      debug () { },
-      info () { },
-      warn () { },
-      error () { }
-    };
-
-    this._stanzaio = new WildEmitter();
-    this._stanzaio.subscribeToNode = () => { };
-    this._stanzaio.unsubscribeFromNode = () => { };
+    this._stanzaio.subscribeToNode = jest.fn();
+    this._stanzaio.unsubscribeFromNode = jest.fn();
   }
 }
 
 const SUBSCRIPTIONS_EXPIRING = {
-  event: {
-    updated: {
+  pubsub: {
+    items: {
       node: 'streaming-subscriptions-expiring',
       published: [
-        { json: { expiring: 60 } }
+        {
+          content: { json: { expiring: 60 } }
+        }
       ]
     }
   }
@@ -69,7 +74,7 @@ describe('Notifications', () => {
     expect(notification.pubsubHost).toBe('notifications.mypurecloud.com');
   });
 
-  test('subscribe and unsubscribe do their jobs', async () => {
+  it('subscribe and unsubscribe do their jobs', async () => {
     const client = new Client({
       apiHost: 'example.com',
       channelId: 'notification-test-channel'
@@ -77,7 +82,7 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c) => c());
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
     const handler = jest.fn();
     const firstSubscription = notification.expose.subscribe('topic.test', handler, true);
 
@@ -93,7 +98,7 @@ describe('Notifications', () => {
 
     // subscribe again to the same topic with the same handler
     await notification.expose.subscribe('topic.test', handler, true);
-    expect(notification.subscriptions['topic.test'].length).toBe(1, 'handler not added again');
+    expect(notification.subscriptions['topic.test'].length).toBe(1);
 
     const handler2 = jest.fn();
     await notification.expose.subscribe('topic.test', handler2, true);
@@ -103,16 +108,18 @@ describe('Notifications', () => {
 
     // eventing
     const pubsubMessage = {
-      event: {
-        updated: {
+      pubsub: {
+        items: {
           node: 'topic.test',
           published: [
-            { json: { the: 'payload' } }
+            {
+              content: { json: { the: 'payload' } }
+            }
           ]
         }
       }
     };
-    jest.spyOn(notification.client._stanzaio, 'emit').mockReturnValue(null);
+    jest.spyOn(notification.client._stanzaio, 'emit').mockReturnValue(undefined);
     client.emit('pubsub:event', pubsubMessage);
     expect(notification.client._stanzaio.emit).toHaveBeenCalledTimes(2);
     expect(notification.client._stanzaio.emit).toHaveBeenCalledWith('notify', { topic: 'topic.test', data: { the: 'payload' } });
@@ -144,7 +151,7 @@ describe('Notifications', () => {
     expect(notification.bulkSubscriptions['topic.three']).toBe(undefined);
 
     // unsubscribing
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockImplementation((a, b, c) => c());
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
     await notification.expose.unsubscribe('topic.test', handler2, true);
     // there are still more subscriptions
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
@@ -159,14 +166,14 @@ describe('Notifications', () => {
 
     client.connected = false;
     // unsubscribing without a handler removes the bulkScubscription handler
-    const unsubscribe = notification.expose.unsubscribe('topic.test', null, true);
+    const unsubscribe = notification.expose.unsubscribe('topic.test', undefined, true);
     // well, not until we reconnect
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
     client.emit('connected');
     await unsubscribe;
     expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledTimes(1);
-    expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledWith('notifications.example.com', 'topic.test', expect.any(Function));
+    expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledWith('notifications.example.com', 'topic.test');
   });
 
   test('subscribe and unsubscribe work when debounced', async () => {
@@ -177,7 +184,7 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c) => c());
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
     jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
     const handler = jest.fn();
     const firstSubscription = notification.expose.subscribe('topic.test', handler);
@@ -188,7 +195,7 @@ describe('Notifications', () => {
     expect(notification.subscriptions['topic.test'].length).toBe(1);
     expect(notification.subscriptions['topic.test'][0]).toBe(handler);
 
-    let promises = [];
+    let promises: Promise<any>[] = [];
     for (let i = 0; i < 100; i++) {
       promises.push(notification.expose.subscribe(`topic.test${i}`, handler));
     }
@@ -206,31 +213,31 @@ describe('Notifications', () => {
   });
 
   test('subscribe and unsubscribe reject on failures', async () => {
-    const client = new Client();
+    const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
 
     client.connected = true;
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c) => c(new Error('test')));
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockImplementation((a, b, c = () => { }) => c(new Error('test')));
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockRejectedValue(new Error('test'));
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockRejectedValue(new Error('test'));
     const handler = jest.fn();
     expect.assertions(2);
     await notification.expose.subscribe('test', handler, true).catch(() => expect(true).toBe(true));
     await notification.expose.unsubscribe('test', handler, true).catch(() => expect(true).toBe(true));
   });
 
-  test('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event', async () => {
-    const client = new Client();
+  it('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event', async () => {
+    const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c = () => { }) => c());
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockImplementation((a, b, c = () => { }) => c());
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
     jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
@@ -243,7 +250,7 @@ describe('Notifications', () => {
     await notification.expose.subscribe('test', handler, true);
     await notification.expose.subscribe('test', handler2, true);
     await notification.expose.subscribe('test2', handler3, true);
-    await notification.expose.subscribe('test3', null, true);
+    await notification.expose.subscribe('test3', undefined, true);
     notification.bulkSubscriptions.test3 = true;
     expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
     await notification.expose.unsubscribe('test2', handler3, true);
@@ -252,21 +259,21 @@ describe('Notifications', () => {
     expect(notification.bulkSubscribe).toHaveBeenCalledTimes(1);
   });
 
-  test('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event and emit an error on failure', async () => {
-    const client = new Client();
+  it('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event and emit an error on failure', async () => {
+    const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c = () => { }) => c());
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockImplementation((a, b, c = () => { }) => c());
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
-    jest.spyOn(notification, 'bulkSubscribe').mockRejectedValue(new Error('intentional test error'));
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockRejectedValue(new Error('intentional test error'));
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
-    expect(notification.bulkSubscribe).not.toHaveBeenCalled();
+    expect(notification.makeBulkSubscribeRequest).not.toHaveBeenCalled();
     expect(notification.client._stanzaio.subscribeToNode).not.toHaveBeenCalled();
     const handler = jest.fn();
     const handler2 = jest.fn();
@@ -287,52 +294,51 @@ describe('Notifications', () => {
     });
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
     expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
-    expect(notification.bulkSubscribe).toHaveBeenCalledTimes(1);
+    expect(notification.makeBulkSubscribeRequest).toHaveBeenCalledTimes(1);
     await errorEvent;
   });
 
-  test('notifications bulk subscribe should maintain individual subscriptions when bulk subscribing with replace', async () => {
-    const client = new Client();
+  it('notifications bulk subscribe should maintain individual subscriptions when bulk subscribing with replace', async () => {
+    const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
-
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c = () => { }) => c());
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockImplementation((a, b, c = () => { }) => c());
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
-    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
 
     const handler = jest.fn();
     const handler2 = jest.fn();
-    notification.expose.subscribe('topicA.test', handler, true);
-    notification.expose.subscribe('topicB.test2', handler2, true);
+    await notification.expose.subscribe('topicA.test', handler, true);
+    await notification.expose.subscribe('topicB.test2', handler2, true);
 
-    notification.expose.bulkSubscribe(['topicC.test3', 'topicB.test2'], { replace: true, force: false });
+    await notification.expose.bulkSubscribe(['topicC.test3', 'topicB.test2'], { replace: true, force: false });
     expect(notification.subscriptions['topicA.test'][0]).toBe(handler);
-    expect(notification.bulkSubscribe).toHaveBeenCalledWith(['topicC.test3', 'topicB.test2', 'topicA.test'], expect.any(Object));
+    expect(notification.makeBulkSubscribeRequest).toHaveBeenCalledWith(['topicC.test3', 'topicB.test2', 'topicA.test'], expect.any(Object));
   });
 
   test('notifications should not resubscribe to something different than bulk subscribe', async () => {
-    const client = new Client();
+    const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
 
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockImplementation((a, b, c = () => { }) => c());
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockImplementation((a, b, c = () => { }) => c());
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
-    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
 
     const handler = jest.fn();
     const handler2 = jest.fn();
-    notification.expose.subscribe('test', handler, true);
-    notification.expose.subscribe('test2', handler2, true);
+    await notification.expose.subscribe('test', handler, true);
+    await notification.expose.subscribe('test2', handler2, true);
 
-    notification.expose.bulkSubscribe(['test3'], { replace: true, force: true });
+    await notification.expose.bulkSubscribe(['test3'], { replace: true, force: true });
     expect(notification.subscriptions['test']).toBe(undefined);
   });
 
@@ -456,20 +462,20 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
 
-    const topicList = [];
+    const topicList: string[] = [];
     for (let i = 0; i < 1030; i++) {
       topicList.push(`v2.users.${i}.presence`);
     }
 
-    let truncatedTopicList = notification.truncateTopicList(topicList);
+    let truncatedTopicList = notification.truncateTopicList(topicList as any);
     expect(truncatedTopicList.length).toBe(1000);
 
     const truncatedTopicListLogAll = topicList.slice(0, 1010);
-    truncatedTopicList = notification.truncateTopicList(truncatedTopicListLogAll);
+    truncatedTopicList = notification.truncateTopicList(truncatedTopicListLogAll as any);
     expect(truncatedTopicList.length).toBe(1000);
 
     const shortTopicList = topicList.slice(0, 20);
-    truncatedTopicList = notification.truncateTopicList(shortTopicList);
+    truncatedTopicList = notification.truncateTopicList(shortTopicList as any);
     expect(truncatedTopicList.length).toBe(20);
   });
 
@@ -479,7 +485,7 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
 
-    const topicList = [];
+    const topicList: string[] = [];
     for (let i = 0; i < 1030; i++) {
       topicList.push(`v2.users.${i}.presence`, `v2.users.${i}.geolocation`);
     }
@@ -594,25 +600,26 @@ describe('Notifications', () => {
     expect(notification.topicPriorities.test).toBe(undefined);
   });
 
-  test('notifications | subscribe registers topic priorities if supplied', () => {
+  test('notifications | subscribe registers topic priorities if supplied', async () => {
     const client = new Client({
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    jest.spyOn(notification, 'xmppSubscribe').mockResolvedValue(undefined);
 
     const handler = jest.fn();
-    notification.expose.subscribe('topic.test', handler, true, 1);
+    await notification.expose.subscribe('topic.test', handler, true, 1);
     expect(notification.topicPriorities.topic.test).toBe(1);
-    notification.expose.subscribe('topic.test2', handler, true);
+    await notification.expose.subscribe('topic.test2', handler, true);
     expect(notification.topicPriorities.topic.test2).toBe(undefined);
   });
 
-  test('notifications | bulkSubscribe registers topic priorities if supplied', async () => {
+  it('notifications | bulkSubscribe registers topic priorities if supplied', async () => {
     const client = new Client({
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
-    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
 
     const priorities = {
       'topic.test.one': 1,
@@ -623,5 +630,33 @@ describe('Notifications', () => {
     expect(notification.topicPriorities['topic.test'].one).toBe(1);
     expect(notification.topicPriorities['topic.test'].two).toBe(2);
     expect(notification.topicPriorities['topic.test'].three).toBe(3);
+  });
+
+  it('should change the topic to no_longer_subscribed', () => {
+    const payload = { channelId: 'streaming-sdklnena98w4' };
+    const noLongerSubscribed = {
+      pubsub: {
+        items: {
+          node: `system.v2.no_longer_subscribed.${payload.channelId}`,
+          published: [
+            {
+              content: { json: payload }
+            }
+          ]
+        }
+      }
+    };
+
+    const client = new Client({
+      apiHost: 'example.com',
+      channelId: 'notification-test-channel'
+    });
+    const notification = new Notifications(client);
+
+    const spy = jest.spyOn(client._stanzaio, 'emit');
+    (client as any).emit('pubsub:event', noLongerSubscribed);
+
+    expect(spy).toHaveBeenCalledWith('notify', { topic: 'no_longer_subscribed', data: payload });
+    expect(spy).toHaveBeenCalledWith('notify:no_longer_subscribed', payload);
   });
 });

@@ -1,0 +1,45 @@
+{
+  "name": "getStats",
+  "tracks": [
+    {
+      "track": "059bb4fa-f2ff-46ec-9e85-4d8fa47f716c",
+      "kind": "audio",
+      "packetsLost": 0,
+      "packetLoss": 0,
+      "bytes": 0,
+      "codec": "96 audio/opus 48000",
+      "packetsSent": 0,
+      "retransmittedBytesSent": 0,
+      "retransmittedPacketsSent": 0,
+      "audioLevel": 0,
+      "totalAudioEnergy": 0
+    }
+  ],
+  "remoteTracks": [
+    {
+      "track": "audio",
+      "kind": "audio",
+      "jitter": 0,
+      "packetsLost": 0,
+      "packetLoss": 0,
+      "bytes": 6,
+      "codec": "96 audio/opus 48000",
+      "packetsReceived": 1,
+      "audioLevel": 0,
+      "totalAudioEnergy": 0
+    }
+  ],
+  "candidatePairHadActiveSource": true,
+  "localCandidateChanged": false,
+  "remoteCandidateChanged": false,
+  "networkType": "ethernet",
+  "candidatePair": "srflx;srflx",
+  "bytesSent": 738,
+  "bytesReceived": 1613,
+  "requestsReceived": 3,
+  "requestsSent": 1,
+  "responsesReceived": 2,
+  "responsesSent": 3,
+  "consentRequestsSent": 2,
+  "totalRoundTripTime": 0.191
+}

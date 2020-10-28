@@ -9,20 +9,20 @@ function buildUri (host, path, version = 'v2') {
   return `https://api.${host}/api/${version}/${path}`;
 }
 
-export function requestApi (path, { method, data, host, version, contentType, authToken, logger }) {
-  let response = request[method](buildUri(host, path, version))
-    .use(reqlogger(logger, data))
-    .set('Authorization', `Bearer ${authToken}`)
-    .type(contentType || 'json');
+export function requestApi (this: any, path, opts: { method?, data?, host?, version?, contentType?, authToken?, logger? }) {
+  let response = request[opts.method](buildUri(opts.host, path, opts.version))
+    .use(reqlogger.bind(this, opts.logger, opts.data))
+    .set('Authorization', `Bearer ${opts.authToken}`)
+    .type(opts.contentType || 'json');
 
-  return response.send(data); // trigger request
+  return response.send(opts.data); // trigger request
 }
 
-export function timeoutPromise (fn, timeoutMs, msg, details) {
+export function timeoutPromise (fn, timeoutMs, msg, details?) {
   return new Promise(function (resolve, reject) {
     const timeout = setTimeout(function () {
       const err = new Error(`Timeout: ${msg}`);
-      err.details = details;
+      (err as any).details = details;
       reject(err);
     }, timeoutMs);
     const done = function () {
@@ -34,7 +34,7 @@ export function timeoutPromise (fn, timeoutMs, msg, details) {
 }
 
 export function splitIntoIndividualTopics (topicString) {
-  const topics = [];
+  const topics: string[] = [];
 
   if (topicString.includes('?')) {
     const split = topicString.split('?');
@@ -50,6 +50,37 @@ export function splitIntoIndividualTopics (topicString) {
   }
   return topics;
 }
+
+export function applyMixins (derivedCtor: any, constructors: any[]) {
+  constructors.forEach((baseCtor) => {
+    Object.getOwnPropertyNames(baseCtor.prototype).forEach((name) => {
+      Object.defineProperty(
+        derivedCtor.prototype,
+        name,
+        Object.getOwnPropertyDescriptor(baseCtor.prototype, name) as any
+      );
+    });
+  });
+}
+
+export const isAcdJid = function (jid: string): boolean {
+  return jid.startsWith('acd-');
+};
+
+export const isScreenRecordingJid = function (jid: string): boolean {
+  return jid.startsWith('screenrecording-');
+};
+
+export const isSoftphoneJid = function (jid: string): boolean {
+  if (!jid) {
+    return false;
+  }
+  return !!jid.match(/.*@.*gjoll.*/i);
+};
+
+export const isVideoJid = function (jid: string): boolean {
+  return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
+};
 
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {
@@ -67,3 +98,4 @@ export function splitIntoIndividualTopics (topicString) {
 //
 //   return destination;
 // }
+

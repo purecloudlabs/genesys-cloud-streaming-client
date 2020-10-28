@@ -1,24 +1,23 @@
 'use strict';
 
 // src imports
-import { createClient } from './stanzaio-light';
-import notifications from './notifications';
-import reconnector from './reconnector';
-import ping from './ping';
+import { Notifications, NotificationsAPI } from './notifications';
+import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
+import { Reconnector } from './reconnector';
+import { Ping } from './ping';
 import './polyfills';
 import { requestApi, timeoutPromise } from './utils';
-
-// extension imports
-import webrtcSessions from 'genesys-cloud-streaming-client-webrtc-sessions';
+import { createClient as createStanzaClient, Agent } from 'stanza';
 
 // external imports
 import { TokenBucket } from 'limiter';
+import { StreamingClientExtension } from './types/streaming-client-extension';
 
 let extensions = {
-  ping,
-  reconnector,
-  notifications,
-  webrtcSessions
+  ping: Ping,
+  reconnector: Reconnector,
+  notifications: Notifications,
+  webrtcSessions: WebrtcExtension
 };
 
 function stanzaioOptions (config) {
@@ -29,8 +28,9 @@ function stanzaioOptions (config) {
       username: config.jid,
       password: `authKey:${config.authToken}`
     },
-    wsURL: `${wsHost}/stream/channels/${config.channelId}`,
-    transport: 'websocket'
+    transports: {
+      websocket: `${wsHost}/stream/channels/${config.channelId}`
+    }
   };
 
   return stanzaOptions;
@@ -40,9 +40,9 @@ const HARD_RECONNECT_THRESHOLD = 2;
 
 // from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
 function parseJwt (token) {
-  var base64Url = token.split('.')[1];
-  var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
     return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
   }).join(''));
 
@@ -59,8 +59,9 @@ function stanzaOptionsJwt (config) {
   }
   let wsHost = config.host.replace(/\/$/, '');
   let stanzaOptions = {
-    wsURL: `${wsHost}/stream/jwt/${config.jwt}`,
-    transport: 'websocket',
+    transports: {
+      websocket: `${wsHost}/stream/jwt/${config.jwt}`
+    },
     server: jidDomain,
     sasl: ['anonymous']
   };
@@ -70,28 +71,55 @@ function stanzaOptionsJwt (config) {
 
 const REMAPPED_EVENTS = {
   'connected': 'session:started',
-  '_connected': 'connected',
-  'disconnected': 'session:end',
-  '_disconnected': 'disconnected'
+  '_connected': 'connected'
 };
 
-const APP_VERSION = '[AIV]{version}[/AIV]';
+export interface ClientOptions {
+  host: string;
+  apiHost?: string;
+  authToken?: string;
+  jwt?: string;
+  jid?: string;
+  reconnectOnNoLongerSubscribed?: boolean;
+  logger?: any;
+  optOutOfWebrtcStatsTelemetry?: boolean;
+}
 
-export default class Client {
-  constructor (options) {
-    const stanzaio = createClient({});
+export class Client {
+  _stanzaio: Agent;
+  connected = false;
+  connecting = false;
+  autoReconnect = true;
+  reconnectOnNoLongerSubscribed: boolean;
+  logger: any;
+  leakyReconnectTimer: any;
+  hardReconnectCount = 0;
+  reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
+  deadChannels: string[] = [];
+  config: any;
+  streamId: any;
+
+  notifications!: NotificationsAPI;
+  _notifications!: Notifications;
+  reconnector!: Reconnector;
+  webrtcSessions!: WebrtcExtensionAPI;
+  _webrtcSessions!: WebrtcExtension;
+
+  _ping: any;
+  _reconnector: any;
+
+  constructor (options: ClientOptions) {
+    const stanzaio = createStanzaClient({});
+
+    // TODO: remove this hack when we can. basically stanza messes up the auth mechanism priority.
+    (stanzaio.sasl as any).mechanisms.find(mech => mech.name === 'ANONYMOUS').priority = 0;
+    (stanzaio.sasl as any).mechanisms = (stanzaio.sasl as any).mechanisms.sort((a, b) => b.priority - a.priority);
+
     this._stanzaio = stanzaio;
-    this.connected = false;
-    this.autoReconnect = true;
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
 
     this.logger = options.logger || console;
-    this.leakyReconnectTimer = null;
-    this.hardReconnectCount = 0;
-    // 10 minutes
-    this.reconnectLeakTime = 1000 * 60 * 10;
-    this.deadChannels = [];
 
     this.config = {
       host: options.host,
@@ -102,59 +130,52 @@ export default class Client {
       channelId: null // created on connect
     };
 
-    this.on('_disconnected', (event) => {
-      this.connected = false;
-      this._ping.stop();
-
-      // example url: "wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr"
-      const channelIdRegex = /stream\/channels\/([^/]+)/;
-      const url = (event && event.conn && event.conn.url) || '';
-      const matches = url.match(channelIdRegex);
-      let channelId = 'failed to parse';
-      if (matches) {
-        channelId = matches[1];
-      }
-      this.logger.info('Streaming client disconnected.', { channelId });
-
-      if (!event) {
-        if (this.autoReconnect) {
-          this.logger.warn('Streaming client disconnected without an event notification. Not able to reconnect.');
-        }
-
+    this.on('disconnected', (event) => {
+      if (this._stanzaio.transport || this.connecting) {
+        this.logger.info('disconnected event received, but reconnection is in progress');
         return;
       }
 
+      this.connected = false;
+      this._ping.stop();
+
+      this.logger.info('Streaming client disconnected.');
+
+      const channelId = this.config.channelId;
       if (this.autoReconnect && !this.deadChannels.includes(channelId)) {
-        this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect.', { channelId });
+        this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect', { channelId });
         this._reconnector.start();
       }
     });
 
     // remapped session:started
-    this.on('connected', (event) => {
+    this.on('connected', async (event) => {
       this.streamId = event.resource;
       this._ping.start();
       this.connected = true;
       this._reconnector.stop();
+      this.connecting = false;
     });
 
     // remapped session:end
-    this.on('disconnected', (event) => {
+    this.on('session:end', (event) => {
       this._ping.stop();
     });
 
-    this.on('sasl:failure', (err) => {
-      const errMessage = 'Authentication failed connecting to streaming service';
-      err = Object.assign(err || {}, { channelId: this.config.channelId });
-      this.logger.error(errMessage, err);
-      if (!err || err.condition !== 'temporary-auth-failure') {
-        this._ping.stop();
-        this.autoReconnect = false;
-        this.disconnect();
+    this._stanzaio.on('sasl', (sasl) => {
+      if (sasl.type === 'failure') {
+        this.logger.error('Authentication failed connecting to streaming service', { ...sasl, channelId: this.config.channelId });
+        if (sasl.condition !== 'temporary-auth-failure') {
+          this._ping.stop();
+          this.autoReconnect = false;
+          return this.disconnect();
+        } else {
+          this.logger.info('Temporary auth failure, continuing reconnect attempts');
+        }
       }
     });
 
-    this.on('notify:v2.system.no_longer_subscribed*', (event, data) => {
+    this.on('notify:no_longer_subscribed', (data) => {
       this._ping.stop();
 
       const channelId = data.eventBody.channelId;
@@ -179,7 +200,7 @@ export default class Client {
         return;
       }
 
-      this.logger.info('streaming client attempting to reconnect');
+      this.logger.info('streaming client attempting to reconnect on a new channel');
       this.hardReconnectCount++;
 
       if (!this.leakyReconnectTimer) {
@@ -196,7 +217,7 @@ export default class Client {
     });
 
     Object.keys(extensions).forEach((extensionName) => {
-      const extension = new extensions[extensionName](this, options);
+      const extension: StreamingClientExtension = new extensions[extensionName](this, options);
 
       if (typeof extension.handleIq === 'function') {
         stanzaio.on('iq', extension.handleIq.bind(extension));
@@ -213,16 +234,16 @@ export default class Client {
         // = 45 stanzas max per 1000 ms
         // = 70 stanzas max per 2000 ms
         extension.tokenBucket = new TokenBucket(20, 25, 1000);
-        extension.tokenBucket.content = 25;
+        (extension.tokenBucket as any).content = 25;
       }
 
       if (typeof extension.on === 'function') {
         extension.on('send', function (data, message = false) {
-          return extension.tokenBucket.removeTokens(1, () => {
+          return extension.tokenBucket!.removeTokens(1, () => {
             if (message === true) {
               return stanzaio.sendMessage(data);
             }
-            return stanzaio.sendIq(data);
+            return stanzaio.sendIQ(data);
           });
         });
       }
@@ -239,27 +260,27 @@ export default class Client {
 
   on (eventName, ...args) {
     if (REMAPPED_EVENTS[eventName]) {
-      this._stanzaio.on(REMAPPED_EVENTS[eventName], ...args);
+      (this._stanzaio.on as any)(REMAPPED_EVENTS[eventName], ...args);
     } else {
-      this._stanzaio.on(eventName, ...args);
+      (this._stanzaio.on as any)(eventName, ...args);
     }
     return this;
   }
 
   once (eventName, ...args) {
     if (REMAPPED_EVENTS[eventName]) {
-      this._stanzaio.once(REMAPPED_EVENTS[eventName], ...args);
+      (this._stanzaio.once as any)(REMAPPED_EVENTS[eventName], ...args);
     } else {
-      this._stanzaio.once(eventName, ...args);
+      (this._stanzaio.once as any)(eventName, ...args);
     }
     return this;
   }
 
   off (eventName, ...args) {
     if (REMAPPED_EVENTS[eventName]) {
-      this._stanzaio.off(REMAPPED_EVENTS[eventName], ...args);
+      (this._stanzaio.off as any)(REMAPPED_EVENTS[eventName], ...args);
     } else {
-      this._stanzaio.off(eventName, ...args);
+      (this._stanzaio.off as any)(eventName, ...args);
     }
     return this;
   }
@@ -285,11 +306,18 @@ export default class Client {
 
   connect () {
     this.logger.info('streamingClient.connect was called');
+    this.connecting = true;
     if (this.config.jwt) {
       return timeoutPromise(resolve => {
         this.once('connected', resolve);
-        this._stanzaio.connect(stanzaOptionsJwt(this.config));
-      }, 10 * 1000, 'connecting to streaming service with jwt');
+        const options = stanzaOptionsJwt(this.config);
+        this._stanzaio.updateConfig(options);
+        this._stanzaio.connect();
+      }, 10 * 1000, 'connecting to streaming service with jwt')
+      .catch((err) => {
+        this.connecting = false;
+        return Promise.reject(err);
+      });
     }
 
     let jidPromise;
@@ -321,19 +349,26 @@ export default class Client {
         this.autoReconnect = true;
         return timeoutPromise(resolve => {
           this.once('connected', resolve);
-          this._stanzaio.connect(stanzaioOptions(this.config));
+          const options = stanzaioOptions(this.config);
+          this._stanzaio.updateConfig(options);
+          this._stanzaio.connect();
         }, 10 * 1000, 'connecting to streaming service', { jid, channelId });
+      })
+      .catch((err) => {
+        this.connecting = false;
+        return Promise.reject(err);
       });
+
   }
 
-  static extend (namespace, extender) {
+  static extend (namespace, extension: StreamingClientExtension | ((client: Client) => void)) {
     if (extensions[namespace]) {
       throw new Error(`Cannot register already existing namespace ${namespace}`);
     }
-    extensions[namespace] = extender;
+    extensions[namespace] = extension;
   }
 
   static get version () {
-    return APP_VERSION;
+    return '__STREAMING_CLIENT_VERSION__';
   }
 }

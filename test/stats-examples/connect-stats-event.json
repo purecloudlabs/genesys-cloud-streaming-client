@@ -1,0 +1,63 @@
+{
+  "name": "connect",
+  "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/86.0.4240.80 Safari/537.36",
+  "platform": "MacIntel",
+  "cores": 16,
+  "connectTime": 66.73999998020008,
+  "remoteCandidateType": "srflx",
+  "localCandidateType": "srflx",
+  "candidatePair": "srflx;srflx",
+  "candidatePairDetails": {
+    "local": {
+      "id": "RTCIceCandidate_lMAu75ps",
+      "timestamp": 1603398166963.071,
+      "type": "local-candidate",
+      "transportId": "RTCTransport_audio_1",
+      "isRemote": false,
+      "networkType": "ethernet",
+      "ip": "192.34.114.17",
+      "port": 53453,
+      "protocol": "udp",
+      "candidateType": "srflx",
+      "priority": 1686052607,
+      "deleted": false
+    },
+    "remote": {
+      "id": "RTCIceCandidate_N5VBdmeA",
+      "timestamp": 1603398166963.071,
+      "type": "remote-candidate",
+      "transportId": "RTCTransport_audio_1",
+      "isRemote": true,
+      "ip": "34.207.116.17",
+      "port": 22692,
+      "protocol": "udp",
+      "candidateType": "srflx",
+      "priority": 1677721855,
+      "deleted": false
+    },
+    "pair": {
+      "id": "RTCIceCandidatePair_lMAu75ps_N5VBdmeA",
+      "timestamp": 1603398166963.071,
+      "type": "candidate-pair",
+      "transportId": "RTCTransport_audio_1",
+      "localCandidateId": "RTCIceCandidate_lMAu75ps",
+      "remoteCandidateId": "RTCIceCandidate_N5VBdmeA",
+      "state": "succeeded",
+      "priority": 7205760502381559000,
+      "nominated": true,
+      "writable": true,
+      "bytesSent": 17910,
+      "bytesReceived": 8811,
+      "totalRoundTripTime": 0.419,
+      "currentRoundTripTime": 0.066,
+      "availableOutgoingBitrate": 300000,
+      "requestsReceived": 3,
+      "requestsSent": 1,
+      "responsesReceived": 5,
+      "responsesSent": 3,
+      "consentRequestsSent": 4
+    }
+  },
+  "transport": "udp",
+  "networkType": "ethernet"
+}

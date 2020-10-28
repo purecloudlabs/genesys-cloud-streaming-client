@@ -1,13 +1,15 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "12.0.2",
+  "version": "13.0.0",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/streaming-client.js",
+  "main": "dist/es/index.js",
+  "module": "dist/npm/module.js",
+  "browser": "dist/streaming-client-browser.js",
   "files": [
     "src",
     "dist"
@@ -15,11 +17,16 @@
   "pre-push": [
     "test"
   ],
+  "types": "dist/es/index.d.ts",
   "scripts": {
     "prebuild": "rimraf dist",
-    "build": "npm run build:cdn && npm run build:module",
-    "build:module": "webpack && webpack --env.production",
-    "build:cdn": "webpack --env.cdn && webpack --env.cdn --env.production",
+    "build": "ts-node scripts/build",
+    "clean": "rimraf dist",
+    "compile": "tsc -p .",
+    "compile:module": "tsc -p . --outDir ./dist/es --target es2015 --module es2015",
+    "compile:rollup": "rollup -c rollup.config.js",
+    "compile:webpack": "webpack --mode production",
+    "compile:webpack:ie": "webpack --env.ie --mode production",
     "test": "semistandard && npm run test:unit",
     "test:unit": "jest --runInBand",
     "test:watch": "jest --watch --runInBand",
@@ -43,38 +50,73 @@
       "afterEach"
     ]
   },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "jsdom",
+    "testRegex": "test/.*test\\.ts$",
+    "testMatch": null,
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "./src/**/*.ts"
+    ],
+    "setupFiles": [
+      "<rootDir>/test/setup.js"
+    ],
+    "coverageDirectory": "./coverage",
+    "coverageReporters": [
+      "text",
+      "html"
+    ]
+  },
   "author": "",
   "dependencies": {
     "@babel/runtime-corejs3": "^7.10.4",
     "backoff-web": "^1.0.1",
     "core-js": "^3.6.5",
     "debounce-promise": "^3.1.2",
-    "genesys-cloud-streaming-client-webrtc-sessions": "^8.0.3",
     "limiter": "^1.1.0",
-    "stanza": "^11.0.0",
+    "lodash.throttle": "^4.1.1",
+    "lru-cache": "^6.0.0",
+    "stanza": "^12.13.1",
+    "strict-event-emitter-types": "^2.0.0",
     "superagent": "^5.1.0",
-    "uuid": "^3.0.1",
+    "unorm": "^1.6.0",
+    "uuid": "^8.3.0",
+    "webrtc-stats-gatherer": "^9.0.3",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
   "devDependencies": {
-    "@babel/core": "^7.10.2",
-    "@babel/plugin-transform-runtime": "^7.10.1",
-    "@babel/preset-env": "^7.10.2",
+    "@babel/core": "^7.12.0",
+    "@babel/plugin-proposal-class-properties": "^7.10.4",
+    "@babel/plugin-proposal-decorators": "^7.10.5",
+    "@babel/plugin-transform-runtime": "^7.12.0",
+    "@babel/preset-env": "^7.12.0",
+    "@babel/preset-typescript": "^7.10.4",
     "@babel/register": "^7.8.6",
+    "@babel/runtime": "^7.12.0",
+    "@rollup/plugin-node-resolve": "^9.0.0",
     "@types/jest": "^26.0.3",
     "@types/nock": "^11.1.0",
+    "@types/node": "^14.6.2",
     "atob": "^2.1.2",
     "babel-jest": "^26.1.0",
     "babel-loader": "^8.1.0",
     "btoa": "^1.2.1",
     "jest": "^26.1.0",
-    "nock": "^10.0.1",
+    "nock": "^13.0.4",
     "pre-push": "^0.1.1",
     "rimraf": "^3.0.2",
+    "rollup": "^2.26.11",
     "semistandard": "^13.0.1",
+    "ts-jest": "^26.3.0",
+    "ts-node": "^9.0.0",
+    "tslint": "^6.1.3",
+    "tslint-config-semistandard": "^8.0.1",
+    "typescript": "^4.0.2",
     "webpack": "^4.35.3",
     "webpack-auto-inject-version": "^1.2.2",
+    "webpack-bundle-analyzer": "^3.8.0",
     "webpack-cli": "^3.3.5",
     "webpack-node-externals": "^2.5.0"
   },
