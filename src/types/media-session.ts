@@ -3,7 +3,6 @@ import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import StatsGatherer, { StatsEvent } from 'webrtc-stats-gatherer';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { applyMixins } from '../utils';
 import { JingleReason, JingleInfo } from 'stanza/protocol';
 
 export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
@@ -13,6 +12,13 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   constructor (options: any, public sessionType: SessionType, private allowIPv6: boolean) {
     super(options);
+
+    // babel does not like the typescript recipe for multiple extends so we are hacking this one
+    // referencing https://github.com/babel/babel/issues/798
+    const eventEmitter = new EventEmitter();
+    Object.keys((eventEmitter as any).__proto__).forEach((name) => {
+      this[name] = eventEmitter[name];
+    });
 
     if (!options.optOutOfWebrtcStatsTelemetry) {
       this.setupStatsGatherer();
@@ -99,5 +105,4 @@ export interface SessionEvents {
   endOfCandidates: void;
 }
 
-applyMixins(GenesysCloudMediaSession, [ EventEmitter ]);
 export interface GenesysCloudMediaSession extends StrictEventEmitter<EventEmitter, SessionEvents> { }

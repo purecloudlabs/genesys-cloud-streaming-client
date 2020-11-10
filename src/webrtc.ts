@@ -107,6 +107,7 @@ export class WebrtcExtension extends EventEmitter {
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: GenesysCloudMediaSession) {
     session.on('stats', (statsEvent: StatsEvent) => {
+      const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
         conference: (session as any).conversationId,
         session: session.sid,
@@ -114,7 +115,7 @@ export class WebrtcExtension extends EventEmitter {
       };
 
       // format the event to what the api expects
-      const event = formatStatsEvent(statsEvent, extraDetails);
+      const event = formatStatsEvent(statsCopy, extraDetails);
 
       this.statsToSend.push(event);
       this.throttledSendStats();
@@ -124,7 +125,7 @@ export class WebrtcExtension extends EventEmitter {
   async sendStats () {
     const stats = this.statsToSend.splice(0, this.statsToSend.length);
 
-    if (!stats.length) {
+    if (!stats.length || !this.client.config.authToken) {
       return;
     }
 

@@ -761,7 +761,7 @@ describe('proxyStatsForSession', () => {
 describe('sendStats', () => {
   // fake timers apparently doesn't work with lodash.throttle/debounce
   it('should send stats from throttle fn', async () => {
-    const client = new Client({});
+    const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
@@ -775,7 +775,7 @@ describe('sendStats', () => {
   });
 
   it('should send stats', async () => {
-    const client = new Client({});
+    const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
@@ -787,8 +787,21 @@ describe('sendStats', () => {
     expect(webrtc['statsToSend'].length).toBe(0);
   });
 
-  it('should not send stats if theres nothing to send', async () => {
+  it('should not send stats if theres no auth token', async () => {
     const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any);
+
+    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    webrtc['statsToSend'].push({} as any);
+    sendSpy.mockReset();
+
+    await webrtc.sendStats();
+    expect(sendSpy).not.toHaveBeenCalled();
+    expect(webrtc['statsToSend'].length).toBe(0);
+  });
+
+  it('should not send stats if theres nothing to send', async () => {
+    const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
@@ -800,7 +813,7 @@ describe('sendStats', () => {
   });
 
   it('should log failure but done nothing', async () => {
-    const client = new Client({});
+    const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(utils, 'requestApi').mockRejectedValue(null);
