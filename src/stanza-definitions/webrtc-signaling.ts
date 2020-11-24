@@ -64,13 +64,13 @@ const sessionRetractedDefinition: DefinitionOptions = {
 
 const screenStartDefinition: DefinitionOptions = {
   aliases: ['iq.jingle.screenstart'],
-  element: 'screenstart',
+  element: 'screen-start',
   namespace: NS_JINGLE_RTP_INFO_1
 };
 
 const screenStopDefinition: DefinitionOptions = {
   aliases: ['iq.jingle.screenstop'],
-  element: 'screenstop',
+  element: 'screen-stop',
   namespace: NS_JINGLE_RTP_INFO_1
 };
 
