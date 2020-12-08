@@ -1,4 +1,4 @@
-@Library('pipeline-library@webapp-pipelines') _
+@Library('pipeline-library@master') _
 
 webappPipeline {
     slaveLabel = 'dev_v2'
@@ -12,6 +12,12 @@ webappPipeline {
 
     buildStep = {
         sh('npm i && npm test && npm run build')
+    }
+
+    snykConfig = {
+        return [
+            organization: 'genesys-client-media-webrtc',
+        ]
     }
 
     cmConfig = {
