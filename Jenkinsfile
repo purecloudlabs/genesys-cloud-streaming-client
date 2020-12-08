@@ -1,4 +1,5 @@
-@Library('pipeline-library@webapp-pipelines') _
+// this will need to be pipeline-library@master when the pr merges
+@Library('pipeline-library@SECDEV-592_implement-snyk-for-webappPipeline') _
 
 webappPipeline {
     slaveLabel = 'dev_v2'
@@ -12,6 +13,12 @@ webappPipeline {
 
     buildStep = {
         sh('npm i && npm test && npm run build')
+    }
+
+    snykConfig = {
+        return [
+            organization: 'genesys-client-media-webrtc',
+        ]
     }
 
     cmConfig = {
