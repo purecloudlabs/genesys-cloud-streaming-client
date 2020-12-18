@@ -89,13 +89,13 @@ export class WebrtcExtension extends EventEmitter {
 
   configureStanzaJingle () {
     Object.assign(this.client._stanzaio.jingle.config.peerConnectionConfig, {
-      sdpSemantics: 'unified-plan',
-      iceTransportPolicy: this.config.iceTransportPolicy || 'all'
+      sdpSemantics: 'unified-plan'
     });
   }
 
   prepareSession (options: any) {
-    options.iceServers = this.config.iceServers || options.iceServers;
+    options.config.iceServers = this.config.iceServers || options.iceServers;
+    options.config.iceTransportPolicy = this.config.iceTransportPolicy || 'all';
     options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
 
     const session = new GenesysCloudMediaSession(options, this.getSessionTypeByJid(options.peerID), this.config.allowIPv6);
