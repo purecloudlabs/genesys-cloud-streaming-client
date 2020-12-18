@@ -45,7 +45,7 @@ describe('constructor', () => {
     const webrtc = new WebrtcExtension(client as any);
     shimCreatePeerConnection(client);
 
-    expect(client._stanzaio.jingle.prepareSession({ parent: client._stanzaio.jingle, peerID: 'something' }) instanceof GenesysCloudMediaSession).toBeTruthy();
+    expect(client._stanzaio.jingle.prepareSession({ parent: client._stanzaio.jingle, peerID: 'something', config: {} }) instanceof GenesysCloudMediaSession).toBeTruthy();
   });
 });
 
