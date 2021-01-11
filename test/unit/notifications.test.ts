@@ -212,6 +212,36 @@ describe('Notifications', () => {
     expect(notification.bulkSubscribe).toHaveBeenCalledTimes(3);
   });
 
+  test('unsubscribe should remove all handlers if a handler is not passed in', async () => {
+    const client = new Client({
+      apiHost: 'example.com',
+      channelId: 'notification-test-channel'
+    });
+    const notification = new Notifications(client);
+
+    // subscribing
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    await Promise.all([
+      notification.expose.subscribe('topic.test', jest.fn()),
+      notification.expose.subscribe('topic.test', jest.fn()),
+      notification.expose.subscribe('topic.test', jest.fn())
+    ]);
+
+    expect(notification.subscriptions['topic.test'].length).toBe(3);
+
+    await notification.expose.unsubscribe(`topic.test`);
+
+    // make sure handlers were cleaned up
+    expect(notification.subscriptions['topic.test']).toBeUndefined();
+
+    notification.expose.subscribe('topic.test', jest.fn());
+    await timeout(150);
+
+    // make sure we didn't ressurrect only handlers
+    expect(notification.subscriptions['topic.test'].length).toBe(1);
+  });
+
   test('subscribe and unsubscribe reject on failures', async () => {
     const client = new Client({});
     client.config = {

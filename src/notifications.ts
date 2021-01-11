@@ -323,6 +323,7 @@ export class Notifications {
       this.removeSubscription(topic, handler);
     } else {
       delete this.bulkSubscriptions[topic];
+      delete this.subscriptions[topic];
     }
 
     this.removeTopicPriority(topic);
