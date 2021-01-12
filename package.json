@@ -1,17 +1,16 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "13.0.4",
+  "version": "13.0.5",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
-  "main": "dist/es/index.js",
-  "module": "dist/npm/module.js",
+  "main": "dist/npm/index.js",
+  "module": "dist/es/module.js",
   "browser": "dist/streaming-client-browser.js",
   "files": [
-    "src",
     "dist"
   ],
   "pre-push": [
