@@ -25,30 +25,3 @@ Child('cp dist/es/index.module.js dist/npm/module.js');
 Child(`cp ${__dirname}/../*.md dist/npm`);
 Child('npm run compile:webpack');
 Child('npm run compile:webpack:ie');
-
-delete Pkg.files;
-
-// Create package.json file
-FS.writeFileSync(
-  'dist/npm/package.json',
-  JSON.stringify(
-    {
-      ...Pkg,
-      browser: './module.js',
-      devDependencies: undefined,
-      main: './index.js',
-      module: './module.js',
-      private: false,
-      scripts: undefined,
-      sideEffects: false,
-      typings: './index',
-      types: './index.d.ts'
-    },
-    null,
-    2
-  )
-);
-
-// Create package bundle
-Child('cd dist/npm && npm pack');
-Child(`mv dist/npm/*.tgz ${__dirname}/../dist/${Pkg.name}.tgz`);
