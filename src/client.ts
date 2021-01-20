@@ -7,7 +7,7 @@ import { Reconnector } from './reconnector';
 import { Ping } from './ping';
 import './polyfills';
 import { requestApi, timeoutPromise } from './utils';
-import { createClient as createStanzaClient, Agent } from 'stanza';
+import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
 
 // external imports
 import { TokenBucket } from 'limiter';
@@ -20,10 +20,11 @@ let extensions = {
   webrtcSessions: WebrtcExtension
 };
 
-function stanzaioOptions (config) {
+function stanzaioOptions (config: ClientOptions & { channelId: string }): AgentConfig {
   let wsHost = config.host.replace(/\/$/, '');
-  let stanzaOptions = {
+  let stanzaOptions: AgentConfig = {
     jid: config.jid,
+    resource: config.jidResource,
     credentials: {
       username: config.jid,
       password: `authKey:${config.authToken}`
@@ -80,6 +81,7 @@ export interface ClientOptions {
   authToken?: string;
   jwt?: string;
   jid?: string;
+  jidResource?: string;
   reconnectOnNoLongerSubscribed?: boolean;
   logger?: any;
   optOutOfWebrtcStatsTelemetry?: boolean;
@@ -127,6 +129,7 @@ export class Client {
       authToken: options.authToken,
       jwt: options.jwt,
       jid: options.jid,
+      jidResource: options.jidResource,
       channelId: null // created on connect
     };
 
