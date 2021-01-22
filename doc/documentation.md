@@ -76,6 +76,7 @@ client.on('requestReconnect', function (callback) {
     - `String host`: Required; `wss://streaming.` + `mypurecloud.com || mypurecloud.ie ||
         mypurecloud.jp || mypurecloud.de || mypurecloud.com.au`
     - `String jid` : Required; JabberId for the user (get from `api/v2/users/me`) (not required if using guest authentication JWT)
+    - `String jidResource`: Optional; The identifier that will go into the full jid. The jid will be constructed as {usersBareJid}/{jidResource}. This is helpful for identifying specific clients.
     - `String jwt` : Optional (Required for guest authentication); Json Web Token fetched from public API for acess
         to a particular feature in guest mode (see documentation for Screen Share or Web Chat for details)
     - `Boolean optOutOfWebrtcStatsTelemetry` : Optional; if true, streaming-client will not send webrtc stats to server (packet loss, bitrate, jitter, etc...)
