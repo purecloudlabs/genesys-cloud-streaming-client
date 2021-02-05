@@ -2,7 +2,7 @@
 
 import { Client } from './client';
 
-const DEFAULT_PING_INTERVAL = 10 * 1000;
+const DEFAULT_PING_INTERVAL = 15 * 1000 + 10; // same default as stanza message timeouts (+ 10 offset)
 const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
 export interface PingOptions {
@@ -36,7 +36,7 @@ export class Ping {
       };
       this.client.logger.warn('Missed a ping.', Object.assign({ error: err }, info));
       if (++this.numberOfFailedPings > this.failedPingsBeforeDisconnect) {
-        clearInterval(this.pingIntervalId);
+        this.stop();
         this.client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings: this.numberOfFailedPings }, info));
         this.client._stanzaio.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
       }

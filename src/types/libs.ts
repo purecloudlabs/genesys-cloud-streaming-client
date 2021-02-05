@@ -15,3 +15,28 @@ declare module 'wildemitter' {
     static mixin (arg: any): void;
   }
 }
+
+declare module 'backoff-web' {
+  export interface Backoff {
+    failAfter (attempts: number): void;
+    on (evt: 'ready', callback: (number: number, delay: number) => void): void;
+    on (evt: 'backoff', callback: (number: number, delay: number) => void): void;
+    on (evt: 'fail', callback: (...args: any[]) => void): void;
+    backoff (): void;
+    reset (): void
+
+    /* private */
+    backoffNumber_: number;
+  }
+
+  const backoffInitializer: {
+    exponential (options: {
+      randomisationFactor: number;
+      initialDelay: number;
+      maxDelay: number;
+      factor: number;
+    }): Backoff;
+  };
+
+  export default backoffInitializer;
+}
