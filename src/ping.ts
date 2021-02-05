@@ -2,7 +2,7 @@
 
 import { Client } from './client';
 
-const DEFAULT_PING_INTERVAL = 15 * 1000 + 10; // same default as stanza message timeouts (+ 10 offset)
+const DEFAULT_PING_INTERVAL = 15 * 1000; // same default as stanza message timeouts
 const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
 export interface PingOptions {

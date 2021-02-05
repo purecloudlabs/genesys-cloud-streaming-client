@@ -108,7 +108,7 @@ export class Client {
   _webrtcSessions!: WebrtcExtension;
 
   _ping: any;
-  _reconnector: any;
+  _reconnector!: Reconnector;
 
   constructor (options: ClientOptions) {
     const stanzaio = createStanzaClient({});
@@ -293,7 +293,7 @@ export class Client {
     return timeoutPromise(resolve => {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
-      this._reconnector.stop(); // just in case there is already an active reconnect trying
+      this._reconnector.stop(new Error('Cancelling reconnect')); // just in case there is already an active reconnect trying
       this._stanzaio.disconnect();
     }, 1000, 'disconnecting streaming service');
   }

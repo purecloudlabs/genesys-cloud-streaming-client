@@ -181,7 +181,7 @@ describe('Client', () => {
   test('Should begin to reconnect when it becomes disconnected', () => {
     const client = new Client(getDefaultOptions());
 
-    return new Promise(resolve => {
+    return new Promise<void>(resolve => {
       client._stanzaio.connect = jest.fn().mockImplementation(() => {
         client._stanzaio.emit('connected');
         resolve();
@@ -193,7 +193,7 @@ describe('Client', () => {
   test('Should begin to reconnect when it becomes disconnected', () => {
     const client = new Client(getDefaultOptions());
 
-    return new Promise(resolve => {
+    return new Promise<void>(resolve => {
       client._stanzaio.connect = jest.fn().mockImplementation(() => {
         client._stanzaio.emit('connected');
         resolve();
@@ -215,7 +215,7 @@ describe('Client', () => {
     const client = new Client(getDefaultOptions());
     client.autoReconnect = true;
     client.connecting = true;
-    jest.spyOn(client._reconnector, 'start').mockReturnValue(null);
+    jest.spyOn(client._reconnector, 'start').mockReturnValue(undefined);
     jest.spyOn(client.logger, 'warn').mockReturnValue(null);
     client._stanzaio.emit('disconnected', undefined);
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -226,7 +226,7 @@ describe('Client', () => {
     const client = new Client(getDefaultOptions());
     client.autoReconnect = true;
     client._stanzaio.transport = {} as any;
-    jest.spyOn(client._reconnector, 'start').mockReturnValue(null);
+    jest.spyOn(client._reconnector, 'start').mockReturnValue(undefined);
     jest.spyOn(client.logger, 'warn').mockReturnValue(null);
     client._stanzaio.emit('disconnected', undefined);
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -236,7 +236,7 @@ describe('Client', () => {
   test('Should not reconnect if disconnect is triggered with no event', async () => {
     const client = new Client(getDefaultOptions());
     client.autoReconnect = false;
-    jest.spyOn(client._reconnector, 'start').mockReturnValue(null);
+    jest.spyOn(client._reconnector, 'start').mockReturnValue(undefined);
     client._stanzaio.emit('disconnected', {} as any);
     await new Promise(resolve => setTimeout(resolve, 100));
     expect(client._reconnector.start).not.toHaveBeenCalled();

@@ -92,8 +92,9 @@ export class Reconnector {
       if (channelExpired) {
         return this.hardReconnect();
       } else if (!temporaryFailure) {
-        this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', sasl);
-        this.stop();
+        const msg = 'Critical error reconnecting; stopping automatic reconnect';
+        this.client.logger.error(msg, sasl);
+        this.stop(new Error(msg));
       }
     });
 
@@ -133,43 +134,17 @@ export class Reconnector {
     this.cleanupReconnect();
     this._hasConnected = false;
 
+    const retryFunction = this._attemptHardReconnect.bind(this);
+
     this._hardReconnectRetryInfo = {} as any;
     this._hardReconnectRetryInfo!.promise = new Promise<void>((resolve, reject) => {
-      /* defer this to allow it to be canceled */
+      /* retry once before setting the interval */
+      retryFunction();
+
+      /* defer this to allow it to be canceled in _stopHardReconnect() */
       this._hardReconnectRetryInfo!.resolve = resolve;
       this._hardReconnectRetryInfo!.reject = reject;
-      this._hardReconnectRetryInfo!.interval = setInterval(async () => {
-        this.client.logger.debug('inside setInterval');
-
-        /* if we aren't online, don't retry the new channel */
-        if (!navigator.onLine) {
-          return this.client.logger.debug('Browser is offline. Not attempting to reconnect with new channel.');
-        }
-
-        try {
-          this.client.logger.info('Attempting to reconnect with new channel.');
-
-          await this.client.connect();
-
-          this._stopHardReconnect();
-        } catch (error) {
-          /* this error comes from superagent for requests that timeout for network offline */
-          if (error.message.startsWith('Request has been terminated')) {
-            return this.client.logger.debug('request offline. attempting reconnect again', error);
-          }
-          /* error client thrown timeouts */
-          else if (error.message.startsWith('Timeout: ')) {
-            return this.client.logger.debug(`Streaming-client timedout. attempting reconnect again: "${error.message}"`);
-          }
-          /* superagent retriable error */
-          else if (error && this._retryStatusCodes.has(error.status)) {
-            return this.client.logger.debug('Received HTTP status code eligible for retry. attempt reconnect again', error);
-          }
-
-          /* if it is an error we can't retry, reject with it */
-          this._stopHardReconnect(error);
-        }
-      }, HARD_RECONNECT_RETRY_MS);
+      this._hardReconnectRetryInfo!.interval = setInterval(retryFunction, HARD_RECONNECT_RETRY_MS);
     });
 
     return this._hardReconnectRetryInfo!.promise;
@@ -188,9 +163,9 @@ export class Reconnector {
     this._backoffActive = true;
   }
 
-  stop () {
+  stop (error?: any) {
     this.cleanupReconnect();
-    this._stopHardReconnect();
+    this._stopHardReconnect(error);
   }
 
   private _stopHardReconnect (error?: any) {
@@ -204,5 +179,36 @@ export class Reconnector {
 
     clearInterval(this._hardReconnectRetryInfo.interval);
     this._hardReconnectRetryInfo = null;
+  }
+
+  private async _attemptHardReconnect () {
+    /* if we aren't online, don't retry the new channel */
+    if (!navigator.onLine) {
+      return this.client.logger.debug('Browser is offline. Not attempting to reconnect with new channel.');
+    }
+
+    try {
+      this.client.logger.info('Attempting to reconnect with new channel.');
+
+      await this.client.connect();
+
+      this._stopHardReconnect();
+    } catch (error) {
+      /* this error comes from superagent for requests that timeout for network offline */
+      if (error.message.startsWith('Request has been terminated')) {
+        return this.client.logger.debug('request offline. attempting reconnect again', error);
+      }
+      /* error client throws timeouts */
+      else if (error.message.startsWith('Timeout: ')) {
+        return this.client.logger.debug(`Streaming-client timed out. attempting reconnect again: "${error.message}"`);
+      }
+      /* superagent retriable error */
+      else if (error && this._retryStatusCodes.has(error.status)) {
+        return this.client.logger.debug('Received HTTP status code eligible for retry. attempting reconnect again', error);
+      }
+
+      /* if it is an error we can't retry, reject with it */
+      this._stopHardReconnect(error);
+    }
   }
 }
