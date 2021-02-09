@@ -138,7 +138,7 @@ export class Reconnector {
 
     this._hardReconnectRetryInfo = {} as any;
     this._hardReconnectRetryInfo!.promise = new Promise<void>((resolve, reject) => {
-      /* retry once before setting the interval */
+      /* run the retry immediately so we don't have to wait for the first interval timer */
       retryFunction();
 
       /* defer this to allow it to be canceled in _stopHardReconnect() */
