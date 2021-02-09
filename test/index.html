@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streaming Client Local Test</title>
+</head>
+
+<body>
+  <script src="../dist/streaming-client.browser.js"></script>
+  <script>
+    const client = new window.GenesysCloudStreamingClient({
+      host: 'wss://streaming.inindca.com',
+      authToken: 'INSERT_TOKEN_HERE'
+    });
+
+    window.client = client;
+
+    // client.on('*', console.log);
+
+    client.connect();
+  </script>
+</body>
+
+</html>

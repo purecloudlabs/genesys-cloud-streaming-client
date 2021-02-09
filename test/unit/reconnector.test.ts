@@ -48,24 +48,16 @@ class Client {
   connected = false;
   connecting = false;
   logger = {
-    debug () { },
-    info () { },
-    warn () { },
-    error () { }
+    debug: jest.fn(),
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
   };
 
   _stanzaio: WildEmitter & Agent;
 
   constructor (public connectTimeout?) {
     this.connectTimeout = connectTimeout;
-
-    this.logger = {
-      warn () { },
-      error () { },
-      debug () { },
-      info () { }
-    };
-
     this._stanzaio = new MockStanzaIo(connectTimeout, this) as any;
   }
 
@@ -73,7 +65,7 @@ class Client {
     (this._stanzaio.on as any)(...arguments);
   }
 
-  connect () {
+  async connect () {
     this.connectAttempts = 0;
   }
   reconnect () { }
@@ -85,8 +77,13 @@ describe('Reconnector', () => {
     jest.useFakeTimers();
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     jest.clearAllTimers();
+    // flush any remaining promises
+    // SANITY: promises get complicated when using
+    //  fakeTimers. See this for reference:
+    //  https://stackoverflow.com/questions/52177631/jest-timer-and-promise-dont-work-well-settimeout-and-async-function
+    await Promise.resolve();
   });
 
   // all tests in this module are serial because we're messing with time
@@ -181,7 +178,7 @@ describe('Reconnector', () => {
 
   it('will attempt a full reconnection after 10 failures', () => {
     const client = new Client();
-    jest.spyOn(client, 'connect').mockReturnValue(undefined);
+    jest.spyOn(client, 'connect').mockResolvedValue();
     const reconnect = new Reconnector(client);
     reconnect.start();
 
@@ -193,6 +190,196 @@ describe('Reconnector', () => {
     jest.advanceTimersByTime(2000);
 
     expect(client.connect).toHaveBeenCalledTimes(1);
+  });
+
+
+  describe('hardReconnect()', () => {
+    it('should successfully reconnect without waiting for retry interval', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect').mockResolvedValue(undefined);
+
+      await reconnect.hardReconnect();
+      // SANITY: jest.advanceTimers... is not needed because this
+      //  function will instantly try to reconnect and _then_ add
+      //  the setInterval to keep retrying
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+      expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry for network issues', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect').mockResolvedValue(undefined);
+
+      /* timeout error */
+      const superagentOfflineError = new Error('Request has been terminated\ncould be for some reason');
+
+      // simulate 3 errors
+      jest.spyOn(client, 'connect')
+        .mockRejectedValueOnce(superagentOfflineError)
+        .mockRejectedValueOnce(superagentOfflineError)
+        .mockRejectedValueOnce(superagentOfflineError)
+        .mockResolvedValue(undefined);
+
+      // have to run timers before awaiting this promise
+      reconnect.hardReconnect();
+
+      jest.advanceTimersByTime(15001);
+      jest.advanceTimersByTime(15001);
+      jest.advanceTimersByTime(15001);
+
+      await Promise.resolve();
+
+      expect(connectSpy).toHaveBeenCalledTimes(4);
+      expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should only retry if network is online', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect').mockResolvedValue(undefined);
+
+      // simulate offline
+      Object.defineProperty(navigator, 'onLine', { value: false, writable: true });
+
+      // have to run timers before awaiting this promise
+      reconnect.hardReconnect();
+
+      // first cycle
+      jest.advanceTimersByTime(15001);
+      await Promise.resolve();
+
+      expect(connectSpy).not.toHaveBeenCalled();
+      expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
+
+      // second cycle (duplicate)
+      jest.advanceTimersByTime(15001);
+      await Promise.resolve();
+
+      expect(connectSpy).not.toHaveBeenCalled();
+      expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
+
+      // third cycle (online)
+      Object.defineProperty(navigator, 'onLine', { value: true, writable: true });
+      jest.advanceTimersByTime(15001);
+      await Promise.resolve();
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+      expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry streaming-client throws a timeoutPromise', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect')
+        .mockRejectedValueOnce(new Error('Timeout: connecting to streaming service'))
+        .mockResolvedValueOnce(undefined); // then connects
+
+      // have to run timers before awaiting this promise
+      reconnect.hardReconnect();
+
+      await Promise.resolve();
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+      expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(15001);
+      await Promise.resolve();
+
+      expect(connectSpy).toHaveBeenCalledTimes(2);
+      expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry for retriable HTTP status codes', async () => {
+      const test = async (statusCode: number) => {
+        const client = new Client();
+        const reconnect = new Reconnector(client);
+
+        const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+        const error = new Error('Bad request or something');
+        (error as any).status = statusCode;
+
+        const connectSpy = jest.spyOn(client, 'connect')
+          .mockRejectedValueOnce(error)
+          .mockResolvedValueOnce(undefined); // then completes
+
+        // have to run timers before awaiting this promise
+        reconnect.hardReconnect();
+
+        await Promise.resolve();
+
+        expect(connectSpy).toHaveBeenCalledTimes(1);
+        expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
+
+        jest.advanceTimersByTime(15001);
+        await Promise.resolve();
+
+        expect(connectSpy).toHaveBeenCalledTimes(2);
+        expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+      };
+
+      const retriableCodes = [
+        408,
+        413,
+        429,
+        500,
+        502,
+        503,
+        504,
+      ];
+
+      for (let i = 0; i < retriableCodes.length; i++) {
+        await test(retriableCodes[i]);
+      }
+    });
+
+    it('should re-use the current hard reconnect attempt if called a second time', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect')
+        .mockResolvedValueOnce(undefined);
+
+      // multiple calls before it completes
+      reconnect.hardReconnect();
+      reconnect.hardReconnect();
+      reconnect.hardReconnect();
+
+      await Promise.resolve();
+
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+      expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should throw if hard reconnect fails for non retriable error', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+      const error = new Error('something broke');
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect').mockRejectedValue(error);
+
+      try {
+        await reconnect.hardReconnect();
+        fail('should have thrown');
+      } catch (e) {
+        expect(e).toBe(error);
+        expect(connectSpy).toHaveBeenCalledTimes(1);
+        expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
+        expect(_stopHardReconnectSpy).toHaveBeenCalledWith(error);
+      }
+    });
   });
 
   it('when an auth failure occurs it will cease the backoff', () => {
@@ -246,7 +433,7 @@ describe('Reconnector', () => {
     client._stanzaio.emit('sasl', { type: 'failure' });
   });
 
-  it('will reconnect if an authorization error occurs after a connection has connected previously', () => {
+  it('will reconnect if an authorization error occurs after a connection has connected previously', async () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     reconnect.start();
@@ -271,10 +458,9 @@ describe('Reconnector', () => {
     expect(client.connected).toBe(false);
 
     jest.advanceTimersByTime(10);
-    client._stanzaio.emit('sasl', { type: 'failure' }); // now fail permanently to stop tests
-    client.connecting = false;
 
-    // make sure it didn't keep trying
+    /* clean up the test and make sure it didn't keep trying */
+    await Promise.resolve();
     jest.advanceTimersByTime(10000);
     expect(client.connectAttempts).toBe(1);
   });
@@ -322,7 +508,7 @@ describe('Reconnector', () => {
     await reconnected;
   });
 
-  test('will wait to reconnect if called back with pending', async () => {
+  it('will wait to reconnect if called back with pending', async () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     jest.spyOn(client, 'reconnect').mockImplementation(() => {
@@ -353,7 +539,7 @@ describe('Reconnector', () => {
     await reconnected;
   });
 
-  test('will wait no longer than 1 hour after pending callback to reconnect', async () => {
+  it('will wait no longer than 1 hour after pending callback to reconnect', async () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     jest.spyOn(client, 'reconnect').mockImplementation(() => {
@@ -383,7 +569,7 @@ describe('Reconnector', () => {
     await reconnected;
   });
 
-  test('will reconnect after a second if no pending or done response is received', async () => {
+  it('will reconnect after a second if no pending or done response is received', async () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
     jest.spyOn(client, 'reconnect').mockImplementation(() => {

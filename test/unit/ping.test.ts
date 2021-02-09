@@ -5,7 +5,7 @@ import { Ping } from '../../src/ping';
 // const test = require('ava');
 // const sinon = require('sinon');
 
-const DEFAULT_PING_INTERVAL = 10 * 1000;
+const DEFAULT_PING_INTERVAL = 15 * 1000 + 10;
 const PING_INTERVAL_WITH_BUFFER = DEFAULT_PING_INTERVAL + 100;
 
 let standardOptions;
@@ -44,12 +44,12 @@ describe('Ping', () => {
     jest.clearAllTimers();
   });
 
-  test('accepts null options', () => {
+  it('accepts null options', () => {
     const ping = new Ping({} as any);
     expect(ping).toBeTruthy();
   });
 
-  test('when started it sends a ping on an interval', () => {
+  it('when started it sends a ping on an interval', () => {
     let ping = new Ping(client, standardOptions);
 
     ping.start();
@@ -59,7 +59,7 @@ describe('Ping', () => {
     expect(pingCallCount).toBe(2);
   });
 
-  test('when started multiple times it sends a ping on a single interval', () => {
+  it('when started multiple times it sends a ping on a single interval', () => {
     let ping = new Ping(client, standardOptions);
 
     ping.start();
@@ -110,7 +110,7 @@ describe('Ping', () => {
     expect(infoJid).toBe(jid);
   });
 
-  test('receiving a ping response resets the failure mechanism', () => {
+  it('receiving a ping response resets the failure mechanism', () => {
     const jid = 'myfulljid';
     const channelId = 'somechannel';
     let pingCount = 0;
@@ -140,7 +140,7 @@ describe('Ping', () => {
     expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
   });
 
-  test('allows ping interval override', () => {
+  it('allows ping interval override', () => {
     const options = {
       jid: 'anon@example.mypurecloud.com',
       pingInterval: 60000
@@ -202,7 +202,7 @@ describe('Ping', () => {
     expect(client._stanzaio.sendStreamError).toHaveBeenCalled();
   });
 
-  test('stop should cause no more pings', () => {
+  it('stop should cause no more pings', () => {
     let ping = new Ping(client, standardOptions);
     ping.start();
 
@@ -217,7 +217,7 @@ describe('Ping', () => {
     expect(pingCallCount).toBe(1);
   });
 
-  test('more than one stop is okay', () => {
+  it('more than one stop is okay', () => {
     let ping = new Ping(client, standardOptions);
     ping.start();
 
@@ -226,10 +226,10 @@ describe('Ping', () => {
     expect(pingCallCount).toBe(0);
   });
 
-  test('more than one start is okay', () => {
+  it('more than one start is okay', () => {
     let ping = new Ping(client, standardOptions);
     ping.start();
-    jest.advanceTimersByTime(11000);
+    jest.advanceTimersByTime(16000);
     ping.start();
 
     ping.stop();

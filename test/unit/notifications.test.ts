@@ -316,7 +316,7 @@ describe('Notifications', () => {
     notification.bulkSubscriptions.test3 = true;
     expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
     await notification.expose.unsubscribe('test2', handler3, true);
-    const errorEvent = new Promise((resolve) => {
+    const errorEvent = new Promise<void>((resolve) => {
       client._stanzaio.on('pubsub:error', err => {
         expect(err.err.message).toBe('intentional test error');
         resolve();

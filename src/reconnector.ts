@@ -1,9 +1,12 @@
 'use strict';
 
 const backoff = require('backoff-web');
+import { Backoff } from 'backoff-web'; // this is just an interface
 
 import { Client } from './client';
 import { DefinitionOptions, childText } from 'stanza/jxt';
+
+const HARD_RECONNECT_RETRY_MS = 15000;
 
 const CXFR_NAMESPACE = 'urn:xmpp:cxfr';
 export const CXFRDefinition: DefinitionOptions = {
@@ -18,10 +21,28 @@ export const CXFRDefinition: DefinitionOptions = {
 
 export class Reconnector {
   client: Client;
-  backoff: any;
+  backoff: Backoff;
   _hasConnected = false;
-  _cleanupReconnect: any;
   _backoffActive = false;
+
+  /* deferred promise and hardReconnect retry info */
+  _hardReconnectRetryInfo: null | {
+    promise: Promise<void>;
+    resolve: Function;
+    reject: Function;
+    interval: any;
+  } = null;
+
+  /* HTTP status codes that warrant retry */
+  _retryStatusCodes = new Set([
+    408,
+    413,
+    429,
+    500,
+    502,
+    503,
+    504,
+  ]);
 
   constructor (client) {
     this.client = client;
@@ -33,8 +54,7 @@ export class Reconnector {
     });
 
     this.backoff.failAfter(10);
-
-    this.backoff.on('ready', (num, delay) => {
+    this.backoff.on('ready', (_num, _delay) => {
       if (this.client.connected) {
         this.client.logger.debug('Backoff ready, client already connected');
         return;
@@ -56,11 +76,9 @@ export class Reconnector {
       return this.hardReconnect();
     });
 
-    // self bound methods so we can clean up the handlers
-    this._cleanupReconnect = this.cleanupReconnect.bind(this);
     this.client.on('connected', () => {
       this._hasConnected = true;
-      this._cleanupReconnect();
+      this.stop();
     });
 
     // disable reconnecting when there's an auth failure
@@ -74,8 +92,9 @@ export class Reconnector {
       if (channelExpired) {
         return this.hardReconnect();
       } else if (!temporaryFailure) {
-        this.client.logger.error('Critical error reconnecting; stopping automatic reconnect', sasl);
-        this._cleanupReconnect();
+        const msg = 'Critical error reconnecting; stopping automatic reconnect';
+        this.client.logger.error(msg, sasl);
+        this.stop(new Error(msg));
       }
     });
 
@@ -107,11 +126,28 @@ export class Reconnector {
     this._backoffActive = false;
   }
 
-  hardReconnect () {
-    this.client.logger.info('Attempting to reconnect with new channel.');
-    this._cleanupReconnect();
+  hardReconnect (): Promise<void> {
+    if (this._hardReconnectRetryInfo) {
+      return this._hardReconnectRetryInfo.promise;
+    }
+
+    this.cleanupReconnect();
     this._hasConnected = false;
-    return this.client.connect();
+
+    const retryFunction = this._attemptHardReconnect.bind(this);
+
+    this._hardReconnectRetryInfo = {} as any;
+    this._hardReconnectRetryInfo!.promise = new Promise<void>((resolve, reject) => {
+      /* run the retry immediately so we don't have to wait for the first interval timer */
+      retryFunction();
+
+      /* defer this to allow it to be canceled in _stopHardReconnect() */
+      this._hardReconnectRetryInfo!.resolve = resolve;
+      this._hardReconnectRetryInfo!.reject = reject;
+      this._hardReconnectRetryInfo!.interval = setInterval(retryFunction, HARD_RECONNECT_RETRY_MS);
+    });
+
+    return this._hardReconnectRetryInfo!.promise;
   }
 
   cleanupReconnect () {
@@ -127,8 +163,52 @@ export class Reconnector {
     this._backoffActive = true;
   }
 
-  stop () {
-    this.backoff.reset();
-    this._backoffActive = false;
+  stop (error?: any) {
+    this.cleanupReconnect();
+    this._stopHardReconnect(error);
+  }
+
+  private _stopHardReconnect (error?: any) {
+    if (!this._hardReconnectRetryInfo) return;
+
+    if (error) {
+      this._hardReconnectRetryInfo.reject(error);
+    } else {
+      this._hardReconnectRetryInfo.resolve();
+    }
+
+    clearInterval(this._hardReconnectRetryInfo.interval);
+    this._hardReconnectRetryInfo = null;
+  }
+
+  private async _attemptHardReconnect () {
+    /* if we aren't online, don't retry the new channel */
+    if (!navigator.onLine) {
+      return this.client.logger.debug('Browser is offline. Not attempting to reconnect with new channel.');
+    }
+
+    try {
+      this.client.logger.info('Attempting to reconnect with new channel.');
+
+      await this.client.connect();
+
+      this._stopHardReconnect();
+    } catch (error) {
+      /* this error comes from superagent for requests that timeout for network offline */
+      if (error.message.startsWith('Request has been terminated')) {
+        return this.client.logger.debug('request offline. attempting reconnect again', error);
+      }
+      /* error client throws timeouts */
+      else if (error.message.startsWith('Timeout: ')) {
+        return this.client.logger.debug(`Streaming-client timed out. attempting reconnect again: "${error.message}"`);
+      }
+      /* superagent retriable error */
+      else if (error && this._retryStatusCodes.has(error.status)) {
+        return this.client.logger.debug('Received HTTP status code eligible for retry. attempting reconnect again', error);
+      }
+
+      /* if it is an error we can't retry, reject with it */
+      this._stopHardReconnect(error);
+    }
   }
 }

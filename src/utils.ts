@@ -9,7 +9,18 @@ function buildUri (host, path, version = 'v2') {
   return `https://api.${host}/api/${version}/${path}`;
 }
 
-export function requestApi (this: any, path, opts: { method?, data?, host?, version?, contentType?, authToken?, logger? }) {
+export function requestApi (
+  this: any,
+  path: string,
+  opts: {
+    method?: string;
+    data?: any;
+    host?: string;
+    version?: string;
+    contentType?: string;
+    authToken?: string;
+    logger?: any
+  }) {
   let response = request[opts.method](buildUri(opts.host, path, opts.version))
     .use(reqlogger.bind(this, opts.logger, opts.data))
     .set('Authorization', `Bearer ${opts.authToken}`)
@@ -18,8 +29,8 @@ export function requestApi (this: any, path, opts: { method?, data?, host?, vers
   return response.send(opts.data); // trigger request
 }
 
-export function timeoutPromise (fn, timeoutMs, msg, details?) {
-  return new Promise(function (resolve, reject) {
+export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, details?: any) {
+  return new Promise<void>(function (resolve, reject) {
     const timeout = setTimeout(function () {
       const err = new Error(`Timeout: ${msg}`);
       (err as any).details = details;
@@ -33,7 +44,7 @@ export function timeoutPromise (fn, timeoutMs, msg, details?) {
   });
 }
 
-export function splitIntoIndividualTopics (topicString) {
+export function splitIntoIndividualTopics (topicString: string) {
   const topics: string[] = [];
 
   if (topicString.includes('?')) {
