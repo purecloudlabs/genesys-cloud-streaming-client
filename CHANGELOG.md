@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [v13.1.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.1.0...v13.1.1)
 ### Fixed
 * [PCM-1516](https://inindca.atlassian.net/browse/PCM-1516) – hard reconnects were not retried making network losses fatal
+* [PCM-1525](https://inindca.atlassian.net/browse/PCM-1525) - fix xml attr for conversationId for upgrademedia stanza
 
 # [v13.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.0.5...v13.1.0)
 ### Added
