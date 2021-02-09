@@ -78,7 +78,7 @@ const upgradeMediaPresenceDefinition: DefinitionOptions = {
   aliases: ['presence.media'],
   element: 'x',
   fields: {
-    conversationId: attribute('coversationId'),
+    conversationId: attribute('conversationId'),
     sourceCommunicationId: attribute('sourceCommunicationId'),
     screenShare: childAttribute(null, 'mediastream', 'screenShare'),
     video: childAttribute(null, 'mediastream', 'video'),
