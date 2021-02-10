@@ -413,7 +413,7 @@ describe('Client', () => {
     const client = new Client(getDefaultOptions());
     const reconnectSpy = jest.fn();
     client._reconnector.hardReconnect = reconnectSpy;
-    const pingSpy = jest.spyOn(client._ping, 'stop').mockReturnValue(null);
+    const pingSpy = jest.spyOn(client._ping, 'stop').mockReturnValue(undefined);
     let channelId = 'streaming-484824828';
     client.config.channelId = channelId;
     client._stanzaio.emit('notify:no_longer_subscribed' as any, { eventBody: { channelId } });
@@ -427,7 +427,7 @@ describe('Client', () => {
     const client = new Client(options);
     const reconnectSpy = jest.fn();
     client._reconnector.hardReconnect = reconnectSpy;
-    const pingSpy = jest.spyOn(client._ping, 'stop').mockReturnValue(null);
+    const pingSpy = jest.spyOn(client._ping, 'stop').mockReturnValue(undefined);
     let channelId = 'streaming-484824828';
     client.config.channelId = channelId;
     client._stanzaio.emit('notify:no_longer_subscribed' as any, { eventBody: { channelId } });

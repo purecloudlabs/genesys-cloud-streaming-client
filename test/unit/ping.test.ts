@@ -110,6 +110,43 @@ describe('Ping', () => {
     expect(infoJid).toBe(jid);
   });
 
+  it('should not count pings for old/cleared intervals', async () => {
+    const jid = 'myfulljid';
+    const channelId = 'somechannel';
+    const client = {
+      config: {
+        channelId
+      },
+      logger: { warn: jest.fn(), error: jest.fn() },
+      _stanzaio: {
+        ping: jest.fn().mockRejectedValue(new Error('Missed pong')),
+        jid,
+        sendStreamError: jest.fn()
+      }
+    };
+    let ping = new Ping(client as any, standardOptions);
+    ping.start();
+
+    // move forward in time to one ping
+    jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+    await flushPromises();
+
+
+    // move forward again
+    jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+
+    // simulate stopping before _stanzaio.ping rejects
+    ping.stop();
+
+    await flushPromises();
+
+    // verify it sends a stream error
+    expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
+    expect(client.logger.warn).toHaveReturnedTimes(2);
+    expect(client.logger.warn).toHaveBeenCalledWith('Disregarding a missed ping for an old interval', expect.any(Object));
+    expect(ping['numberOfFailedPings']).toBe(0);
+  });
+
   it('receiving a ping response resets the failure mechanism', () => {
     const jid = 'myfulljid';
     const channelId = 'somechannel';

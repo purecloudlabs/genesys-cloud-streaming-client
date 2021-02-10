@@ -107,10 +107,8 @@ export class Client {
   webrtcSessions!: WebrtcExtensionAPI;
   _webrtcSessions!: WebrtcExtension;
 
-  _ping: any;
+  _ping!: Ping;
   _reconnector!: Reconnector;
-
-  _httpRetries: Map<string, RetryPromise<any>> = new Map();
 
   constructor (options: ClientOptions) {
     this.http = new HttpClient();

@@ -83,7 +83,7 @@ describe('Reconnector', () => {
     // SANITY: promises get complicated when using
     //  fakeTimers. See this for reference:
     //  https://stackoverflow.com/questions/52177631/jest-timer-and-promise-dont-work-well-settimeout-and-async-function
-    await Promise.resolve();
+    await new Promise(setImmediate);
   });
 
   // all tests in this module are serial because we're messing with time

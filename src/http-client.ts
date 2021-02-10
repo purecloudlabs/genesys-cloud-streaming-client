@@ -54,9 +54,7 @@ export class HttpClient {
 
   stopAllRetries (): void {
     Array.from(this._apiRequestsMap.keys())
-      .forEach(key =>
-        this._cancelAndRemoveValueFromRetryMap(key)
-      );
+      .forEach(key => this._cancelAndRemoveValueFromRetryMap(key));
   }
 
   private _buildUri (host: string, path: string, version = 'v2') {
