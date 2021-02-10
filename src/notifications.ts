@@ -1,8 +1,9 @@
-import { requestApi, splitIntoIndividualTopics } from './utils';
-// import PubsubEventMessage from 'stanza/plugins/pubsub';
-import { Client } from './client';
 import { PubsubEvent, PubsubSubscription, PubsubSubscriptionWithOptions } from 'stanza/protocol';
 const debounce = require('debounce-promise');
+
+import { Client } from './client';
+import { RequestApiOptions } from './types/interfaces';
+import { splitIntoIndividualTopics } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 const MAX_SUBSCRIBABLE_TOPICS = 1000;
@@ -96,7 +97,7 @@ export class Notifications {
     }
   }
 
-  mapCombineTopics (topics: string[]): Array<{ id: string}> {
+  mapCombineTopics (topics: string[]): Array<{ id: string }> {
     const prefixes = {};
     const precombinedTopics: Array<{ id: string }> = [];
     const uncombinedTopics: string[] = [];
@@ -118,7 +119,7 @@ export class Notifications {
       if (prefixes[t.prefix]) {
         prefixes[t.prefix].push(t.postfix);
       } else {
-        prefixes[t.prefix] = [ t.postfix ];
+        prefixes[t.prefix] = [t.postfix];
       }
     });
 
@@ -147,7 +148,7 @@ export class Notifications {
     return this.truncateTopicList(this.prioritizeTopicList(allTopics));
   }
 
-  prioritizeTopicList (topics: Array<{ id: string }>): Array<{ id: string}> {
+  prioritizeTopicList (topics: Array<{ id: string }>): Array<{ id: string }> {
     topics.sort((topicA, topicB) => {
       return (this.getTopicPriority(topicB.id) - this.getTopicPriority(topicA.id));
     });
@@ -163,7 +164,7 @@ export class Notifications {
     return returnDefault ? priority || DEFAULT_PRIORITY : priority;
   }
 
-  truncateTopicList (topics: Array<{ id: string}>): Array<{ id: string}> {
+  truncateTopicList (topics: Array<{ id: string }>): Array<{ id: string }> {
     const keptTopics = topics.slice(0, MAX_SUBSCRIBABLE_TOPICS);
     if (topics.length > MAX_SUBSCRIBABLE_TOPICS) {
       let droppedTopics = topics.slice(MAX_SUBSCRIBABLE_TOPICS);
@@ -178,7 +179,7 @@ export class Notifications {
   }
 
   makeBulkSubscribeRequest (topics: string[], options): Promise<any> {
-    const requestOptions = {
+    const requestOptions: RequestApiOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
@@ -186,7 +187,7 @@ export class Notifications {
       logger: this.client.logger
     };
     const channelId = this.client.config.channelId;
-    return requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
+    return this.client.http.requestApiWithRetry(`notifications/channels/${channelId}/subscriptions`, requestOptions);
   }
 
   createSubscription (topic: string, handler: (obj?: any) => void): void {
@@ -338,7 +339,7 @@ export class Notifications {
   async bulkSubscribe (
     topics: string[],
     options: BulkSubscribeOpts = { replace: false, force: false },
-    priorities: {[topicName: string]: number} = {}
+    priorities: { [topicName: string]: number } = {}
   ): Promise<any> {
     this.setTopicPriorities(priorities);
 
@@ -375,7 +376,7 @@ export interface NotificationsAPI {
   bulkSubscribe (
     topics: string[],
     options?: BulkSubscribeOpts,
-    priorities?: {[topicName: string]: number}
+    priorities?: { [topicName: string]: number }
   ): Promise<any>;
 }
 

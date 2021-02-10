@@ -1,33 +1,4 @@
-import request from 'superagent';
-import reqlogger from './request-logger';
-
-function buildUri (host, path, version = 'v2') {
-  path = path.replace(/^\/+|\/+$/g, ''); // trim leading/trailing /
-  if (host.indexOf('http') === 0) {
-    return `${host}/api/${version}/${path}`;
-  }
-  return `https://api.${host}/api/${version}/${path}`;
-}
-
-export function requestApi (
-  this: any,
-  path: string,
-  opts: {
-    method?: string;
-    data?: any;
-    host?: string;
-    version?: string;
-    contentType?: string;
-    authToken?: string;
-    logger?: any
-  }) {
-  let response = request[opts.method](buildUri(opts.host, path, opts.version))
-    .use(reqlogger.bind(this, opts.logger, opts.data))
-    .set('Authorization', `Bearer ${opts.authToken}`)
-    .type(opts.contentType || 'json');
-
-  return response.send(opts.data); // trigger request
-}
+import { v4 } from 'uuid';
 
 export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, details?: any) {
   return new Promise<void>(function (resolve, reject) {
@@ -81,6 +52,54 @@ export const isVideoJid = function (jid: string): boolean {
   return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
 };
 
+export type RetryPromise<T> = {
+  promise: Promise<T>;
+  cancel: (reason?: string | Error) => void;
+  complete: (value?: T) => void;
+  _id: string;
+};
+
+export function retryPromise<T> (
+  promiseFn: () => Promise<T>,
+  retryFn: (error?: Error | any) => boolean,
+  retryInterval: number = 15000
+): RetryPromise<T> {
+  let timeout: any;
+  let cancel: any;
+  let complete: any;
+  let tryPromiseFn: any;
+
+  const promise = new Promise<T>((resolve, reject) => {
+    tryPromiseFn = async () => {
+      try {
+        const val = await promiseFn();
+        complete(val);
+      } catch (error) {
+        if (retryFn(error)) {
+          console.debug('Retrying promise', error);
+          timeout = setTimeout(tryPromiseFn, retryInterval);
+        } else {
+          cancel(error);
+        }
+      }
+    };
+
+    complete = (value: T) => {
+      clearTimeout(timeout);
+      resolve(value);
+    };
+
+    cancel = (reason?: any) => {
+      clearTimeout(timeout);
+      reject(reason);
+    };
+
+    tryPromiseFn();
+  });
+
+  return { promise, cancel, complete, _id: v4() };
+}
+
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {
 //   for (var key in provided) {
@@ -97,4 +116,3 @@ export const isVideoJid = function (jid: string): boolean {
 //
 //   return destination;
 // }
-

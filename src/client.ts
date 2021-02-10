@@ -1,17 +1,17 @@
 'use strict';
 
-// src imports
+import { TokenBucket } from 'limiter';
+
+import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Reconnector } from './reconnector';
 import { Ping } from './ping';
-import './polyfills';
-import { requestApi, timeoutPromise } from './utils';
+import { timeoutPromise } from './utils';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
-
-// external imports
-import { TokenBucket } from 'limiter';
 import { StreamingClientExtension } from './types/streaming-client-extension';
+import { HttpClient } from './http-client';
+import { RequestApiOptions } from './types/interfaces';
 
 let extensions = {
   ping: Ping,
@@ -101,16 +101,19 @@ export class Client {
   config: any;
   streamId: any;
 
+  http: HttpClient;
   notifications!: NotificationsAPI;
   _notifications!: Notifications;
   reconnector!: Reconnector;
   webrtcSessions!: WebrtcExtensionAPI;
   _webrtcSessions!: WebrtcExtension;
 
-  _ping: any;
+  _ping!: Ping;
   _reconnector!: Reconnector;
 
   constructor (options: ClientOptions) {
+    this.http = new HttpClient();
+
     const stanzaio = createStanzaClient({});
 
     // TODO: remove this hack when we can. basically stanza messes up the auth mechanism priority.
@@ -133,7 +136,7 @@ export class Client {
       channelId: null // created on connect
     };
 
-    this.on('disconnected', (event) => {
+    this.on('disconnected', () => {
       if (this._stanzaio.transport || this.connecting) {
         this.logger.info('disconnected event received, but reconnection is in progress');
         return;
@@ -161,7 +164,7 @@ export class Client {
     });
 
     // remapped session:end
-    this.on('session:end', (event) => {
+    this.on('session:end', () => {
       this._ping.stop();
     });
 
@@ -216,7 +219,7 @@ export class Client {
         }, this.reconnectLeakTime);
       }
 
-      this._reconnector.hardReconnect();
+      return this._reconnector.hardReconnect();
     });
 
     Object.keys(extensions).forEach((extensionName) => {
@@ -294,6 +297,7 @@ export class Client {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
       this._reconnector.stop(new Error('Cancelling reconnect')); // just in case there is already an active reconnect trying
+      this.http.stopAllRetries();
       this._stanzaio.disconnect();
     }, 1000, 'disconnecting streaming service');
   }
@@ -328,22 +332,22 @@ export class Client {
     if (this.config.jid) {
       jidPromise = Promise.resolve(this.config.jid);
     } else {
-      const opts = {
+      const opts: RequestApiOptions = {
         method: 'get',
         host: this.config.apiHost,
         authToken: this.config.authToken
       };
-      jidPromise = requestApi('users/me', opts)
+      jidPromise = this.http.requestApiWithRetry('users/me', opts)
         .then(res => res.body.chat.jabberId);
     }
 
-    const opts = {
+    const opts: RequestApiOptions = {
       method: 'post',
       host: this.config.apiHost,
       authToken: this.config.authToken,
       logger: this.logger
     };
-    const channelPromise = requestApi('notifications/channels?connectionType=streaming', opts)
+    const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', opts)
       .then(res => res.body.id);
 
     return Promise.all([jidPromise, channelPromise])

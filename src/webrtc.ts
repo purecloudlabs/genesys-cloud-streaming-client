@@ -8,7 +8,7 @@ import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, requestApi } from './utils';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import Client from '.';
@@ -28,7 +28,7 @@ const events = {
   // RTC_ICESERVERS: 'rtcIceServers', // ice servers have been discovered
   INCOMING_RTCSESSION: 'incomingRtcSession', // jingle session created for incoming call
   OUTGOING_RTCSESSION: 'outgoingRtcSession', // jingle session created for outgoing call
-  RTCSESSION_ERROR: 'rtcSessionError', // jingle error occurred
+  RTCSESSION_ERROR: 'rtcSessionError' // jingle error occurred
   // TRACE_RTCSESSION: 'traceRtcSession', // trace messages for logging, etc
   // UPGRADE_MEDIA_ERROR: 'upgradeMediaError', // error occurred joining conference
 
@@ -50,11 +50,12 @@ export interface InitRtcSessionOptions {
 }
 
 export class WebrtcExtension extends EventEmitter {
+  client: Client;
   ignoredSessions = new LRU({ max: 10, maxAge: 10 * 60 * 60 * 6 });
   jingleJs: Jingle.SessionManager;
 
   logger: any;
-  pendingSessions: {[sessionId: string]: ProposeStanza} = {};
+  pendingSessions: { [sessionId: string]: ProposeStanza } = {};
   config: {
     iceTransportPolicy?: 'relay' | 'all',
     iceServers: any[],
@@ -69,8 +70,9 @@ export class WebrtcExtension extends EventEmitter {
     return this.client._stanzaio.jid;
   }
 
-  constructor (public client: any, clientOptions: any = {}) {
+  constructor (client: any, clientOptions: any = {}) {
     super();
+    this.client = client;
     this.config = {
       iceTransportPolicy: clientOptions.iceTransportPolicy,
       iceServers: clientOptions.iceServers,
@@ -137,7 +139,7 @@ export class WebrtcExtension extends EventEmitter {
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
     try {
-      await requestApi('diagnostics/newrelic/insights', {
+      await this.client.http.requestApi('diagnostics/newrelic/insights', {
         method: 'post',
         host: this.client.config.apiHost,
         authToken: this.client.config.authToken,
@@ -277,7 +279,7 @@ export class WebrtcExtension extends EventEmitter {
         from: this.jid,
         media: {
           conversationId: opts.conversationId,
-          sourceCommunicationId: opts.sourceCommunicationId,
+          sourceCommunicationId: opts.sourceCommunicationId
         }
       };
 
@@ -407,12 +409,12 @@ export class WebrtcExtension extends EventEmitter {
 
   async refreshIceServers (): Promise<any[]> {
     const server = this.client._stanzaio.config.server;
-    const turnServersPromise = this.client._stanzaio.getServices(server, 'turn', '1');
-    const stunServersPromise = this.client._stanzaio.getServices(server, 'stun', '1');
+    const turnServersPromise = this.client._stanzaio.getServices(server as any, 'turn', '1');
+    const stunServersPromise = this.client._stanzaio.getServices(server as any, 'stun', '1');
 
     const [turnServers, stunServers] = await Promise.all([turnServersPromise, stunServersPromise]);
     this.logger.debug('STUN/TURN server discovery result', { turnServers, stunServers });
-    const iceServers = [...(turnServers.services), ...(stunServers.services)].map(service => {
+    const iceServers = [...(turnServers.services as any), ...(stunServers.services as any)].map(service => {
       const port = service.port ? `:${service.port}` : '';
       const ice: RTCIceServer & { type: string } = { type: service.type, urls: `${service.type}:${service.host}${port}` };
       if (['turn', 'turns'].includes(service.type)) {

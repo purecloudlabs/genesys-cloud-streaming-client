@@ -9,17 +9,36 @@
 
 <body>
   <script src="../dist/streaming-client.browser.js"></script>
+  <script src="index.js"></script>
   <script>
+    const authToken = 'INSERT_TOKEN';
+
+
     const client = new window.GenesysCloudStreamingClient({
       host: 'wss://streaming.inindca.com',
-      authToken: 'INSERT_TOKEN_HERE'
+      authToken
     });
 
     window.client = client;
 
     // client.on('*', console.log);
+    async function run() {
+      // good for reaching 429s
+      // await Promise.all([
+      //   window.issueTooManyRequests(authToken, 162, 'users/me'),
+      //   window.issueTooManyRequests(authToken, 65, 'notifications/channels?connectionType=streaming')
+      // ]);
 
-    client.connect();
+      await client.connect();
+
+      // try {
+      //   await client.reconnect();
+      // } catch (error) {
+      //   console.warn('error', { ...error });
+      // }
+    }
+
+    run();
   </script>
 </body>
 

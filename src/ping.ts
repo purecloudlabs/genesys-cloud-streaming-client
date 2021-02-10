@@ -25,6 +25,8 @@ export class Ping {
   }
 
   private async performPing (): Promise<void> {
+    const intervalIdAtStart = this.pingIntervalId;
+
     try {
       await this.client._stanzaio.ping(this.options.jid);
       this.numberOfFailedPings = 0;
@@ -34,7 +36,13 @@ export class Ping {
         channelId: this.client.config.channelId,
         jid: this.client._stanzaio.jid
       };
-      this.client.logger.warn('Missed a ping.', Object.assign({ error: err }, info));
+
+      /* need to check this because we could have already stopped the pinging. In which case, we don't want to count the missed ping */
+      if (intervalIdAtStart !== this.pingIntervalId) {
+        return this.client.logger.warn('Disregarding a missed ping for an old interval', Object.assign({ error: err }, info));
+      }
+
+      this.client.logger.warn('Missed a ping.', Object.assign({ error: err }, info, { intervalIdAtStart, pingIntervalId: this.pingIntervalId }));
       if (++this.numberOfFailedPings > this.failedPingsBeforeDisconnect) {
         this.stop();
         this.client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings: this.numberOfFailedPings }, info));
@@ -53,6 +61,7 @@ export class Ping {
     if (this.pingIntervalId !== null) {
       clearInterval(this.pingIntervalId);
       this.pingIntervalId = null;
+      this.numberOfFailedPings = 0;
     }
   }
 }

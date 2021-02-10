@@ -1,9 +1,9 @@
-'use strict';
-
-import { Reconnector, CXFRDefinition } from '../../src/reconnector';
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { parse } from 'stanza/jxt';
+
+import { Reconnector, CXFRDefinition } from '../../src/reconnector';
+import { HttpClient } from '../../src/http-client';
 
 // controls whether clients can reconnect or not
 let SIMULTATE_ONLINE = false;
@@ -83,7 +83,7 @@ describe('Reconnector', () => {
     // SANITY: promises get complicated when using
     //  fakeTimers. See this for reference:
     //  https://stackoverflow.com/questions/52177631/jest-timer-and-promise-dont-work-well-settimeout-and-async-function
-    await Promise.resolve();
+    await new Promise(setImmediate);
   });
 
   // all tests in this module are serial because we're messing with time
@@ -194,6 +194,15 @@ describe('Reconnector', () => {
 
 
   describe('hardReconnect()', () => {
+    const step = async (ms = 15001) => {
+      jest.advanceTimersByTime(ms);
+      // SANITY: have to await twice:
+      //  1. for retryPromise()'s internal `tryPromiseFn()` promise
+      //  2. for retryPromise()'s returned `promise`
+      await Promise.resolve();
+      await Promise.resolve();
+    }
+
     it('should successfully reconnect without waiting for retry interval', async () => {
       const client = new Client();
       const reconnect = new Reconnector(client);
@@ -215,13 +224,12 @@ describe('Reconnector', () => {
       const reconnect = new Reconnector(client);
 
       const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
-      const connectSpy = jest.spyOn(client, 'connect').mockResolvedValue(undefined);
 
-      /* timeout error */
+      /* timeout error from superagent */
       const superagentOfflineError = new Error('Request has been terminated\ncould be for some reason');
 
       // simulate 3 errors
-      jest.spyOn(client, 'connect')
+      const connectSpy = jest.spyOn(client, 'connect')
         .mockRejectedValueOnce(superagentOfflineError)
         .mockRejectedValueOnce(superagentOfflineError)
         .mockRejectedValueOnce(superagentOfflineError)
@@ -230,11 +238,10 @@ describe('Reconnector', () => {
       // have to run timers before awaiting this promise
       reconnect.hardReconnect();
 
-      jest.advanceTimersByTime(15001);
-      jest.advanceTimersByTime(15001);
-      jest.advanceTimersByTime(15001);
-
-      await Promise.resolve();
+      await step(0);
+      await step();
+      await step();
+      await step();
 
       expect(connectSpy).toHaveBeenCalledTimes(4);
       expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
@@ -254,23 +261,20 @@ describe('Reconnector', () => {
       reconnect.hardReconnect();
 
       // first cycle
-      jest.advanceTimersByTime(15001);
-      await Promise.resolve();
+      await step();
 
       expect(connectSpy).not.toHaveBeenCalled();
       expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
 
       // second cycle (duplicate)
-      jest.advanceTimersByTime(15001);
-      await Promise.resolve();
+      await step();
 
       expect(connectSpy).not.toHaveBeenCalled();
       expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
 
       // third cycle (online)
       Object.defineProperty(navigator, 'onLine', { value: true, writable: true });
-      jest.advanceTimersByTime(15001);
-      await Promise.resolve();
+      await step();
 
       expect(connectSpy).toHaveBeenCalledTimes(1);
       expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
@@ -288,13 +292,12 @@ describe('Reconnector', () => {
       // have to run timers before awaiting this promise
       reconnect.hardReconnect();
 
-      await Promise.resolve();
+      await step();
 
       expect(connectSpy).toHaveBeenCalledTimes(1);
       expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
 
-      jest.advanceTimersByTime(15001);
-      await Promise.resolve();
+      await step();
 
       expect(connectSpy).toHaveBeenCalledTimes(2);
       expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
@@ -316,30 +319,19 @@ describe('Reconnector', () => {
         // have to run timers before awaiting this promise
         reconnect.hardReconnect();
 
-        await Promise.resolve();
+        await step();
 
         expect(connectSpy).toHaveBeenCalledTimes(1);
         expect(_stopHardReconnectSpy).not.toHaveBeenCalled();
 
-        jest.advanceTimersByTime(15001);
-        await Promise.resolve();
+        await step();
 
         expect(connectSpy).toHaveBeenCalledTimes(2);
         expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
       };
 
-      const retriableCodes = [
-        408,
-        413,
-        429,
-        500,
-        502,
-        503,
-        504,
-      ];
-
-      for (let i = 0; i < retriableCodes.length; i++) {
-        await test(retriableCodes[i]);
+      for (let it = HttpClient.retryStatusCodes.values(), val = null; val = it.next().value;) {
+        await test(val);
       }
     });
 
@@ -356,7 +348,7 @@ describe('Reconnector', () => {
       reconnect.hardReconnect();
       reconnect.hardReconnect();
 
-      await Promise.resolve();
+      await step();
 
       expect(connectSpy).toHaveBeenCalledTimes(1);
       expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
@@ -378,6 +370,29 @@ describe('Reconnector', () => {
         expect(connectSpy).toHaveBeenCalledTimes(1);
         expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(1);
         expect(_stopHardReconnectSpy).toHaveBeenCalledWith(error);
+      }
+    });
+
+    it('should convert error strings into error objects', async () => {
+      const client = new Client();
+      const reconnect = new Reconnector(client);
+      const errorStr = 'something broke';
+      const expectedError = new Error(errorStr);
+
+      const _stopHardReconnectSpy = jest.spyOn(reconnect, '_stopHardReconnect' as any);
+      const connectSpy = jest.spyOn(client, 'connect').mockResolvedValue(undefined);
+
+      try {
+        const hardReconnectPromise = reconnect.hardReconnect();
+        reconnect.stop(errorStr);
+        await hardReconnectPromise;
+        fail('should have thrown');
+      } catch (e) {
+        expect(e).toEqual(expectedError);
+        expect(connectSpy).toHaveBeenCalledTimes(1);
+        expect(_stopHardReconnectSpy).toHaveBeenCalledTimes(2);
+        expect(_stopHardReconnectSpy).toHaveBeenNthCalledWith(1, errorStr);
+        expect(_stopHardReconnectSpy).toHaveBeenNthCalledWith(2, expectedError);
       }
     });
   });

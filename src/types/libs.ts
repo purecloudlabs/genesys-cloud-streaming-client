@@ -19,11 +19,10 @@ declare module 'wildemitter' {
 declare module 'backoff-web' {
   export interface Backoff {
     failAfter (attempts: number): void;
-    on (evt: 'ready', callback: (number: number, delay: number) => void): void;
-    on (evt: 'backoff', callback: (number: number, delay: number) => void): void;
+    on (evt: 'backoff' | 'ready', callback: (count: number, delay: number) => void): void;
     on (evt: 'fail', callback: (...args: any[]) => void): void;
     backoff (): void;
-    reset (): void
+    reset (): void;
 
     /* private */
     backoffNumber_: number;
