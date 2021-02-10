@@ -5,6 +5,7 @@ import nock from 'nock';
 
 import { Notifications } from '../../src/notifications';
 import { Agent } from 'stanza';
+import { HttpClient } from '../../src/http-client';
 
 const exampleTopics = require('../helpers/example-topics.json');
 
@@ -19,10 +20,12 @@ class Client extends WildEmitter {
   };
 
   _stanzaio: WildEmitter & Agent = new WildEmitter() as any;
+  http: HttpClient;
 
   constructor (public config: any) {
     super();
 
+    this.http = new HttpClient();
     this._stanzaio.subscribeToNode = jest.fn();
     this._stanzaio.unsubscribeFromNode = jest.fn();
   }

@@ -2,14 +2,16 @@
 
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
+import { JingleAction } from 'stanza/Constants';
+import { v4 } from 'uuid';
+import { EventEmitter } from 'events';
+
 import { WebrtcExtension } from '../../src/webrtc';
 import { GenesysCloudMediaSession } from '../../src/types/media-session';
-import { v4 } from 'uuid';
-import { JingleAction } from 'stanza/Constants';
 import * as utils from '../../src/utils';
-import { EventEmitter } from 'events';
 import { wait } from '../helpers/testing-utils';
 import * as statsFormatter from '../../src/stats-formatter';
+import { HttpClient } from '../../src/http-client';
 
 class Client extends WildEmitter {
   connected = false;
@@ -22,10 +24,12 @@ class Client extends WildEmitter {
   };
 
   _stanzaio: Agent;
+  http: HttpClient;
 
   constructor (public config: any) {
     super();
     this._stanzaio = createClient({});
+    this.http = new HttpClient();
   }
 }
 
@@ -70,7 +74,7 @@ describe('addEventListeners', () => {
     // @ts-ignore
     const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
 
-    client._stanzaio.emit('message', { id: 'lskdjf', to: 'sndlgkns@lskdn.com', propose: { } } as any);
+    client._stanzaio.emit('message', { id: 'lskdjf', to: 'sndlgkns@lskdn.com', propose: {} } as any);
     expect(spy).toHaveBeenCalled();
   });
 
@@ -81,7 +85,7 @@ describe('addEventListeners', () => {
     // @ts-ignore
     const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
 
-    client._stanzaio.emit('message', { id: 'lskdjf', to: 'sndlgkns@lskdn.com', proceed: { } } as any);
+    client._stanzaio.emit('message', { id: 'lskdjf', to: 'sndlgkns@lskdn.com', proceed: {} } as any);
     expect(spy).not.toHaveBeenCalled();
   });
 });
@@ -764,21 +768,20 @@ describe('sendStats', () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
 
     webrtc['statsToSend'].push({} as any);
     webrtc['throttledSendStats']();
     expect(sendSpy).not.toHaveBeenCalled();
     await wait(3050);
     expect(sendSpy).toHaveBeenCalled();
-
   });
 
   it('should send stats', async () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['statsToSend'].push({} as any);
     sendSpy.mockReset();
 
@@ -791,7 +794,7 @@ describe('sendStats', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any);
 
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['statsToSend'].push({} as any);
     sendSpy.mockReset();
 
@@ -804,7 +807,7 @@ describe('sendStats', () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockResolvedValue(null);
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     sendSpy.mockReset();
 
     await webrtc.sendStats();
@@ -816,7 +819,7 @@ describe('sendStats', () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
-    const sendSpy = jest.spyOn(utils, 'requestApi').mockRejectedValue(null);
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockRejectedValue(null);
     const logSpy = jest.spyOn(webrtc.logger, 'error');
 
     webrtc['statsToSend'].push({} as any);
