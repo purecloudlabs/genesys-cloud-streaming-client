@@ -7,10 +7,11 @@ import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Reconnector } from './reconnector';
 import { Ping } from './ping';
-import { timeoutPromise, RetryPromise } from './utils';
+import { timeoutPromise } from './utils';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
+import { RequestApiOptions } from './types/interfaces';
 
 let extensions = {
   ping: Ping,
@@ -331,7 +332,7 @@ export class Client {
     if (this.config.jid) {
       jidPromise = Promise.resolve(this.config.jid);
     } else {
-      const opts = {
+      const opts: RequestApiOptions = {
         method: 'get',
         host: this.config.apiHost,
         authToken: this.config.authToken
@@ -340,7 +341,7 @@ export class Client {
         .then(res => res.body.chat.jabberId);
     }
 
-    const opts = {
+    const opts: RequestApiOptions = {
       method: 'post',
       host: this.config.apiHost,
       authToken: this.config.authToken,

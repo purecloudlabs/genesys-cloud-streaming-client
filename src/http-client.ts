@@ -1,20 +1,11 @@
 import request from 'superagent';
 
 import reqlogger from './request-logger';
+import { RequestApiOptions } from './types/interfaces';
 import { RetryPromise, retryPromise } from './utils';
 
-export type RequestApiOptions = {
-  method?: string;
-  data?: any;
-  host: string;
-  version?: string;
-  contentType?: string;
-  authToken?: string;
-  logger?: any
-};
-
 export class HttpClient {
-  private _apiRequestsMap = new Map<string, RetryPromise<any>>();
+  private _httpRetryingRequests = new Map<string, RetryPromise<any>>();
 
   static retryStatusCodes = new Set([
     408,
@@ -33,7 +24,7 @@ export class HttpClient {
       retryInterval
     );
 
-    this._apiRequestsMap.set(request._id, request);
+    this._httpRetryingRequests.set(request._id, request);
 
     try {
       const result = await request.promise;
@@ -53,7 +44,7 @@ export class HttpClient {
   }
 
   stopAllRetries (): void {
-    Array.from(this._apiRequestsMap.keys())
+    Array.from(this._httpRetryingRequests.keys())
       .forEach(key => this._cancelAndRemoveValueFromRetryMap(key));
   }
 
@@ -66,10 +57,10 @@ export class HttpClient {
   }
 
   private _cancelAndRemoveValueFromRetryMap (key: string): true {
-    const value = this._apiRequestsMap.get(key);
+    const value = this._httpRetryingRequests.get(key);
     if (value) {
       value.cancel(new Error('Retry request cancelled'));
-      this._apiRequestsMap.delete(key);
+      this._httpRetryingRequests.delete(key);
     }
     return true;
   }

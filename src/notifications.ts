@@ -2,6 +2,7 @@ import { PubsubEvent, PubsubSubscription, PubsubSubscriptionWithOptions } from '
 const debounce = require('debounce-promise');
 
 import { Client } from './client';
+import { RequestApiOptions } from './types/interfaces';
 import { splitIntoIndividualTopics } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
@@ -178,7 +179,7 @@ export class Notifications {
   }
 
   makeBulkSubscribeRequest (topics: string[], options): Promise<any> {
-    const requestOptions = {
+    const requestOptions: RequestApiOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,

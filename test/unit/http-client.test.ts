@@ -35,7 +35,7 @@ describe('HttpRequestClient', () => {
     it('should not retry if there is no error passed in', async () => {
       jest.spyOn(http, 'requestApi').mockRejectedValue(undefined);
 
-      await http.requestApiWithRetry('some/path', { host: 'inin.com' })
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' })
         .catch(e => expect(e).toBe(undefined));
     });
 
@@ -43,7 +43,7 @@ describe('HttpRequestClient', () => {
       const error = new Error('bad');
       jest.spyOn(http, 'requestApi').mockRejectedValue(error);
 
-      await http.requestApiWithRetry('some/path', { host: 'inin.com' })
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' })
         .catch(e => expect(e).toBe(error));
     });
 
@@ -53,7 +53,7 @@ describe('HttpRequestClient', () => {
 
       jest.spyOn(http, 'requestApi').mockRejectedValue(error);
 
-      await http.requestApiWithRetry('some/path', { host: 'inin.com' })
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' })
         .catch(e => expect(e).toBe(error));
     });
   });
@@ -63,8 +63,8 @@ describe('HttpRequestClient', () => {
       const _cancelAndRemoveValueFromRetryMapSpy = jest.spyOn(http, '_cancelAndRemoveValueFromRetryMap' as any);
       jest.spyOn(http, 'requestApi').mockResolvedValue(wait(150));
 
-      const prom1 = http.requestApiWithRetry('some/resource/1', { host: '' });
-      const prom2 = http.requestApiWithRetry('some/resource/2', { host: '' });
+      const prom1 = http.requestApiWithRetry('some/resource/1', { method: 'get', host: '' });
+      const prom2 = http.requestApiWithRetry('some/resource/2', { method: 'get', host: '' });
 
       http.stopAllRetries();
 
