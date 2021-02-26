@@ -1,34 +1,44 @@
-import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { EventEmitter } from 'events';
-import { ReceivedMessage } from 'stanza/protocol';
-import { toBare } from 'stanza/JID';
-import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/media-session';
-import LRU from 'lru-cache';
-import { JingleAction } from 'stanza/Constants';
-import { SessionManager } from 'stanza/jingle';
-import { v4 } from 'uuid';
-import { Jingle } from 'stanza';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
-import { StatsEvent } from 'webrtc-stats-gatherer';
-import throttle from 'lodash.throttle';
-import Client from '.';
-import { formatStatsEvent } from './stats-formatter';
+import { definitions, Propose } from "./stanza-definitions/webrtc-signaling";
+import { EventEmitter } from "events";
+import { ReceivedMessage } from "stanza/protocol";
+import { toBare } from "stanza/JID";
+import {
+  GenesysCloudMediaSession,
+  SessionEvents,
+  SessionType,
+} from "./types/media-session";
+import LRU from "lru-cache";
+import { JingleAction } from "stanza/Constants";
+import { SessionManager } from "stanza/jingle";
+import { v4 } from "uuid";
+import { Jingle } from "stanza";
+import {
+  isAcdJid,
+  isScreenRecordingJid,
+  isSoftphoneJid,
+  isVideoJid,
+} from "./utils";
+import { StatsEvent } from "webrtc-stats-gatherer";
+import throttle from "lodash.throttle";
+import Client from ".";
+import { formatStatsEvent } from "./stats-formatter";
+import { stat } from "fs/promises";
 
 const events = {
-  REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
+  REQUEST_WEBRTC_DUMP: "requestWebrtcDump", // dump triggered by someone in room
 
   /* jingle messaging */
-  REQUEST_INCOMING_RTCSESSION: 'requestIncomingRtcSession', // incoming call
-  CANCEL_INCOMING_RTCSESSION: 'cancelIncomingRtcSession', // retracted (caller hungup before you answered)
-  HANDLED_INCOMING_RTCSESSION: 'handledIncomingRtcSession', // you answered on another client
-  OUTGOING_RTCSESSION_PROCEED: 'outgoingRtcSessionProceed', // target answered, wants to continue
-  OUTGOING_RTCSESSION_REJECTED: 'outgoingRtcSessionRejected', // target rejected the call
+  REQUEST_INCOMING_RTCSESSION: "requestIncomingRtcSession", // incoming call
+  CANCEL_INCOMING_RTCSESSION: "cancelIncomingRtcSession", // retracted (caller hungup before you answered)
+  HANDLED_INCOMING_RTCSESSION: "handledIncomingRtcSession", // you answered on another client
+  OUTGOING_RTCSESSION_PROCEED: "outgoingRtcSessionProceed", // target answered, wants to continue
+  OUTGOING_RTCSESSION_REJECTED: "outgoingRtcSessionRejected", // target rejected the call
 
   // /* jingle */
   // RTC_ICESERVERS: 'rtcIceServers', // ice servers have been discovered
-  INCOMING_RTCSESSION: 'incomingRtcSession', // jingle session created for incoming call
-  OUTGOING_RTCSESSION: 'outgoingRtcSession', // jingle session created for outgoing call
-  RTCSESSION_ERROR: 'rtcSessionError' // jingle error occurred
+  INCOMING_RTCSESSION: "incomingRtcSession", // jingle session created for incoming call
+  OUTGOING_RTCSESSION: "outgoingRtcSession", // jingle session created for outgoing call
+  RTCSESSION_ERROR: "rtcSessionError", // jingle error occurred
   // TRACE_RTCSESSION: 'traceRtcSession', // trace messages for logging, etc
   // UPGRADE_MEDIA_ERROR: 'upgradeMediaError', // error occurred joining conference
 
@@ -57,27 +67,30 @@ export class WebrtcExtension extends EventEmitter {
   logger: any;
   pendingSessions: { [sessionId: string]: ProposeStanza } = {};
   config: {
-    iceTransportPolicy?: 'relay' | 'all',
-    iceServers: any[],
-    allowIPv6: boolean,
-    optOutOfWebrtcStatsTelemetry?: boolean
+    iceTransportPolicy?: "relay" | "all";
+    iceServers: any[];
+    allowIPv6: boolean;
+    optOutOfWebrtcStatsTelemetry?: boolean;
   };
   private statsToSend: any[] = [];
-  private throttleSendStatsInterval = 3000;
+  private statsArr: any[] = [];
+  private throttleSendStatsInterval = 25000;
+  private currentMaxStatSize = 10000;
+  private statBuffer = 0;
   private throttledSendStats: any;
 
-  get jid (): string {
+  get jid(): string {
     return this.client._stanzaio.jid;
   }
 
-  constructor (client: any, clientOptions: any = {}) {
+  constructor(client: any, clientOptions: any = {}) {
     super();
     this.client = client;
     this.config = {
       iceTransportPolicy: clientOptions.iceTransportPolicy,
       iceServers: clientOptions.iceServers,
       allowIPv6: clientOptions.allowIPv6 === true,
-      optOutOfWebrtcStatsTelemetry: clientOptions.optOutOfWebrtcStatsTelemetry
+      optOutOfWebrtcStatsTelemetry: clientOptions.optOutOfWebrtcStatsTelemetry,
     };
     this.logger = client.logger;
     client._stanzaio.stanzas.define(definitions);
@@ -86,88 +99,146 @@ export class WebrtcExtension extends EventEmitter {
     this.addEventListeners();
     this.proxyEvents();
     this.configureStanzaJingle();
-    this.throttledSendStats = throttle(this.sendStats.bind(this), this.throttleSendStatsInterval, { leading: false, trailing: true });
+    this.throttledSendStats = throttle(
+      this.sendStats.bind(this),
+      this.throttleSendStatsInterval,
+      { leading: false, trailing: true }
+    );
   }
 
-  configureStanzaJingle () {
+  configureStanzaJingle() {
     Object.assign(this.client._stanzaio.jingle.config.peerConnectionConfig, {
-      sdpSemantics: 'unified-plan'
+      sdpSemantics: "unified-plan",
     });
   }
 
-  prepareSession (options: any) {
+  prepareSession(options: any) {
     options.config.iceServers = this.config.iceServers || options.iceServers;
-    options.config.iceTransportPolicy = this.config.iceTransportPolicy || 'all';
-    options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
+    options.config.iceTransportPolicy = this.config.iceTransportPolicy || "all";
+    options.optOutOfWebrtcStatsTelemetry = !!this.config
+      .optOutOfWebrtcStatsTelemetry;
 
-    const session = new GenesysCloudMediaSession(options, this.getSessionTypeByJid(options.peerID), this.config.allowIPv6);
+    const session = new GenesysCloudMediaSession(
+      options,
+      this.getSessionTypeByJid(options.peerID),
+      this.config.allowIPv6
+    );
     this.proxyStatsForSession(session);
     return session;
   }
 
+  calculatePayloadSize(trace: any): number {
+    const str = JSON.stringify(trace);
+    // http://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
+    // Matches only the 10.. bytes that are non-initial characters in a multi-byte sequence.
+    const m = encodeURIComponent(str).match(/%[89ABab]/g);
+    return str.length + (m ? m.length : 0);
+  }
+
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
-  proxyStatsForSession (session: GenesysCloudMediaSession) {
-    session.on('stats', (statsEvent: StatsEvent) => {
+  proxyStatsForSession(session: GenesysCloudMediaSession) {
+    session.on("stats", (statsEvent: StatsEvent) => {
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
         conference: (session as any).conversationId,
         session: session.sid,
-        sessionType: session.sessionType
+        sessionType: session.sessionType,
       };
 
       // format the event to what the api expects
       const event = formatStatsEvent(statsCopy, extraDetails);
+      this.statsArr.push(event);
 
-      this.statsToSend.push(event);
-      this.throttledSendStats();
+      const currentEventSize = this.calculatePayloadSize(event);
+      // Check if the size of the current event plus the size of the previous stats exceeds max size.
+      const exceedsMaxStatSize =
+        this.statBuffer + currentEventSize > this.currentMaxStatSize;
+      console.log("exceeds?", exceedsMaxStatSize, this.statsToSend.length);
+
+      // If it exceeds max size, don't append just send current payload.
+      if (exceedsMaxStatSize) {
+        this.throttledSendStats.flush();
+        console.log('stats arr:', this.statsArr);
+      } else {
+        this.statBuffer += currentEventSize;
+        this.statsToSend.push(event);
+        console.log("stats to send: ", this.statsToSend.length);
+        console.log("stats arr: ", this.statsArr.length);
+        this.throttledSendStats();
+      }
     });
   }
 
-  async sendStats () {
+  async sendStats() {
     const stats = this.statsToSend.splice(0, this.statsToSend.length);
+    console.log("sent", stats);
 
     if (!stats.length || !this.client.config.authToken) {
       return;
     }
 
     const data = {
-      appName: 'streamingclient',
+      appName: "streamingclient",
       appVersion: Client.version,
-      actions: stats
+      actions: stats,
     };
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
     try {
-      await this.client.http.requestApi('diagnostics/newrelic/insights', {
-        method: 'post',
+      await this.client.http.requestApi("diagnostics/newrelic/insights", {
+        method: "post",
         host: this.client.config.apiHost,
         authToken: this.client.config.authToken,
         logger: this.client.logger,
-        data
+        data,
       });
+      // Remove the sent stats from the overflow array.
+      this.statsArr.splice(0, stats.length);
+      this.statBuffer = 0;
+      // Add overflow stats back to send array for next send attempt.
+      this.statsToSend = [...this.statsArr];
+      // this.decreasePayloadSize(stats);
     } catch (err) {
-      this.logger.error('Failed to send stats', { err, stats });
+      this.logger.error("Failed to send stats", { err, stats });
+      if (err.status === 413) {
+        this.decreasePayloadSize(stats);
+      }
     }
   }
 
-  addEventListeners () {
-    this.client.on('connected', async () => {
+  decreasePayloadSize(stats) {
+    let decreasedStatArr: any[] = [];
+    this.currentMaxStatSize -= 3000;
+    this.statBuffer = 0;
+
+    stats.forEach((item) => {
+      this.statBuffer += this.calculatePayloadSize(item);
+      console.log('decreased to: ', this.currentMaxStatSize, "current buffer: ", this.statBuffer);
+      if (this.statBuffer < this.currentMaxStatSize) {
+        decreasedStatArr.push(item);
+      }
+    });
+    this.statsToSend = [...decreasedStatArr];
+  }
+
+  addEventListeners() {
+    this.client.on("connected", async () => {
       await this.refreshIceServers();
     });
 
-    this.client._stanzaio.jingle.on('log', (level, message, data?) => {
+    this.client._stanzaio.jingle.on("log", (level, message, data?) => {
       this.logger[level](message, data);
     });
 
-    this.client._stanzaio.on('message', (msg: any) => {
+    this.client._stanzaio.on("message", (msg: any) => {
       if (msg.propose) {
         this.handlePropose(msg);
       }
     });
   }
 
-  proxyEvents () {
+  proxyEvents() {
     // this.jingleJs.on('send', data => {
     //   if (data.jingle && data.jingle.sid && this.ignoredSessions.get(data.jingle.sid)) {
     //     this.logger.debug('Ignoring outbound stanza for ignored session', data.jingle.sid);
@@ -176,30 +247,33 @@ export class WebrtcExtension extends EventEmitter {
     //   this.emit('send', data);
     // });
 
-    this.client._stanzaio.on('jingle:outgoing', session => {
+    this.client._stanzaio.on("jingle:outgoing", (session) => {
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
-    this.client._stanzaio.on('jingle:incoming', session => {
+    this.client._stanzaio.on("jingle:incoming", (session) => {
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
     const eventsToProxy: Array<keyof SessionEvents> = [
-      'iceConnectionType',
-      'peerTrackAdded',
-      'peerTrackRemoved',
-      'mute',
-      'unmute',
-      'sessionState',
-      'connectionState',
-      'terminated',
-      'stats',
-      'endOfCandidates'
+      "iceConnectionType",
+      "peerTrackAdded",
+      "peerTrackRemoved",
+      "mute",
+      "unmute",
+      "sessionState",
+      "connectionState",
+      "terminated",
+      "stats",
+      "endOfCandidates",
     ];
     for (const e of eventsToProxy) {
-      this.client._stanzaio.jingle.on(e, (session: GenesysCloudMediaSession, ...data: any) => {
-        session.emit(e as any, ...data);
-      });
+      this.client._stanzaio.jingle.on(
+        e,
+        (session: GenesysCloudMediaSession, ...data: any) => {
+          session.emit(e as any, ...data);
+        }
+      );
     }
 
     // this.client._stanzaio.on('jingle:log:*', (level, msg, details) => {
@@ -214,33 +288,36 @@ export class WebrtcExtension extends EventEmitter {
   /**
    * Stanza Handlers
    */
-  private handlePropose (msg: ProposeStanza) {
+  private handlePropose(msg: ProposeStanza) {
     if (msg.from === this.jid) {
       return;
     }
 
-    this.logger.info('propose received', { from: msg.from });
+    this.logger.info("propose received", { from: msg.from });
     this.pendingSessions[msg.propose.sessionId] = msg;
     // TODO: is ofrom used?
     // const roomJid = (msg.ofrom && msg.ofrom.full) || msg.from.full || msg.from;
     const fromJid = msg.from;
     const roomJid = fromJid;
     msg.propose.originalRoomJid = msg.propose.originalRoomJid || roomJid;
-    return this.emit(events.REQUEST_INCOMING_RTCSESSION, Object.assign({ roomJid, fromJid }, msg.propose));
+    return this.emit(
+      events.REQUEST_INCOMING_RTCSESSION,
+      Object.assign({ roomJid, fromJid }, msg.propose)
+    );
   }
 
   /**
    * Exposed Api
    */
-  async initiateRtcSession (opts: InitRtcSessionOptions) {
+  async initiateRtcSession(opts: InitRtcSessionOptions) {
     // send media presence to join conference or screen screenRecording
     // or send propose to single client for 1:1 video chat
     const session: any = {
       to: opts.jid,
       propose: {
         id: v4(),
-        descriptions: []
-      }
+        descriptions: [],
+      },
     };
     if (opts.stream) {
       for (let track of Array.from(opts.stream.getTracks())) {
@@ -249,16 +326,22 @@ export class WebrtcExtension extends EventEmitter {
     }
 
     if (opts.provideVideo) {
-      const videoDescriptionAlreadyExists = session.propose.descriptions.filter(desciption => desciption.media === 'video').length > 0;
+      const videoDescriptionAlreadyExists =
+        session.propose.descriptions.filter(
+          (desciption) => desciption.media === "video"
+        ).length > 0;
       if (!videoDescriptionAlreadyExists) {
-        session.propose.descriptions.push({ media: 'video' });
+        session.propose.descriptions.push({ media: "video" });
       }
     }
 
     if (opts.provideAudio) {
-      const audioDescriptionAlreadyExists = session.propose.descriptions.filter(desciption => desciption.media === 'audio').length > 0;
+      const audioDescriptionAlreadyExists =
+        session.propose.descriptions.filter(
+          (desciption) => desciption.media === "audio"
+        ).length > 0;
       if (!audioDescriptionAlreadyExists) {
-        session.propose.descriptions.push({ media: 'audio' });
+        session.propose.descriptions.push({ media: "audio" });
       }
     }
 
@@ -269,18 +352,18 @@ export class WebrtcExtension extends EventEmitter {
     if (opts.jid && opts.jid.match(/@conference/)) {
       let mediaDescriptions = session.propose.descriptions;
       if (mediaDescriptions.length === 0) {
-        mediaDescriptions = [{ media: 'listener' }];
+        mediaDescriptions = [{ media: "listener" }];
       }
 
       const mediaPresence = {
-        type: 'upgradeMedia' as any,
+        type: "upgradeMedia" as any,
         to: opts.jid,
         id: v4(),
         from: this.jid,
         media: {
           conversationId: opts.conversationId,
-          sourceCommunicationId: opts.sourceCommunicationId
-        }
+          sourceCommunicationId: opts.sourceCommunicationId,
+        },
       };
 
       // TODO? can't set last-n on parent element because it invalidates presence root schema
@@ -289,21 +372,21 @@ export class WebrtcExtension extends EventEmitter {
         mediaPresence.media[mediaDescription.media] = true;
       }
 
-      await this.client._stanzaio.send('presence', mediaPresence);
+      await this.client._stanzaio.send("presence", mediaPresence);
     } else {
-      await this.client._stanzaio.send('message', session); // send as Message
+      await this.client._stanzaio.send("message", session); // send as Message
       this.pendingSessions[session.propose.id] = session;
     }
 
     return session.propose.id;
   }
 
-  async acceptRtcSession (sessionId: string): Promise<void> {
+  async acceptRtcSession(sessionId: string): Promise<void> {
     const session = this.pendingSessions[sessionId];
     if (!session) {
       this.emit(
         events.RTCSESSION_ERROR,
-        'Cannot accept session because it is not pending or does not exist'
+        "Cannot accept session because it is not pending or does not exist"
       );
       return;
     }
@@ -311,19 +394,19 @@ export class WebrtcExtension extends EventEmitter {
     const proceed = {
       to: session.from,
       proceed: {
-        sessionId
-      }
+        sessionId,
+      },
     };
-    await this.client._stanzaio.send('message', proceed); // send as Message
+    await this.client._stanzaio.send("message", proceed); // send as Message
     delete this.pendingSessions[sessionId];
   }
 
-  async rejectRtcSession (sessionId: string, ignore = false): Promise<void> {
+  async rejectRtcSession(sessionId: string, ignore = false): Promise<void> {
     const session = this.pendingSessions[sessionId];
     if (!session) {
       this.emit(
         events.RTCSESSION_ERROR,
-        'Cannot reject session because it is not pending or does not exist'
+        "Cannot reject session because it is not pending or does not exist"
       );
       return;
     }
@@ -335,64 +418,64 @@ export class WebrtcExtension extends EventEmitter {
       const reject1 = {
         to: toBare(this.jid),
         reject: {
-          id: sessionId
-        }
+          id: sessionId,
+        },
       };
-      const firstMessage = this.client._stanzaio.send('message', reject1); // send as Message
+      const firstMessage = this.client._stanzaio.send("message", reject1); // send as Message
       const reject2 = {
         to: session.from,
         reject: {
-          id: sessionId
-        }
+          id: sessionId,
+        },
       };
-      const secondMessage = this.client._stanzaio.send('message', reject2); // send as Message
+      const secondMessage = this.client._stanzaio.send("message", reject2); // send as Message
 
       await Promise.all([firstMessage, secondMessage]);
     }
   }
 
-  rtcSessionAccepted (sessionId: string): Promise<void> {
+  rtcSessionAccepted(sessionId: string): Promise<void> {
     const proceed = {
       to: toBare(this.jid),
       accept: {
-        sessionId
-      }
+        sessionId,
+      },
     };
-    return this.client._stanzaio.send('message', proceed); // send as Message
+    return this.client._stanzaio.send("message", proceed); // send as Message
   }
 
-  notifyScreenShareStart (session: GenesysCloudMediaSession): Promise<void> {
-    return this.client._stanzaio.send('iq', {
+  notifyScreenShareStart(session: GenesysCloudMediaSession): Promise<void> {
+    return this.client._stanzaio.send("iq", {
       to: `${session.peerID}`,
       from: this.jid,
-      type: 'set',
+      type: "set",
       jingle: {
         action: JingleAction.SessionInfo,
         sid: session.sid,
-        screenstart: {}
-      } as any
+        screenstart: {},
+      } as any,
     });
   }
 
-  notifyScreenShareStop (session: GenesysCloudMediaSession): Promise<void> {
-    return this.client._stanzaio.send('iq', {
+  notifyScreenShareStop(session: GenesysCloudMediaSession): Promise<void> {
+    return this.client._stanzaio.send("iq", {
       to: `${session.peerID}`,
       from: this.jid,
-      type: 'set',
+      type: "set",
       jingle: {
         action: JingleAction.SessionInfo,
         sid: session.sid,
-        screenstop: {}
-      } as any
+        screenstop: {},
+      } as any,
     });
   }
 
-  async cancelRtcSession (sessionId: string): Promise<void> {
+  async cancelRtcSession(sessionId: string): Promise<void> {
     const session = this.pendingSessions[sessionId];
     if (!session) {
       this.emit(
         events.RTCSESSION_ERROR,
-        'Cannot cancel session because it is not pending or does not exist'
+        "Cannot cancel session because it is not pending or does not exist"
       );
       return;
     }
@@ -400,25 +483,45 @@ export class WebrtcExtension extends EventEmitter {
     const retract = {
       to: session.to,
       retract: {
-        sessionId
-      }
+        sessionId,
+      },
     };
     delete this.pendingSessions[sessionId];
-    await this.client._stanzaio.send('message', retract); // send as Message
+    await this.client._stanzaio.send("message", retract); // send as Message
   }
 
-  async refreshIceServers (): Promise<any[]> {
+  async refreshIceServers(): Promise<any[]> {
     const server = this.client._stanzaio.config.server;
-    const turnServersPromise = this.client._stanzaio.getServices(server as any, 'turn', '1');
-    const stunServersPromise = this.client._stanzaio.getServices(server as any, 'stun', '1');
+    const turnServersPromise = this.client._stanzaio.getServices(
+      server as any,
+      "turn",
+      "1"
+    );
+    const stunServersPromise = this.client._stanzaio.getServices(
+      server as any,
+      "stun",
+      "1"
+    );
 
-    const [turnServers, stunServers] = await Promise.all([turnServersPromise, stunServersPromise]);
-    this.logger.debug('STUN/TURN server discovery result', { turnServers, stunServers });
-    const iceServers = [...(turnServers.services as any), ...(stunServers.services as any)].map(service => {
-      const port = service.port ? `:${service.port}` : '';
-      const ice: RTCIceServer & { type: string } = { type: service.type, urls: `${service.type}:${service.host}${port}` };
-      if (['turn', 'turns'].includes(service.type)) {
-        if (service.transport && (service.transport !== 'udp')) {
+    const [turnServers, stunServers] = await Promise.all([
+      turnServersPromise,
+      stunServersPromise,
+    ]);
+    this.logger.debug("STUN/TURN server discovery result", {
+      turnServers,
+      stunServers,
+    });
+    const iceServers = [
+      ...(turnServers.services as any),
+      ...(stunServers.services as any),
+    ].map((service) => {
+      const port = service.port ? `:${service.port}` : "";
+      const ice: RTCIceServer & { type: string } = {
+        type: service.type,
+        urls: `${service.type}:${service.host}${port}`,
+      };
+      if (["turn", "turns"].includes(service.type)) {
+        if (service.transport && service.transport !== "udp") {
           ice.urls += `?transport=${service.transport}`;
         }
         if (service.username) {
@@ -435,21 +538,21 @@ export class WebrtcExtension extends EventEmitter {
     return iceServers;
   }
 
-  getSessionTypeByJid (jid: string): SessionType {
+  getSessionTypeByJid(jid: string): SessionType {
     if (isAcdJid(jid)) {
-      return 'screenShare';
+      return "screenShare";
     } else if (isScreenRecordingJid(jid)) {
-      return 'screenRecording';
+      return "screenRecording";
     } else if (isSoftphoneJid(jid)) {
-      return 'softphone';
+      return "softphone";
     } else if (isVideoJid(jid)) {
-      return 'collaborateVideo';
+      return "collaborateVideo";
     } else {
-      return 'unknown';
+      return "unknown";
     }
   }
 
-  get expose (): WebrtcExtensionAPI {
+  get expose(): WebrtcExtensionAPI {
     return {
       on: this.on.bind(this),
       once: this.once.bind(this),
@@ -463,7 +566,7 @@ export class WebrtcExtension extends EventEmitter {
       rtcSessionAccepted: this.rtcSessionAccepted.bind(this),
       initiateRtcSession: this.initiateRtcSession.bind(this),
       getSessionTypeByJid: this.getSessionTypeByJid.bind(this),
-      jingle: this.client._stanzaio.jingle
+      jingle: this.client._stanzaio.jingle,
     };
   }
 }
@@ -472,14 +575,14 @@ export interface WebrtcExtensionAPI {
   on: (event: string, handler: (...args: any) => void) => void;
   once: (event: string, handler: (...args: any) => void) => void;
   off: (event: string, handler: (...args: any) => void) => void;
-  refreshIceServers (): Promise<any[]>;
-  acceptRtcSession (sessionId: string): void;
-  rejectRtcSession (sessionId: string, ignore?: boolean): void;
-  cancelRtcSession (sessionId: string): void;
-  rtcSessionAccepted (sessionId: string): void;
-  initiateRtcSession (opts: InitRtcSessionOptions): Promise<void>;
-  notifyScreenShareStart (session: GenesysCloudMediaSession): void;
-  notifyScreenShareStop (session: GenesysCloudMediaSession): void;
-  getSessionTypeByJid (jid: string): SessionType;
+  refreshIceServers(): Promise<any[]>;
+  acceptRtcSession(sessionId: string): void;
+  rejectRtcSession(sessionId: string, ignore?: boolean): void;
+  cancelRtcSession(sessionId: string): void;
+  rtcSessionAccepted(sessionId: string): void;
+  initiateRtcSession(opts: InitRtcSessionOptions): Promise<void>;
+  notifyScreenShareStart(session: GenesysCloudMediaSession): void;
+  notifyScreenShareStop(session: GenesysCloudMediaSession): void;
+  getSessionTypeByJid(jid: string): SessionType;
   jingle: SessionManager;
 }

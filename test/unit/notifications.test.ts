@@ -77,6 +77,38 @@ describe('Notifications', () => {
     expect(notification.pubsubHost).toBe('notifications.mypurecloud.com');
   });
 
+  it('Unsubscribe when there are no handlers.', async () => {
+    const client = new Client({
+      apiHost: 'example.com',
+      channelId: 'notification-test-channel'
+    });
+    const notification = new Notifications(client);
+
+    // subscribing
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    const handler = jest.fn();
+    const firstSubscription = notification.expose.subscribe('topic.test', handler, true);
+
+    // not subscribed yet, client is not connected
+    expect(notification.client._stanzaio.subscribeToNode).not.toHaveBeenCalled();
+
+    client.emit('connected');
+    client.connected = true;
+    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
+    await firstSubscription;
+    expect(notification.subscriptions['topic.test'].length).toBe(1);
+    expect(notification.subscriptions['topic.test'][0]).toBe(handler);
+
+    // subscribe again to the same topic with the same handler
+    await notification.expose.subscribe('topic.test', handler, true);
+    expect(notification.subscriptions['topic.test'].length).toBe(1);
+
+    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+    await notification.expose.unsubscribe('topic.test', undefined, true);
+    expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalled();
+
+  });
+
   it('subscribe and unsubscribe do their jobs', async () => {
     const client = new Client({
       apiHost: 'example.com',
