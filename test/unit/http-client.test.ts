@@ -178,11 +178,7 @@ describe('HttpRequestClient', () => {
     it('should return the original error as a new object', () => {
       const error = new Error('This is broken');
 
-      expect(http.formatRequestError(error)).toEqual({
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
+      expect(http.formatRequestError(error)).toBe(error);
     });
   });
 

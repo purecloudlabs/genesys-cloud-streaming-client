@@ -6,7 +6,6 @@ import {
   RequestApiOptions,
   ISuperagentNetworkError,
   ISuperagentResponseError,
-  IError,
   INetworkError,
   IResponseError
 } from './types/interfaces';
@@ -56,7 +55,7 @@ export class HttpClient {
       .forEach(key => this._cancelAndRemoveValueFromRetryMap(key));
   }
 
-  formatRequestError (error: Error | ISuperagentNetworkError | ISuperagentResponseError): IError | INetworkError | IResponseError {
+  formatRequestError (error: Error | ISuperagentNetworkError | ISuperagentResponseError): Error | INetworkError | IResponseError {
     /* if network error */
     if (this.isSuperagentNetworkError(error)) {
       return {
@@ -90,11 +89,7 @@ export class HttpClient {
     }
 
     /* if we don't have a superagent error */
-    return {
-      message: error.message,
-      name: error.name,
-      stack: error.stack
-    };
+    return error;
   }
 
   private isSuperagentNetworkError (error: any | ISuperagentNetworkError): error is ISuperagentNetworkError {
