@@ -47,6 +47,8 @@ const events = {
   // LASTN_CHANGE: 'lastNChange'
 };
 
+const desiredMaxStatsSize = 15000;
+
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
 export interface InitRtcSessionOptions {
@@ -72,10 +74,10 @@ export class WebrtcExtension extends EventEmitter {
     allowIPv6: boolean;
     optOutOfWebrtcStatsTelemetry?: boolean;
   };
-  private statsToSend: any[] = [];
   private statsArr: any[] = [];
   private throttleSendStatsInterval = 25000;
-  private currentMaxStatSize = 10000;
+  private currentMaxStatSize = desiredMaxStatsSize;
+  private statsSizeDecreaseAmount = 3000;
   private statBuffer = 0;
   private throttledSendStats: any;
 
@@ -137,7 +139,7 @@ export class WebrtcExtension extends EventEmitter {
 
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
-  proxyStatsForSession(session: GenesysCloudMediaSession) {
+  proxyStatsForSession (session: GenesysCloudMediaSession) {
     session.on("stats", (statsEvent: StatsEvent) => {
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
@@ -148,7 +150,6 @@ export class WebrtcExtension extends EventEmitter {
 
       // format the event to what the api expects
       const event = formatStatsEvent(statsCopy, extraDetails);
-      this.statsArr.push(event);
 
       const currentEventSize = this.calculatePayloadSize(event);
       // Check if the size of the current event plus the size of the previous stats exceeds max size.
@@ -156,13 +157,14 @@ export class WebrtcExtension extends EventEmitter {
         this.statBuffer + currentEventSize > this.currentMaxStatSize;
       console.log("exceeds?", exceedsMaxStatSize, this.statsToSend.length);
 
+      this.statsArr.push(event);
+      this.statBuffer += currentEventSize;
+
       // If it exceeds max size, don't append just send current payload.
       if (exceedsMaxStatSize) {
         this.throttledSendStats.flush();
         console.log('stats arr:', this.statsArr);
       } else {
-        this.statBuffer += currentEventSize;
-        this.statsToSend.push(event);
         console.log("stats to send: ", this.statsToSend.length);
         console.log("stats arr: ", this.statsArr.length);
         this.throttledSendStats();
@@ -170,18 +172,31 @@ export class WebrtcExtension extends EventEmitter {
     });
   }
 
-  async sendStats() {
-    const stats = this.statsToSend.splice(0, this.statsToSend.length);
-    console.log("sent", stats);
+  async sendStats () {
+    const statsToSend: any[] = [];
+    let currentSize = 0;
 
-    if (!stats.length || !this.client.config.authToken) {
+    for (const stats of this.statsArr) {
+      if (currentSize + this.calculatePayloadSize(stats) < this.currentMaxStatSize) {
+        statsToSend.push(stats);
+      } else {
+        break;
+      }
+    }
+
+    this.statsArr.splice(0, statsToSend.length);
+    this.statBuffer = this.statsArr.reduce((currentSize, stats) => currentSize + this.calculatePayloadSize(stats), 0);
+
+    console.log("sent", statsToSend);
+
+    if (!statsToSend.length || !this.client.config.authToken) {
       return;
     }
 
     const data = {
       appName: "streamingclient",
       appVersion: Client.version,
-      actions: stats,
+      actions: statsToSend,
     };
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
@@ -193,33 +208,20 @@ export class WebrtcExtension extends EventEmitter {
         logger: this.client.logger,
         data,
       });
-      // Remove the sent stats from the overflow array.
-      this.statsArr.splice(0, stats.length);
-      this.statBuffer = 0;
-      // Add overflow stats back to send array for next send attempt.
-      this.statsToSend = [...this.statsArr];
-      // this.decreasePayloadSize(stats);
+
+      this.currentMaxStatSize = desiredMaxStatsSize;
     } catch (err) {
-      this.logger.error("Failed to send stats", { err, stats });
       if (err.status === 413) {
-        this.decreasePayloadSize(stats);
+        const attemptedPayloadSize = this.currentMaxStatSize;
+        this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
+        this.statsArr = [ ...statsToSend, ...this.statsArr ];
+        this.statBuffer = this.statsArr.reduce((currentSize, stats) => currentSize + this.calculatePayloadSize(stats), 0);
+        this.logger.info('Failed to send stats due to 413, retrying with smaller set', { attemptedPayloadSize, newPayloadSize: this.currentMaxStatSize });
+        this.sendStats();
+      } else {
+        this.logger.error("Failed to send stats", { err, numberOfFailedStats: statsToSend.length });
       }
     }
-  }
-
-  decreasePayloadSize(stats) {
-    let decreasedStatArr: any[] = [];
-    this.currentMaxStatSize -= 3000;
-    this.statBuffer = 0;
-
-    stats.forEach((item) => {
-      this.statBuffer += this.calculatePayloadSize(item);
-      console.log('decreased to: ', this.currentMaxStatSize, "current buffer: ", this.statBuffer);
-      if (this.statBuffer < this.currentMaxStatSize) {
-        decreasedStatArr.push(item);
-      }
-    });
-    this.statsToSend = [...decreasedStatArr];
   }
 
   addEventListeners() {
