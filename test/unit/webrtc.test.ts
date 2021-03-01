@@ -757,37 +757,44 @@ describe('proxyStatsForSession', () => {
       actionName: 'test'
     });
 
-    expect(webrtc['statsToSend']).toEqual([formattedStats]);
+    expect(webrtc['statsArr']).toEqual([formattedStats]);
     expect(webrtc['throttledSendStats']).toHaveBeenCalled();
   });
-  it('should send stats immediately if max payload size has been reached.', async () => {
-    // webrtc['statsToSend'].push({} as any);
-    // webrtc['maxStatSize'] = 118;
-    // sendSpy.mockReset();
-    // expect(webrtc['statsToSend'].length).toBe(1);
 
-    // await webrtc.sendStats();
-    // expect(sendSpy).toHaveBeenCalled();
-    // expect(webrtc['statsToSend'].length).toBe(0);
-    // expect(webrtc['throttledSendStats']).toHaveBeenCalledTimes(2);
+  it('should flush throttledSendStats', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any);
     const session: any = new EventEmitter();
     session.sid = 'mysid';
     session.sessionType = 'softphone';
     session.conversationId = 'myconvoid';
-    webrtc['maxStatSize'] = 1;
+
+    webrtc['currentMaxStatSize'] = 1;
+    webrtc['throttledSendStats'].flush = jest.fn();
 
 
-    webrtc['throttledSendStats'] = jest.fn();
+    const formattedStats = {
+      actionName: 'test',
+      actionDate: expect.anything(),
+      details: {
+        conference: 'myconvoid',
+        session: 'mysid',
+        sessionType: 'softphone',
+      },
+    };
+
+    jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
 
     webrtc.proxyStatsForSession(session);
     session.emit('stats', {
       actionName: 'test'
     });
 
-    expect(webrtc['statsToSend']).toEqual([]);
+    expect(webrtc['statsArr']).toEqual([formattedStats]);
+    expect(webrtc['throttledSendStats'].flush).toHaveBeenCalled();
   });
+
+
 });
 
 describe('sendStats', () => {
@@ -797,13 +804,24 @@ describe('sendStats', () => {
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
-
-    webrtc['statsToSend'].push({} as any);
+    webrtc['statsArr'].push({} as any);
     webrtc['throttledSendStats']();
     expect(sendSpy).not.toHaveBeenCalled();
-    await wait(25050);
+    await wait(5050);
     expect(sendSpy).toHaveBeenCalled();
-  });
+  }, 30000);
+
+  it('should not send stats from throttle fn if stats always exceed size.', async () => {
+    const client = new Client({ authToken: '123' });
+    const webrtc = new WebrtcExtension(client as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
+    webrtc['currentMaxStatSize'] = 1;
+    webrtc['statsArr'].push({} as any);
+    webrtc['throttledSendStats']();
+    await wait(5050);
+    expect(sendSpy).not.toHaveBeenCalled();
+  }, 30000);
 
 
 
@@ -812,12 +830,12 @@ describe('sendStats', () => {
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
-    webrtc['statsToSend'].push({} as any);
+    webrtc['statsArr'].push({} as any);
     sendSpy.mockReset();
 
     await webrtc.sendStats();
     expect(sendSpy).toHaveBeenCalled();
-    expect(webrtc['statsToSend'].length).toBe(0);
+    expect(webrtc['statsArr'].length).toBe(0);
   });
 
   it('should not send stats if theres no auth token', async () => {
@@ -825,12 +843,12 @@ describe('sendStats', () => {
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
-    webrtc['statsToSend'].push({} as any);
+    webrtc['statsArr'].push({} as any);
     sendSpy.mockReset();
 
     await webrtc.sendStats();
     expect(sendSpy).not.toHaveBeenCalled();
-    expect(webrtc['statsToSend'].length).toBe(0);
+    expect(webrtc['statsArr'].length).toBe(0);
   });
 
   it('should not send stats if theres nothing to send', async () => {
@@ -842,30 +860,45 @@ describe('sendStats', () => {
 
     await webrtc.sendStats();
     expect(sendSpy).not.toHaveBeenCalled();
-    expect(webrtc['statsToSend'].length).toBe(0);
+    expect(webrtc['statsArr'].length).toBe(0);
   });
 
-  fit('should log failure but done nothing', async () => {
+  it('should log failure but done nothing', async () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi');
     const logSpy = jest.spyOn(webrtc.logger, 'error');
 
-    webrtc['statsToSend'].push({} as any);
+    webrtc['statsArr'].push({} as any);
 
     await webrtc.sendStats();
     expect(sendSpy).toHaveBeenCalled();
-    expect(webrtc['statsToSend'].length).toBe(0);
+    expect(webrtc['statsArr'].length).toBe(0);
     expect(logSpy).toHaveBeenCalled();
   });
 
   describe('calculatePayloadSize', () => {
+    const client = new Client({ authToken: '123' });
+    const webrtc = new WebrtcExtension(client as any);
     it('should calculate payload size.', () => {
+        jest.spyOn(webrtc, 'calculatePayloadSize')
+          .mockReturnValueOnce(0)
+          .mockReturnValueOnce(1)
+
+        let testPayload = [];
+
+        expect(webrtc.calculatePayloadSize(testPayload as any)).toEqual(0);
+        expect(webrtc.calculatePayloadSize([{}] as any)).toEqual(1);
+      });
+  });
+
+  describe('multibyte characters', () => {
+    it('should calculate multibyte characters', () => {
       const client = new Client({ authToken: '123' });
       const webrtc = new WebrtcExtension(client as any);
-      const payload1 = { value: 'test1' };
-      const calcSpy = spyOn(webrtc, 'calculatePayloadSize')
+      expect(webrtc.calculatePayloadSize('a')).toBe(3);
+      expect(webrtc.calculatePayloadSize('¢')).toBe(4);
     });
-  });
+  })
 });
