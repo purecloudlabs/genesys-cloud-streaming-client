@@ -807,7 +807,7 @@ describe('sendStats', () => {
     webrtc['statsArr'].push({} as any);
     webrtc['throttledSendStats']();
     expect(sendSpy).not.toHaveBeenCalled();
-    await wait(5050);
+    await wait(25050);
     expect(sendSpy).toHaveBeenCalled();
   }, 30000);
 
@@ -819,7 +819,7 @@ describe('sendStats', () => {
     webrtc['currentMaxStatSize'] = 1;
     webrtc['statsArr'].push({} as any);
     webrtc['throttledSendStats']();
-    await wait(5050);
+    await wait(25050);
     expect(sendSpy).not.toHaveBeenCalled();
   }, 30000);
 

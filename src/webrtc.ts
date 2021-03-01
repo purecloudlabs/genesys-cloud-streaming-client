@@ -65,7 +65,7 @@ export class WebrtcExtension extends EventEmitter {
     optOutOfWebrtcStatsTelemetry?: boolean;
   };
   private statsArr: any[] = [];
-  private throttleSendStatsInterval = 5000;
+  private throttleSendStatsInterval = 25000;
   private currentMaxStatSize = desiredMaxStatsSize;
   private statsSizeDecreaseAmount = 3000;
   private statBuffer = 0;
