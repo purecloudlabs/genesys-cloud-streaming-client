@@ -1,8 +1,14 @@
 import request from 'superagent';
 
 import reqlogger from './request-logger';
-import { RequestApiOptions } from './types/interfaces';
 import { RetryPromise, retryPromise } from './utils';
+import {
+  RequestApiOptions,
+  ISuperagentNetworkError,
+  ISuperagentResponseError,
+  INetworkError,
+  IResponseError
+} from './types/interfaces';
 
 export class HttpClient {
   private _httpRetryingRequests = new Map<string, RetryPromise<any>>();
@@ -40,12 +46,69 @@ export class HttpClient {
       .set('Authorization', `Bearer ${opts.authToken}`)
       .type(opts.contentType || 'json');
 
-    return response.send(opts.data); // trigger request
+    return response.send(opts.data) // trigger request
+      .catch(err => { throw this.formatRequestError(err); });
   }
 
   stopAllRetries (): void {
     Array.from(this._httpRetryingRequests.keys())
       .forEach(key => this._cancelAndRemoveValueFromRetryMap(key));
+  }
+
+  formatRequestError (error: Error | ISuperagentNetworkError | ISuperagentResponseError): Error | INetworkError | IResponseError {
+    /* if network error */
+    if (this.isSuperagentNetworkError(error)) {
+      return {
+        status: error.status,
+        method: error.method,
+        url: error.url,
+        crossDomain: error.crossDomain,
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      };
+    }
+
+    /* if superagent response error */
+    if (this.isSuperagentResponseError(error)) {
+      const res = error.response;
+      return {
+        status: error.status,
+
+        correlationId: res.headers['inin-correlation-id'],
+        responseBody: res.text,
+
+        method: res.req.method,
+        requestBody: res.req._data,
+
+        url: res.error.url,
+        message: res.error.message,
+        name: res.error.name,
+        stack: res.error.stack
+      };
+    }
+
+    /* if we don't have a superagent error */
+    return error;
+  }
+
+  private isSuperagentNetworkError (error: any | ISuperagentNetworkError): error is ISuperagentNetworkError {
+    return (
+      error &&
+      // these properties may have the value of `undefined` but they will still be set
+      error.hasOwnProperty('status') &&
+      error.hasOwnProperty('method') &&
+      error.hasOwnProperty('url')
+    );
+  }
+
+  private isSuperagentResponseError (error: any | ISuperagentNetworkError): error is ISuperagentResponseError {
+    return !!(
+      error &&
+      error.response &&
+      error.response.body &&
+      error.response.req
+    );
   }
 
   private _buildUri (host: string, path: string, version = 'v2') {
