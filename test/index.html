@@ -1,52 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Streaming Client Local Test</title>
-  </head>
 
-  <body>
-    <script src="../dist/streaming-client.browser.js"></script>
-    <script src="index.js"></script>
-    <script>
-      const authToken =
-        "Uuu-6rClZ3yPuZh-KZb-INRsEFinhfYtnZMiBM258jDxeus1cYIDSlIfbjfxbG57w1zAHOAzmQrpB9bLl7BxIg";
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streaming Client Local Test</title>
+</head>
 
-      const client = new window.GenesysCloudStreamingClient({
-        host: "wss://streaming.inindca.com",
-        authToken,
-      });
+<body>
+  <script src="../dist/streaming-client.browser.js"></script>
+  <script src="index.js"></script>
+  <script>
+    const authToken = 'INSERT_TOKEN';
 
-      window.client = client;
 
-      // client.on('*', console.log);
-      async function run() {
-        // good for reaching 429s
-        // await Promise.all([
-        //   window.issueTooManyRequests(authToken, 162, 'users/me'),
-        //   window.issueTooManyRequests(authToken, 65, 'notifications/channels?connectionType=streaming')
-        // ]);
+    const client = new window.GenesysCloudStreamingClient({
+      host: 'wss://streaming.inindca.com',
+      authToken
+    });
 
-        await client.connect();
-        client.webrtcSessions.on(
-          "requestIncomingRtcSession",
-          (pendingSession) => {
-            client.webrtcSessions.acceptRtcSession(pendingSession.sessionId);
-          }
-        );
+    window.client = client;
 
-        client.webrtcSessions.on("incomingRtcSession", (session) => {
-          session.accept();
-        });
-        // try {
-        //   await client.reconnect();
-        // } catch (error) {
-        //   console.warn('error', { ...error });
-        // }
-      }
+    // client.on('*', console.log);
+    async function run() {
+      // good for reaching 429s
+      // await Promise.all([
+      //   window.issueTooManyRequests(authToken, 162, 'users/me'),
+      //   window.issueTooManyRequests(authToken, 65, 'notifications/channels?connectionType=streaming')
+      // ]);
 
-      run();
-    </script>
-  </body>
+      await client.connect();
+
+      // try {
+      //   await client.reconnect();
+      // } catch (error) {
+      //   console.warn('error', { ...error });
+      // }
+    }
+
+    run();
+  </script>
+</body>
+
 </html>
