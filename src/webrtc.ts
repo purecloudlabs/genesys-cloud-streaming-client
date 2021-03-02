@@ -8,7 +8,7 @@ import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize } from './utils';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import Client from '.';
@@ -119,14 +119,6 @@ export class WebrtcExtension extends EventEmitter {
     return session;
   }
 
-  calculatePayloadSize (trace: any): number {
-    const str = JSON.stringify(trace);
-    // http://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
-    // Matches only the 10.. bytes that are non-initial characters in a multi-byte sequence.
-    const m = encodeURIComponent(str).match(/%[89ABab]/g);
-    return str.length + (m ? m.length : 0);
-  }
-
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: GenesysCloudMediaSession) {
@@ -141,7 +133,7 @@ export class WebrtcExtension extends EventEmitter {
       // format the event to what the api expects
       const event = formatStatsEvent(statsCopy, extraDetails);
 
-      const currentEventSize = this.calculatePayloadSize(event);
+      const currentEventSize = calculatePayloadSize(event);
       // Check if the size of the current event plus the size of the previous stats exceeds max size.
       const exceedsMaxStatSize =
         this.statBuffer + currentEventSize > this.currentMaxStatSize;
@@ -163,7 +155,7 @@ export class WebrtcExtension extends EventEmitter {
     let currentSize = 0;
 
     for (const stats of this.statsArr) {
-      const statSize = this.calculatePayloadSize(stats);
+      const statSize = calculatePayloadSize(stats);
       if (currentSize + statSize < this.currentMaxStatSize) {
         statsToSend.push(stats);
         currentSize += statSize;
@@ -174,7 +166,7 @@ export class WebrtcExtension extends EventEmitter {
 
     this.statsArr.splice(0, statsToSend.length);
     this.statBuffer = this.statsArr.reduce(
-      (currentSize, stats) => currentSize + this.calculatePayloadSize(stats),
+      (currentSize, stats) => currentSize + calculatePayloadSize(stats),
       0
     );
 
@@ -197,11 +189,6 @@ export class WebrtcExtension extends EventEmitter {
         logger: this.client.logger,
         data
       });
-      if (this.currentMaxStatSize === desiredMaxStatsSize) {
-        const err: any = new Error('error');
-        err.status = 413;
-        throw err;
-      }
       this.currentMaxStatSize = desiredMaxStatsSize;
     } catch (err) {
       if (err.status === 413) {
@@ -210,7 +197,7 @@ export class WebrtcExtension extends EventEmitter {
         this.statsArr = [...statsToSend, ...this.statsArr];
         this.statBuffer = this.statsArr.reduce(
           (currentSize, stats) =>
-            currentSize + this.calculatePayloadSize(stats),
+            currentSize + calculatePayloadSize(stats),
           0
         );
         this.logger.info(

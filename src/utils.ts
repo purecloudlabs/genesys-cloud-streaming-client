@@ -100,6 +100,14 @@ export function retryPromise<T> (
   return { promise, cancel, complete, _id: v4() };
 }
 
+export function calculatePayloadSize (trace: any): number {
+  const str = JSON.stringify(trace);
+  // http://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript
+  // Matches only the 10.. bytes that are non-initial characters in a multi-byte sequence.
+  const m = encodeURIComponent(str).match(/%[89ABab]/g);
+  return str.length + (m ? m.length : 0);
+}
+
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {
 //   for (var key in provided) {

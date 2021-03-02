@@ -798,18 +798,24 @@ describe('proxyStatsForSession', () => {
 });
 
 describe('sendStats', () => {
+  beforeEach(() => {
+    jest.useFakeTimers('modern');
+  });
+  afterEach(() => {
+    jest.clearAllTimers();
+  });
+
   // fake timers apparently doesn't work with lodash.throttle/debounce
   it('should send stats from throttle fn', async () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
-
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['statsArr'].push({} as any);
     webrtc['throttledSendStats']();
     expect(sendSpy).not.toHaveBeenCalled();
-    await wait(25050);
+    jest.advanceTimersByTime(25050);
     expect(sendSpy).toHaveBeenCalled();
-  }, 30000);
+  });
 
   it('should not send stats from throttle fn if stats always exceed size.', async () => {
     const client = new Client({ authToken: '123' });
@@ -819,9 +825,9 @@ describe('sendStats', () => {
     webrtc['currentMaxStatSize'] = 1;
     webrtc['statsArr'].push({} as any);
     webrtc['throttledSendStats']();
-    await wait(25050);
+    jest.advanceTimersByTime(25050);
     expect(sendSpy).not.toHaveBeenCalled();
-  }, 30000);
+  });
 
 
 
@@ -878,27 +884,41 @@ describe('sendStats', () => {
     expect(logSpy).toHaveBeenCalled();
   });
 
-  describe('calculatePayloadSize', () => {
+  it('should log 413 failure and retry send stats.', async () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
+      const err: any = new Error('error');
+      err.status = 413;
+      throw err;
+    });
+    const logSpy = jest.spyOn(webrtc.logger, 'info');
+
+    webrtc['statsArr'].push({} as any);
+
+    await webrtc.sendStats();
+    expect(sendSpy).toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalled();
+  });
+
+  describe('calculatePayloadSize', () => {
     it('should calculate payload size.', () => {
-        jest.spyOn(webrtc, 'calculatePayloadSize')
+        jest.spyOn(utils, 'calculatePayloadSize')
           .mockReturnValueOnce(0)
           .mockReturnValueOnce(1)
 
         let testPayload = [];
 
-        expect(webrtc.calculatePayloadSize(testPayload as any)).toEqual(0);
-        expect(webrtc.calculatePayloadSize([{}] as any)).toEqual(1);
+        expect(utils.calculatePayloadSize(testPayload as any)).toEqual(0);
+        expect(utils.calculatePayloadSize([{}] as any)).toEqual(1);
       });
   });
 
   describe('multibyte characters', () => {
     it('should calculate multibyte characters', () => {
-      const client = new Client({ authToken: '123' });
-      const webrtc = new WebrtcExtension(client as any);
-      expect(webrtc.calculatePayloadSize('a')).toBe(3);
-      expect(webrtc.calculatePayloadSize('¢')).toBe(4);
+      expect(utils.calculatePayloadSize('a')).toBe(3);
+      expect(utils.calculatePayloadSize('¢')).toBe(4);
     });
   })
 });
