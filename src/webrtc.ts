@@ -8,7 +8,7 @@ import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid } from './utils';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize } from './utils';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import Client from '.';
@@ -37,6 +37,8 @@ const events = {
   // LASTN_CHANGE: 'lastNChange'
 };
 
+const desiredMaxStatsSize = 15000;
+
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
 export interface InitRtcSessionOptions {
@@ -57,13 +59,16 @@ export class WebrtcExtension extends EventEmitter {
   logger: any;
   pendingSessions: { [sessionId: string]: ProposeStanza } = {};
   config: {
-    iceTransportPolicy?: 'relay' | 'all',
-    iceServers: any[],
-    allowIPv6: boolean,
-    optOutOfWebrtcStatsTelemetry?: boolean
+    iceTransportPolicy?: 'relay' | 'all';
+    iceServers: any[];
+    allowIPv6: boolean;
+    optOutOfWebrtcStatsTelemetry?: boolean;
   };
-  private statsToSend: any[] = [];
-  private throttleSendStatsInterval = 3000;
+  private statsArr: any[] = [];
+  private throttleSendStatsInterval = 25000;
+  private currentMaxStatSize = desiredMaxStatsSize;
+  private statsSizeDecreaseAmount = 3000;
+  private statBuffer = 0;
   private throttledSendStats: any;
 
   get jid (): string {
@@ -86,7 +91,11 @@ export class WebrtcExtension extends EventEmitter {
     this.addEventListeners();
     this.proxyEvents();
     this.configureStanzaJingle();
-    this.throttledSendStats = throttle(this.sendStats.bind(this), this.throttleSendStatsInterval, { leading: false, trailing: true });
+    this.throttledSendStats = throttle(
+      this.sendStats.bind(this),
+      this.throttleSendStatsInterval,
+      { leading: false, trailing: true }
+    );
   }
 
   configureStanzaJingle () {
@@ -98,9 +107,14 @@ export class WebrtcExtension extends EventEmitter {
   prepareSession (options: any) {
     options.config.iceServers = this.config.iceServers || options.iceServers;
     options.config.iceTransportPolicy = this.config.iceTransportPolicy || 'all';
-    options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
+    options.optOutOfWebrtcStatsTelemetry = !!this.config
+      .optOutOfWebrtcStatsTelemetry;
 
-    const session = new GenesysCloudMediaSession(options, this.getSessionTypeByJid(options.peerID), this.config.allowIPv6);
+    const session = new GenesysCloudMediaSession(
+      options,
+      this.getSessionTypeByJid(options.peerID),
+      this.config.allowIPv6
+    );
     this.proxyStatsForSession(session);
     return session;
   }
@@ -119,22 +133,51 @@ export class WebrtcExtension extends EventEmitter {
       // format the event to what the api expects
       const event = formatStatsEvent(statsCopy, extraDetails);
 
-      this.statsToSend.push(event);
-      this.throttledSendStats();
+      const currentEventSize = calculatePayloadSize(event);
+      // Check if the size of the current event plus the size of the previous stats exceeds max size.
+      const exceedsMaxStatSize =
+        this.statBuffer + currentEventSize > this.currentMaxStatSize;
+
+      this.statsArr.push(event);
+      this.statBuffer += currentEventSize;
+
+      // If it exceeds max size, don't append just send current payload.
+      if (exceedsMaxStatSize) {
+        this.throttledSendStats.flush();
+      } else {
+        this.throttledSendStats();
+      }
     });
   }
 
   async sendStats () {
-    const stats = this.statsToSend.splice(0, this.statsToSend.length);
+    const statsToSend: any[] = [];
+    let currentSize = 0;
 
-    if (!stats.length || !this.client.config.authToken) {
+    for (const stats of this.statsArr) {
+      const statSize = calculatePayloadSize(stats);
+      if (currentSize + statSize < this.currentMaxStatSize) {
+        statsToSend.push(stats);
+        currentSize += statSize;
+      } else {
+        break;
+      }
+    }
+
+    this.statsArr.splice(0, statsToSend.length);
+    this.statBuffer = this.statsArr.reduce(
+      (currentSize, stats) => currentSize + calculatePayloadSize(stats),
+      0
+    );
+
+    if (!statsToSend.length || !this.client.config.authToken) {
       return;
     }
 
     const data = {
       appName: 'streamingclient',
       appVersion: Client.version,
-      actions: stats
+      actions: statsToSend
     };
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
@@ -146,8 +189,28 @@ export class WebrtcExtension extends EventEmitter {
         logger: this.client.logger,
         data
       });
+      this.currentMaxStatSize = desiredMaxStatsSize;
     } catch (err) {
-      this.logger.error('Failed to send stats', { err, stats });
+      if (err.status === 413) {
+        const attemptedPayloadSize = this.currentMaxStatSize;
+        this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
+        this.statsArr = [...statsToSend, ...this.statsArr];
+        this.statBuffer = this.statsArr.reduce(
+          (currentSize, stats) =>
+            currentSize + calculatePayloadSize(stats),
+          0
+        );
+        this.logger.info(
+          'Failed to send stats due to 413, retrying with smaller set',
+          { attemptedPayloadSize, newPayloadSize: this.currentMaxStatSize }
+        );
+        await this.sendStats();
+      } else {
+        this.logger.error('Failed to send stats', {
+          err,
+          numberOfFailedStats: statsToSend.length
+        });
+      }
     }
   }
 
@@ -176,11 +239,11 @@ export class WebrtcExtension extends EventEmitter {
     //   this.emit('send', data);
     // });
 
-    this.client._stanzaio.on('jingle:outgoing', session => {
+    this.client._stanzaio.on('jingle:outgoing', (session) => {
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
-    this.client._stanzaio.on('jingle:incoming', session => {
+    this.client._stanzaio.on('jingle:incoming', (session) => {
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
@@ -197,9 +260,12 @@ export class WebrtcExtension extends EventEmitter {
       'endOfCandidates'
     ];
     for (const e of eventsToProxy) {
-      this.client._stanzaio.jingle.on(e, (session: GenesysCloudMediaSession, ...data: any) => {
-        session.emit(e as any, ...data);
-      });
+      this.client._stanzaio.jingle.on(
+        e,
+        (session: GenesysCloudMediaSession, ...data: any) => {
+          session.emit(e as any, ...data);
+        }
+      );
     }
 
     // this.client._stanzaio.on('jingle:log:*', (level, msg, details) => {
@@ -226,7 +292,10 @@ export class WebrtcExtension extends EventEmitter {
     const fromJid = msg.from;
     const roomJid = fromJid;
     msg.propose.originalRoomJid = msg.propose.originalRoomJid || roomJid;
-    return this.emit(events.REQUEST_INCOMING_RTCSESSION, Object.assign({ roomJid, fromJid }, msg.propose));
+    return this.emit(
+      events.REQUEST_INCOMING_RTCSESSION,
+      Object.assign({ roomJid, fromJid }, msg.propose)
+    );
   }
 
   /**
@@ -249,14 +318,20 @@ export class WebrtcExtension extends EventEmitter {
     }
 
     if (opts.provideVideo) {
-      const videoDescriptionAlreadyExists = session.propose.descriptions.filter(desciption => desciption.media === 'video').length > 0;
+      const videoDescriptionAlreadyExists =
+        session.propose.descriptions.filter(
+          (desciption) => desciption.media === 'video'
+        ).length > 0;
       if (!videoDescriptionAlreadyExists) {
         session.propose.descriptions.push({ media: 'video' });
       }
     }
 
     if (opts.provideAudio) {
-      const audioDescriptionAlreadyExists = session.propose.descriptions.filter(desciption => desciption.media === 'audio').length > 0;
+      const audioDescriptionAlreadyExists =
+        session.propose.descriptions.filter(
+          (desciption) => desciption.media === 'audio'
+        ).length > 0;
       if (!audioDescriptionAlreadyExists) {
         session.propose.descriptions.push({ media: 'audio' });
       }
@@ -409,16 +484,36 @@ export class WebrtcExtension extends EventEmitter {
 
   async refreshIceServers (): Promise<any[]> {
     const server = this.client._stanzaio.config.server;
-    const turnServersPromise = this.client._stanzaio.getServices(server as any, 'turn', '1');
-    const stunServersPromise = this.client._stanzaio.getServices(server as any, 'stun', '1');
+    const turnServersPromise = this.client._stanzaio.getServices(
+      server as any,
+      'turn',
+      '1'
+    );
+    const stunServersPromise = this.client._stanzaio.getServices(
+      server as any,
+      'stun',
+      '1'
+    );
 
-    const [turnServers, stunServers] = await Promise.all([turnServersPromise, stunServersPromise]);
-    this.logger.debug('STUN/TURN server discovery result', { turnServers, stunServers });
-    const iceServers = [...(turnServers.services as any), ...(stunServers.services as any)].map(service => {
+    const [turnServers, stunServers] = await Promise.all([
+      turnServersPromise,
+      stunServersPromise
+    ]);
+    this.logger.debug('STUN/TURN server discovery result', {
+      turnServers,
+      stunServers
+    });
+    const iceServers = [
+      ...(turnServers.services as any),
+      ...(stunServers.services as any)
+    ].map((service) => {
       const port = service.port ? `:${service.port}` : '';
-      const ice: RTCIceServer & { type: string } = { type: service.type, urls: `${service.type}:${service.host}${port}` };
+      const ice: RTCIceServer & { type: string } = {
+        type: service.type,
+        urls: `${service.type}:${service.host}${port}`
+      };
       if (['turn', 'turns'].includes(service.type)) {
-        if (service.transport && (service.transport !== 'udp')) {
+        if (service.transport && service.transport !== 'udp') {
           ice.urls += `?transport=${service.transport}`;
         }
         if (service.username) {
