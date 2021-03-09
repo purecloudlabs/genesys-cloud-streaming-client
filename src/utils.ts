@@ -100,6 +100,17 @@ export function retryPromise<T> (
   return { promise, cancel, complete, _id: v4() };
 }
 
+// from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
+export const parseJwt = (token: string) => {
+  const base64Url = token.split('.')[1];
+  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+  const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
+    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+  }).join(''));
+
+  return JSON.parse(jsonPayload);
+};
+
 export function calculatePayloadSize (trace: any): number {
   const str = JSON.stringify(trace);
   // http://stackoverflow.com/questions/5515869/string-length-in-bytes-in-javascript

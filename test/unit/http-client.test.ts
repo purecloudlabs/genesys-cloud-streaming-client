@@ -16,11 +16,17 @@ describe('HttpRequestClient', () => {
   });
 
   describe('requestApi()', () => {
-    it('should make a request using superagent', async () => {
+    it('should make a request using superagent with authorization header', async () => {
       const host = 'example.com';
       const path = 'users/me';
 
-      const api = nock(`https://api.${host}`);
+      const api = nock(`https://api.${host}`, {
+        reqheaders: {
+          'accept-encoding': 'gzip, deflate',
+          'content-type': 'application/json',
+          authorization: /Bearer/,
+        }
+      });
 
       const users = api.get(`/api/v2/${path}`)
         .reply(200, []);
@@ -28,6 +34,27 @@ describe('HttpRequestClient', () => {
       const response = await http.requestApi(path, { host, method: 'get' });
 
       expect(response.body).toEqual([]);
+      expect(users.isDone()).toBe(true);
+    });
+
+    it('should make a request using superagent without an authorization header', async () => {
+      const host = 'example.com';
+      const path = 'users/me';
+
+      const api = nock(`https://api.${host}`, {
+        reqheaders: {
+          'accept-encoding': 'gzip, deflate',
+          'content-type': 'application/json'
+        }
+      });
+
+      const users = api.get(`/api/v2/${path}`)
+        .reply(200, []);
+
+      const response = await http.requestApi(path, { host, method: 'get', noAuthHeader: true });
+
+      expect(response.body).toEqual([]);
+      expect(response)
       expect(users.isDone()).toBe(true);
     });
 

@@ -7,7 +7,7 @@ import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Reconnector } from './reconnector';
 import { Ping } from './ping';
-import { timeoutPromise } from './utils';
+import { parseJwt, timeoutPromise } from './utils';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
@@ -38,17 +38,6 @@ function stanzaioOptions (config: ClientOptions & { channelId: string }): AgentC
 }
 
 const HARD_RECONNECT_THRESHOLD = 2;
-
-// from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
-function parseJwt (token) {
-  const base64Url = token.split('.')[1];
-  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-  const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function (c) {
-    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-  }).join(''));
-
-  return JSON.parse(jsonPayload);
-}
 
 function stanzaOptionsJwt (config) {
   const jwt = parseJwt(config.jwt);
