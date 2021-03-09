@@ -43,8 +43,12 @@ export class HttpClient {
   requestApi (path: string, opts: RequestApiOptions): Promise<any> {
     let response = request[opts.method](this._buildUri(opts.host, path, opts.version))
       .use(reqlogger.bind(this, opts.logger, opts.data))
-      .set('Authorization', `Bearer ${opts.authToken}`)
       .type(opts.contentType || 'json');
+
+    // default to include auth header
+    if (!opts.noAuthHeader) {
+      response.set('Authorization', `Bearer ${opts.authToken}`);
+    }
 
     return response.send(opts.data) // trigger request
       .catch(err => { throw this.formatRequestError(err); });

@@ -5,7 +5,8 @@ export type RequestApiOptions = {
   version?: string;
   contentType?: string;
   authToken?: string;
-  logger?: any
+  logger?: any;
+  noAuthHeader?: boolean;
 };
 
 export interface ISuperagentNetworkError extends Error {
