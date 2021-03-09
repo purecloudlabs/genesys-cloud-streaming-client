@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [v13.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.0...v13.2.1)
 ### Added
 * `noAuthHeader` to `HttpClient.requestApi`'s `RequestApiOptions` so callers can opt-out of using an `authorization` header.
-
-# [v13.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.1.1...v13.2.0)
 ### Fixed
 * [PCM-1518](https://inindca.atlassian.net/browse/PCM-1518) – optimize stats to not send as often
+
+# [v13.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.1.1...v13.2.0)
 
 ### Changed
 * [PCM-1540](https://inindca.atlassian.net/browse/PCM-1540) - formatting http errors from superagent better
