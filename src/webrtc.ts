@@ -285,7 +285,7 @@ export class WebrtcExtension extends EventEmitter {
       return;
     }
 
-    this.logger.info('propose received', { from: msg.from });
+    this.logger.info('propose received', { sessionId: msg.propose.sessionId, conversationId: msg.propose.conversationId });
     this.pendingSessions[msg.propose.sessionId] = msg;
     // TODO: is ofrom used?
     // const roomJid = (msg.ofrom && msg.ofrom.full) || msg.from.full || msg.from;
