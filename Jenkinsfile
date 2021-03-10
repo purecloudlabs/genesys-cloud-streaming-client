@@ -1,4 +1,4 @@
-@Library('pipeline-library') _
+@Library('pipeline-library@post-release-step-creds-for-github') _
 
 webappPipeline {
     slaveLabel = 'dev_v2'
@@ -31,14 +31,14 @@ webappPipeline {
         ]
     }
 
-    shouldTagOnRelease = { false }
+    shouldTagOnRelease = { true }
 
-    postReleaseStep = {
-        sshagent(credentials: [constants.credentials.github.inin_dev_evangelists]) {
-            sh("""
-                git tag v${version}
-                git push origin --tags
-            """)
-        }
-    }
+    // postReleaseStep = {
+    //     sshagent(credentials: [constants.credentials.github.inin_dev_evangelists]) {
+    //         sh("""
+    //             git tag v${version}
+    //             git push origin --tags
+    //         """)
+    //     }
+    // }
 }
