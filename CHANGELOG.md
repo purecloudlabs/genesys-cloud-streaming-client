@@ -4,16 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.2...HEAD)
+
+# [v13.2.2(https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.1...v13.2.2)
+### Fixed
+* [PCM-1552](https://inindca.atlassian.net/browse/PCM-1552) – reworked ping timer logic to avoid chrome v88 timer throttling (read here: https://developer.chrome.com/blog/timer-throttling-in-chrome-88/)
 
 # [v13.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.0...v13.2.1)
-### Added
-* `noAuthHeader` to `HttpClient.requestApi`'s `RequestApiOptions` so callers can opt-out of using an `authorization` header.
 ### Fixed
 * [PCM-1518](https://inindca.atlassian.net/browse/PCM-1518) – optimize stats to not send as often
+### Added
+* `noAuthHeader` to `HttpClient.requestApi`'s `RequestApiOptions` so callers can opt-out of using an `authorization` header.
 
 # [v13.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.1.1...v13.2.0)
-
 ### Changed
 * [PCM-1540](https://inindca.atlassian.net/browse/PCM-1540) - formatting http errors from superagent better
 
