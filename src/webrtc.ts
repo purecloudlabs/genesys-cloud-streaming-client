@@ -549,6 +549,8 @@ export class WebrtcExtension extends EventEmitter {
       on: this.on.bind(this),
       once: this.once.bind(this),
       off: this.off.bind(this),
+      removeAllListeners: this.removeAllListeners.bind(this),
+      removeListener: this.removeListener.bind(this),
       refreshIceServers: this.refreshIceServers.bind(this),
       acceptRtcSession: this.acceptRtcSession.bind(this),
       rejectRtcSession: this.rejectRtcSession.bind(this),
@@ -567,6 +569,8 @@ export interface WebrtcExtensionAPI {
   on: (event: string, handler: (...args: any) => void) => void;
   once: (event: string, handler: (...args: any) => void) => void;
   off: (event: string, handler: (...args: any) => void) => void;
+  removeAllListeners (event?: string | symbol): void;
+  removeListener (event: string | symbol, listener: (...args: any[]) => void): void;
   refreshIceServers (): Promise<any[]>;
   acceptRtcSession (sessionId: string): void;
   rejectRtcSession (sessionId: string, ignore?: boolean): void;
