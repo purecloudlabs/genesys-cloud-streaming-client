@@ -58,17 +58,20 @@ export function deepFlatten (obj: any, prefix = ''): any {
   } else if (typeof obj !== 'object') {
     flatObj[prefix] = obj;
   } else {
-    Object.keys(obj).forEach((key) => {
-      const val = obj[key];
+    Object.keys(obj)
+      /* don't send IP addresses to NR */
+      .filter(key => key.toLowerCase() !== 'ip')
+      .forEach((key) => {
+        const val = obj[key];
 
-      const nextPrefix = prefix ? `${prefix}_${key}` : key;
+        const nextPrefix = prefix ? `${prefix}_${key}` : key;
 
-      if (typeof val !== 'object' && !Array.isArray(val)) {
-        flatObj[nextPrefix] = val;
-      } else {
-        Object.assign(flatObj, deepFlatten(val, nextPrefix));
-      }
-    });
+        if (typeof val !== 'object' && !Array.isArray(val)) {
+          flatObj[nextPrefix] = val;
+        } else {
+          Object.assign(flatObj, deepFlatten(val, nextPrefix));
+        }
+      });
   }
 
   return flatObj;
