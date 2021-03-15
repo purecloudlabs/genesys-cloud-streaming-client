@@ -74,6 +74,7 @@ export interface ClientOptions {
   reconnectOnNoLongerSubscribed?: boolean;
   logger?: any;
   optOutOfWebrtcStatsTelemetry?: boolean;
+  allowIPv6?: boolean;
 }
 
 export class Client {

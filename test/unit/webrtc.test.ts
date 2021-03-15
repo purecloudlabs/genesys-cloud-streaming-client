@@ -26,7 +26,7 @@ class Client extends WildEmitter {
   _stanzaio: Agent;
   http: HttpClient;
 
-  constructor (public config: any) {
+  constructor(public config: any) {
     super();
     this._stanzaio = createClient({});
     this.http = new HttpClient();
@@ -46,7 +46,7 @@ function shimCreatePeerConnection (client) {
 describe('constructor', () => {
   it('should override prepareSession', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     shimCreatePeerConnection(client);
 
     expect(client._stanzaio.jingle.prepareSession({ parent: client._stanzaio.jingle, peerID: 'something', config: {} }) instanceof GenesysCloudMediaSession).toBeTruthy();
@@ -56,7 +56,7 @@ describe('constructor', () => {
 describe('addEventListeners', () => {
   it('should listen for jingle log messages', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const spy = jest.spyOn(webrtc.logger, 'info');
 
@@ -69,7 +69,7 @@ describe('addEventListeners', () => {
 
   it('should call handlePropose', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     // @ts-ignore
     const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
@@ -80,7 +80,7 @@ describe('addEventListeners', () => {
 
   it('should not call handle propose', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     // @ts-ignore
     const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
@@ -94,7 +94,7 @@ describe('proxyEvents', () => {
   it('should emit outgoingRtcSession', () => {
     expect.assertions(1);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const fakeSession = {};
 
@@ -108,7 +108,7 @@ describe('proxyEvents', () => {
   it('should emit incomingRtcSession', () => {
     expect.assertions(1);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const fakeSession = {};
 
@@ -121,7 +121,7 @@ describe('proxyEvents', () => {
 
   it('should emit sessionEvents', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const fakeSession = {
       emit: jest.fn()
@@ -154,7 +154,7 @@ describe('proxyEvents', () => {
 describe('handlePropose', () => {
   it('should do nothing if from self', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     client._stanzaio.jid = 'myJid';
 
     const spy = jest.spyOn(webrtc, 'emit');
@@ -174,7 +174,7 @@ describe('handlePropose', () => {
 
   it('should emit propose event with pending session', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     client._stanzaio.jid = 'myJid';
 
     const spy = jest.spyOn(webrtc, 'emit');
@@ -205,7 +205,7 @@ describe('handlePropose', () => {
 describe('initiateRtcSession', () => {
   it('should add medias based on provided stream', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
@@ -241,7 +241,7 @@ describe('initiateRtcSession', () => {
 
   it('should add medias based on params', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
@@ -272,7 +272,7 @@ describe('initiateRtcSession', () => {
 
   it('should add media based on mediaPurpose', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
@@ -305,7 +305,7 @@ describe('initiateRtcSession', () => {
 
   it('should handle when stream and params are provided', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
@@ -342,7 +342,7 @@ describe('initiateRtcSession', () => {
 
   it('should add listener media', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = '21l1kn12l1k2n@conference.test.com';
     const fromJid = 'myjid@test.com';
@@ -372,7 +372,7 @@ describe('initiateRtcSession', () => {
 
   it('should send as presence', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = '21l1kn12l1k2n@conference.test.com';
     const fromJid = 'myjid@test.com';
@@ -413,7 +413,7 @@ describe('acceptRtcSession', () => {
   it('should emit error if no pending session', async () => {
     expect.assertions(2);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
@@ -428,7 +428,7 @@ describe('acceptRtcSession', () => {
   it('should send proceed', async () => {
     expect.assertions(1);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sessionId = 'session123';
 
@@ -449,7 +449,7 @@ describe('rejectRtcSession', () => {
   it('should emit error if no pending session', async () => {
     expect.assertions(2);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     const sessionId = 'session123555';
 
     webrtc.on('rtcSessionError', (msg) => {
@@ -465,7 +465,7 @@ describe('rejectRtcSession', () => {
   it('should not send reject and should add session to ignored', async () => {
     expect.assertions(2);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sessionId = 'session12355524';
     webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com' } as any;
@@ -484,7 +484,7 @@ describe('rejectRtcSession', () => {
   it('should send reject', async () => {
     expect.assertions(2);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const bareJid = 'user@test.com';
     client._stanzaio.jid = `${bareJid}/442k2k2k-dkk`;
@@ -523,7 +523,7 @@ describe('rejectRtcSession', () => {
 describe('rtcSessionAccepted', () => {
   it('should send event', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sessionId = 'session8581';
 
@@ -545,7 +545,7 @@ describe('rtcSessionAccepted', () => {
 describe('notifyScreenShareStart', () => {
   it('should send event', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = 'room@conference.com';
     const sessionId = 'session66231';
@@ -577,7 +577,7 @@ describe('notifyScreenShareStart', () => {
 describe('notifyScreenShareStop', () => {
   it('should send event', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const toJid = 'room@conference.com';
     const sessionId = 'session66231';
@@ -610,7 +610,7 @@ describe('cancelRtcSession', () => {
   it('should emit error if no pending session', async () => {
     expect.assertions(2);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot cancel session because it is not pending or does not exist');
@@ -625,7 +625,7 @@ describe('cancelRtcSession', () => {
   it('should send proceed', async () => {
     expect.assertions(1);
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sessionId = 'session12243';
     const toJid = 'room@conference.com';
@@ -651,8 +651,9 @@ describe('cancelRtcSession', () => {
 describe('refreshIceServers', () => {
   it('should set jingle iceServers', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
+    const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
     jest.spyOn(client._stanzaio, 'getServices')
       .mockReturnValueOnce({
         services: [
@@ -668,6 +669,7 @@ describe('refreshIceServers', () => {
       } as any);
 
     await webrtc.refreshIceServers();
+    expect(spy).toHaveBeenCalledWith('all');
 
     expect(client._stanzaio.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
@@ -676,12 +678,39 @@ describe('refreshIceServers', () => {
       { type: 'stun', urls: 'stun:turn.server.com:234' }
     ]);
   });
+
+  it('should set iceTransportPolicy to relay', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+
+    jest.spyOn(client._stanzaio, 'getServices')
+      .mockReturnValueOnce({
+        services: [
+          { type: 'turn', host: 'turn.server.com' },
+          { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
+          { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' }
+        ]
+      } as any)
+      .mockReturnValueOnce({
+        services: []
+      } as any);
+
+    await webrtc.refreshIceServers();
+
+    expect(spy).toHaveBeenCalledWith('relay');
+    expect(client._stanzaio.jingle.iceServers).toEqual([
+      { type: 'turn', urls: 'turn:turn.server.com' },
+      { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
+      { type: 'turn', urls: 'turn:turn.server.com:456?transport=tcp', username: 'user2', credential: 'pass2' },
+    ]);
+  });
 });
 
 describe('getSessionTypeByJid', () => {
   it('should return screenshare', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(true);
 
     expect(webrtc.getSessionTypeByJid('sldkjf')).toEqual('screenShare');
@@ -689,7 +718,7 @@ describe('getSessionTypeByJid', () => {
 
   it('should return screenRecording', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(true);
 
@@ -698,7 +727,7 @@ describe('getSessionTypeByJid', () => {
 
   it('should return softphone', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
     jest.spyOn(utils, 'isSoftphoneJid').mockReturnValue(true);
@@ -708,7 +737,7 @@ describe('getSessionTypeByJid', () => {
 
   it('should return collaborateVideo', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
     jest.spyOn(utils, 'isSoftphoneJid').mockReturnValue(false);
@@ -719,7 +748,7 @@ describe('getSessionTypeByJid', () => {
 
   it('should return unknown', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
     jest.spyOn(utils, 'isSoftphoneJid').mockReturnValue(false);
@@ -732,7 +761,7 @@ describe('getSessionTypeByJid', () => {
 describe('proxyStatsForSession', () => {
   it('should call throttledSendStats', () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     const session: any = new EventEmitter();
     session.sid = 'mysid';
     session.sessionType = 'softphone';
@@ -763,7 +792,7 @@ describe('proxyStatsForSession', () => {
 
   it('should flush throttledSendStats', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     const session: any = new EventEmitter();
     session.sid = 'mysid';
     session.sessionType = 'softphone';
@@ -808,7 +837,7 @@ describe('sendStats', () => {
   // fake timers apparently doesn't work with lodash.throttle/debounce
   it('should send stats from throttle fn', async () => {
     const client = new Client({ authToken: '123' });
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['statsArr'].push({} as any);
     webrtc['throttledSendStats']();
@@ -819,7 +848,7 @@ describe('sendStats', () => {
 
   it('should not send stats from throttle fn if stats always exceed size.', async () => {
     const client = new Client({ authToken: '123' });
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['currentMaxStatSize'] = 1;
@@ -833,7 +862,7 @@ describe('sendStats', () => {
 
   it('should send stats', async () => {
     const client = new Client({ authToken: '123' });
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['statsArr'].push({} as any);
@@ -846,7 +875,7 @@ describe('sendStats', () => {
 
   it('should not send stats if theres no auth token', async () => {
     const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     webrtc['statsArr'].push({} as any);
@@ -859,7 +888,7 @@ describe('sendStats', () => {
 
   it('should not send stats if theres nothing to send', async () => {
     const client = new Client({ authToken: '123' });
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
     sendSpy.mockReset();
@@ -871,7 +900,7 @@ describe('sendStats', () => {
 
   it('should log failure but done nothing', async () => {
     const client = new Client({ authToken: '123' });
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi');
     const logSpy = jest.spyOn(webrtc.logger, 'error');
@@ -886,7 +915,7 @@ describe('sendStats', () => {
 
   it('should log 413 failure and retry send stats.', async () => {
     const client = new Client({ authToken: '123' });
-    const webrtc = new WebrtcExtension(client as any);
+    const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
       const err: any = new Error('error');
@@ -904,15 +933,15 @@ describe('sendStats', () => {
 
   describe('calculatePayloadSize', () => {
     it('should calculate payload size.', () => {
-        jest.spyOn(utils, 'calculatePayloadSize')
-          .mockReturnValueOnce(0)
-          .mockReturnValueOnce(1)
+      jest.spyOn(utils, 'calculatePayloadSize')
+        .mockReturnValueOnce(0)
+        .mockReturnValueOnce(1)
 
-        let testPayload = [];
+      let testPayload = [];
 
-        expect(utils.calculatePayloadSize(testPayload as any)).toEqual(0);
-        expect(utils.calculatePayloadSize([{}] as any)).toEqual(1);
-      });
+      expect(utils.calculatePayloadSize(testPayload as any)).toEqual(0);
+      expect(utils.calculatePayloadSize([{}] as any)).toEqual(1);
+    });
   });
 
   describe('multibyte characters', () => {

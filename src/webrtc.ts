@@ -13,6 +13,7 @@ import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
+import { ClientOptions } from './client';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -59,8 +60,6 @@ export class WebrtcExtension extends EventEmitter {
   logger: any;
   pendingSessions: { [sessionId: string]: ProposeStanza } = {};
   config: {
-    iceTransportPolicy?: 'relay' | 'all';
-    iceServers: any[];
     allowIPv6: boolean;
     optOutOfWebrtcStatsTelemetry?: boolean;
   };
@@ -75,15 +74,14 @@ export class WebrtcExtension extends EventEmitter {
     return this.client._stanzaio.jid;
   }
 
-  constructor (client: any, clientOptions: any = {}) {
+  constructor (client: Client, clientOptions: ClientOptions) {
     super();
     this.client = client;
     this.config = {
-      iceTransportPolicy: clientOptions.iceTransportPolicy,
-      iceServers: clientOptions.iceServers,
       allowIPv6: clientOptions.allowIPv6 === true,
       optOutOfWebrtcStatsTelemetry: clientOptions.optOutOfWebrtcStatsTelemetry
     };
+
     this.logger = client.logger;
     client._stanzaio.stanzas.define(definitions);
     client._stanzaio.jingle.prepareSession = this.prepareSession.bind(this);
@@ -105,10 +103,7 @@ export class WebrtcExtension extends EventEmitter {
   }
 
   prepareSession (options: any) {
-    options.config.iceServers = this.config.iceServers || options.iceServers;
-    options.config.iceTransportPolicy = this.config.iceTransportPolicy || 'all';
-    options.optOutOfWebrtcStatsTelemetry = !!this.config
-      .optOutOfWebrtcStatsTelemetry;
+    options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
 
     const session = new GenesysCloudMediaSession(
       options,
@@ -526,8 +521,23 @@ export class WebrtcExtension extends EventEmitter {
       return ice;
     });
 
-    this.client._stanzaio.jingle.iceServers = iceServers;
+    this.setIceServers(iceServers);
+    if (!stunServers.services!.length) {
+      this.logger.info('No stun servers received, setting iceTransportPolicy to "relay"');
+      this.setIceTransportPolicy('relay');
+    } else {
+      this.setIceTransportPolicy('all');
+    }
+
     return iceServers;
+  }
+
+  setIceServers (iceServers: any[]) {
+    this.client._stanzaio.jingle.iceServers = iceServers;
+  }
+
+  setIceTransportPolicy (policy: 'relay' | 'all') {
+    this.client._stanzaio.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
   }
 
   getSessionTypeByJid (jid: string): SessionType {
