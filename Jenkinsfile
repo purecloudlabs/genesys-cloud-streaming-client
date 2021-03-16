@@ -8,7 +8,7 @@ webappPipeline {
     manifest = directoryManifest('dist')
     buildType = { env.BRANCH_NAME == 'master' ? 'MAINLINE' : 'FEATURE' }
     publishPackage = { 'prod' }
-    testJob = 'valve-hawk-tests'
+    testJob = 'spigot-tests-streaming-client'
 
     buildStep = {
         sh('npm i && npm test && npm run build')
@@ -27,7 +27,7 @@ webappPipeline {
 
             // TODO: kick off a prepublish build of web-directory and link to tests run
             // against that feature build
-            testResults: 'https://jenkins.ininica.com/job/valve-hawk-tests-test/'
+            testResults: 'https://jenkins.ininica.com/job/spigot-tests-streaming-client-test/'
         ]
     }
 

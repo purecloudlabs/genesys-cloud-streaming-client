@@ -3,7 +3,7 @@ declare module 'wildemitter' {
     constructor ();
     on (event: string, groupNameOrCallback: any, callback?: any): void;
     once (event: string, groupNameOrCallback: any, callback?: any): void;
-    off (event: string, groupNameOrCallback: any, callback?: any): void;
+    off (event: string, groupNameOrCallback?: any, callback?: any): void;
     emit (event: string, ...args: any[]): void;
 
     /* emit */
