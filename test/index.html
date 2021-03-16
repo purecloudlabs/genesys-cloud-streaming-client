@@ -11,7 +11,7 @@
   <script src="../dist/streaming-client.browser.js"></script>
   <script src="index.js"></script>
   <script>
-    const authToken = '97M7Y00zgKHtbLMl0w4P4K7mi9gAaK5JHmlcbLkoCQqWlYMOwK9DJDVs0Iee7Zi-l4dGX0J0aqcbmH7bZiQXlA';
+    const authToken = 'TOKEN GOES HERE';
 
 
     const client = new window.GenesysCloudStreamingClient({
@@ -31,13 +31,14 @@
 
       await client.connect();
 
-      client.webrtcSessions.on('requestIncomingRtcSession', (session) => {
-        client.webrtcSessions.acceptRtcSession(session.sessionId)
-      });
+      // uncomment in order to answer calls (no media provided)
+      // client.webrtcSessions.on('requestIncomingRtcSession', (session) => {
+      //   client.webrtcSessions.acceptRtcSession(session.sessionId)
+      // });
 
-      client.webrtcSessions.on('incomingRtcSession', session => {
-        session.accept();
-      });
+      // client.webrtcSessions.on('incomingRtcSession', session => {
+      //   session.accept();
+      // });
 
       // try {
       //   await client.reconnect();
