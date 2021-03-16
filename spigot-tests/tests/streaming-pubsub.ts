@@ -32,9 +32,11 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
     return utils.disconnectClient(client);
   });
 
-  async function testCall (phoneNumber: string, opts: any = {}) {
+  async function testCall (phoneNumber: string, opts: { timeout?: number, reconnectStreaming?: boolean, hardReconnect?: boolean, isVoicemail?: boolean } = {}) {
     // Yes, this timeout is long, but it's because we're making a real call
-    if (config.callDelay) {
+    if (opts.timeout) {
+      this.timeout(opts.timeout);
+    } else if (config.callDelay) {
       this.timeout(config.callDelay + 2000);
     } else {
       this.timeout(20000);
@@ -72,7 +74,7 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
       )
       .toPromise();
 
-    const pubsubEvent2 = await subscription
+    const pubsubEvent2 = subscription
       .pipe(
         filter(message => {
           console.debug('checking streaming client pubsub message', message);
@@ -105,12 +107,13 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
 
     // wait for the session to arrive
     const session = await incomingRtcSession;
+    (window as any).session = session;
 
     await pubsubEvent1;
     console.log('received streaming pubsub event for connect');
 
-    // convert peerStreamAdded event to promise
-    const peerStreamAdded = new Promise<MediaStream>((resolve, reject) => {
+    // convert peerTrackAdded event to promise
+    const peerTrackAdded = new Promise<MediaStream>((resolve, reject) => {
       setTimeout(() => reject(new Error('Timeout waiting for remote stream')), config.validationTimeout);
       if (session.streams.length === 1 && session.streams[0].getAudioTracks().length > 0) {
         return resolve(session.streams[0]);
@@ -121,13 +124,15 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
     });
 
     // add the local stream and accept
-    session.addTrack(mediaStream.getAudioTracks()[0]);
+    session.pc.addTrack(mediaStream.getAudioTracks()[0]);
     session.accept();
+    session.on('terminated', () => {
+      console.log('session is ending', session);
+    });
     activeCall = conversationId;
-    const remoteStream = await peerStreamAdded;
+    const remoteStream = await peerTrackAdded;
 
-
-    console.log('received streaming pubsub event for connect', pubsubEvent2);
+    console.log('received streaming pubsub event for connect', await pubsubEvent2);
 
     if (opts.reconnectStreaming) {
       if (opts.hardReconnect) {
@@ -150,33 +155,33 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
       });
       client.reconnect();
       await reconnected;
+      // await utils.timeout(config.validationTimeout);
     }
     await utils.validateStream(session, remoteStream, activeCall, undefined, undefined, undefined);
 
     console.log('disconnecting call');
-    utils.disconnectCall(activeCall);
+    await utils.disconnectCall(activeCall);
     activeCall = null;
     await pubsubEvent3;
   }
 
   it('can connect to voicemail (tc60055)', async function () {
-    this.timeout(25000); // Wait up to 25s for whole test to finish
-    await testCall.call(this, '*86', { isVoicemail: true });
+    // Wait up to 25s for whole test to finish
+    await testCall.call(this, '*86', { timeout: 25000, isVoicemail: true });
   });
 
   it('can connect a call (tc60056)', async function () {
-    this.timeout(25000); // Wait up to 25s for whole test to finish
-    await testCall.call(this, config.outboundNumber);
+    // Wait up to 25s for whole test to finish
+    await testCall.call(this, config.outboundNumber, { timeout: 25000 });
   });
 
-  it('can connect a call with disconnect [reconnect] (tc60057)', async function () {
-    this.timeout(25000); // Wait up to 25s for whole test to finish
-    await testCall.call(this, config.outboundNumber, { reconnectStreaming: true });
+  it.only('can connect a call with disconnect [reconnect] (tc60057)', async function () {
+    // Wait up to 25s for whole test to finish
+    await testCall.call(this, config.outboundNumber, { timeout: 25000, reconnectStreaming: true });
   });
 
   it('can connect a call with major disconnect [hardreconnect]', async function () {
-    this.timeout(25000);
-    await testCall.call(this, config.outboundNumber, { reconnectStreaming: true, hardReconnect: true });
+    await testCall.call(this, config.outboundNumber, { timeout: 25000, reconnectStreaming: true, hardReconnect: true });
   });
 
   it('can do combined user topics (note: fails on streaming client < 10.0.1)', async function () {

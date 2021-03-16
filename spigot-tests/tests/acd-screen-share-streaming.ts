@@ -98,7 +98,7 @@ describe('ACD Screen Share via streaming [assvs]', function () {
       utils.rejectTimeout(reject, 'Customer Session', config.validationTimeout * 2);
       guestClient._webrtcSessions.once('incomingRtcSession', (session: GenesysCloudMediaSession) => {
         console.log('Got customer incoming session', session);
-        session.addTrack(customerSourceStream.getVideoTracks()[0]);
+        session.pc.addTrack(customerSourceStream.getVideoTracks()[0]);
         session.accept();
         resolve(session);
       });
@@ -164,7 +164,7 @@ describe('ACD Screen Share via streaming [assvs]', function () {
     };
   }
 
-  it.only('Can do a screen share and end the screenshare when the customer ends the session', async function () {
+  it('Can do a screen share and end the screenshare when the customer ends the session', async function () {
     const { agentSession, customerSession } = await startScreenShare.call(this);
     // verify that ending the customer session will also end the agent session
     const agentSessionEnded = new Promise<void>((resolve, reject) => {

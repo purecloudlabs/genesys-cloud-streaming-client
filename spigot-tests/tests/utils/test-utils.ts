@@ -634,7 +634,7 @@ export async function disconnectVideoCall (conversationId: string, immediate?: b
 }
 
 export function observableError (msg: any): Observable<any> {
-  return Observable.throw(new Error(msg));
+  return throwError(new Error(msg));
 }
 
 export function wait (ms: number = 2000) {
