@@ -6,10 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.2...HEAD)
 
-# [v13.2.2(https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.1...v13.2.2)
+# [v13.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.1...v13.2.2)
 ### Fixed
 * [PCM-1552](https://inindca.atlassian.net/browse/PCM-1552) – reworked ping timer logic to avoid chrome v88 timer throttling (read here: https://developer.chrome.com/blog/timer-throttling-in-chrome-88/)
 * [PCM-1558](https://inindca.atlassian.net/browse/PCM-1558) – removed IP addresses from stats sent to New Relic. Removed `fromJid` from being logged.
+* [PCM-1557](https://inindca.atlassian.net/browse/PCM-1557) – set `iceTransportPolicy` to use force TURN if only TURN servers are received
+
+### Added
+* [PCM-1560](https://inindca.atlassian.net/browse/PCM-1560) – added spigot tests to replace valve
 
 # [v13.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.0...v13.2.1)
 ### Fixed
