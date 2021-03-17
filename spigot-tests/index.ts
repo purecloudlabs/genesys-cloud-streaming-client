@@ -12,18 +12,19 @@ import stupidServer from 'stupid-server';
 import { v4 } from 'uuid';
 
 import { PuppeteerManager } from './puppeteer/launch';
-import { TestConfig } from './types/test-config';
+import { LocalConfig, TestConfig } from './types/test-config';
 import sdkPkg from '../package.json';
 
 let config: TestConfig;
 
-const defaultDevConfig = {
-  OAUTH_CLIENT_ID: 'ff22e32c-2948-4ff4-8f2c-1c379d28e84d',
-  ORG: 'TEST-valve-1ym37mj1kao',
-  USERNAME: 'agent-7-1ym37mj1kao@example.com',
-  PASSWORD: 'fV-qIe4HZtGM1yLr}^',
-  ENV_HOST: 'inindca.com'
-};
+let defaultDevConfig: LocalConfig = {} as LocalConfig;
+
+try {
+  const file = fs.readFileSync('./.localconfig.json').toString();
+  defaultDevConfig = JSON.parse(file);
+} catch (error) {
+  console.warn('Unable about to load `.localconfig.json` file.', error);
+}
 
 const buildDir = './bin';
 

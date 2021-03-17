@@ -4,3 +4,4 @@ screenshots
 bin
 reports
 .localconfig
+.localconfig.json

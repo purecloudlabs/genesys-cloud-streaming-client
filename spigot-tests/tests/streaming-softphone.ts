@@ -117,9 +117,9 @@ describe('Softphone Via Streaming Client [svso]', function () {
         utils.rejectTimeout(reject, 'refreshIceServers to respond', config.validationTimeout * 4);
         client.webrtcSessions.refreshIceServers().then(resolve);
       });
-      client._webrtcSessions.config.iceTransportPolicy = 'relay';
+      client._webrtcSessions.setIceTransportPolicy('relay');
       await testCall.call(this, config.outboundNumber);
-      client._webrtcSessions.config.iceTransportPolicy = 'all';
+      client._webrtcSessions.setIceTransportPolicy('all');
     });
   }
 });

@@ -86,7 +86,7 @@ describe('ACD Screen Share via streaming [assvs]', function () {
 
     (window as any).guestClient = guestClient;
     await guestClient.connect();
-    guestClient._webrtcSessions.config.iceServers = client._webrtcSessions.config.iceServers;
+    guestClient._webrtcSessions.setIceServers(client._stanzaio.jingle.iceServers);
     console.log('customer client connected');
 
     const customerSourceStream = await window.navigator.mediaDevices.getDisplayMedia({});

@@ -25,3 +25,11 @@ export interface TestConfig {
   testOutputPath: string;
   uuid: string;
 }
+
+export interface LocalConfig {
+  OAUTH_CLIENT_ID: string;
+  ORG: string;
+  USERNAME: string;
+  PASSWORD: string;
+  ENV_HOST: string;
+}
