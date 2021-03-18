@@ -185,7 +185,7 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
   });
 
   it('can connect a call with disconnect [reconnect] (tc60057)', async function () {
-    // Wait up to 25s for whole test to finish
+    // Wait up to 50s for whole test to finish
     await testCall.call(this, config.outboundNumber, { timeout: 50000, reconnectStreaming: true });
   });
 
