@@ -79,7 +79,7 @@ async function buildConfig () {
     personDetailsUrl: `https://api.${envHost}/api/v2/users/me`,
     host: `wss://streaming.${envHost}`,
     uuid: v4(),
-    validationTimeout: 25000
+    validationTimeout: 50000
   };
 
   if (!config.credentials.username) {
