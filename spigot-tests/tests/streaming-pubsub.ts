@@ -50,12 +50,12 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
       setTimeout(() => reject(new Error('Timeout waiting for incoming session')), config.validationTimeout);
 
       // As soon as a call is requested, accept the propose
-      client.webrtcSessions.on('requestIncomingRtcSession', async function (options) {
+      client.webrtcSessions.once('requestIncomingRtcSession', async function (options) {
         client.webrtcSessions.acceptRtcSession(options.sessionId);
       });
 
       // Resolve when the session arrives, short circuiting the timeout/reject
-      client.webrtcSessions.on('incomingRtcSession', (session) => {
+      client.webrtcSessions.once('incomingRtcSession', (session) => {
         console.log('Pending Session received', { session });
         resolve(session);
       });
@@ -126,7 +126,7 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
 
     // add the local stream and accept
     session.pc.addTrack(mediaStream.getAudioTracks()[0]);
-    session.accept();
+    await session.accept();
     session.on('terminated', () => {
       console.log('session is ending', session);
     });
@@ -134,6 +134,8 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
     const remoteStream = await peerTrackAdded;
 
     console.log('received streaming pubsub event for connect', await pubsubEvent2);
+
+    await utils.validateStream(session, remoteStream, undefined, undefined, undefined, undefined);
 
     if (opts.reconnectStreaming) {
       const streamingClients: Client[] = [];
@@ -161,7 +163,11 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
       client.reconnect();
       await reconnected;
     }
-    await utils.validateStream(session, remoteStream, activeCall, undefined, undefined, undefined);
+
+    // hardReconnect takes so long, the call ends before we can validate the stream again
+    if (!opts.hardReconnect) {
+      await utils.validateStream(session, remoteStream, undefined, undefined, undefined, undefined);
+    }
 
     console.log('disconnecting call');
     await utils.disconnectCall(activeCall);
@@ -179,13 +185,13 @@ describe('Streaming Pubsub (Softphone via Streaming) [spsvs] [stable]', function
   });
 
   it('can connect a call with disconnect [reconnect] (tc60057)', async function () {
-    // Wait up to 25s for whole test to finish
-    await testCall.call(this, config.outboundNumber, { timeout: 25000, reconnectStreaming: true });
+    // Wait up to 50s for whole test to finish
+    await testCall.call(this, config.outboundNumber, { timeout: 50000, reconnectStreaming: true });
   });
 
   it('can connect a call with major disconnect [hardreconnect]', async function () {
     // this has to have a long timeout since we need to create and connect 20+ channels
-    await testCall.call(this, config.outboundNumber, { timeout: 50000, reconnectStreaming: true, hardReconnect: true });
+    await testCall.call(this, config.outboundNumber, { timeout: 200000, reconnectStreaming: true, hardReconnect: true });
   });
 
   it('can do combined user topics (note: fails on streaming client < 10.0.1)', async function () {

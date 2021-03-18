@@ -537,7 +537,11 @@ export async function validateAudioStats (session: any) {
   });
   logger.log('checking stats', { sg: session.statsGatherer, pc: session.pc });
   session.on('stats', handleStats);
-  await statsVerified;
+  try {
+    await statsVerified;
+  } finally {
+    session.removeAllListeners();
+  }
   window.clearInterval(session.statsGatherer._pollingInterval);
 }
 

@@ -6,7 +6,6 @@ import { GenesysCloudMediaSession } from '../../dist/npm/types/media-session';
 const config = utils.getConfig();
 
 let client: Client;
-let activeCalls = [];
 
 describe('Softphone Via Streaming Client [svso]', function () {
   before(async function () {
@@ -25,10 +24,6 @@ describe('Softphone Via Streaming Client [svso]', function () {
 
   afterEach(async function () {
     client.webrtcSessions.removeAllListeners();
-    if (activeCalls.length) {
-      await Promise.all(activeCalls.map(c => utils.disconnectCall(c)));
-      activeCalls = [];
-    }
   });
 
   after(() => {
@@ -52,13 +47,13 @@ describe('Softphone Via Streaming Client [svso]', function () {
       setTimeout(() => reject(new Error('Timeout waiting for incoming session')), config.validationTimeout);
 
       // As soon as a call is requested, accept the propose
-      client.webrtcSessions.on('requestIncomingRtcSession', async function (options) {
+      client.webrtcSessions.once('requestIncomingRtcSession', async function (options) {
         console.info('Received Propose', options);
         client.webrtcSessions.acceptRtcSession(options.sessionId);
       });
 
       // Resolve when the session arrives, short circuiting the timeout/reject
-      client.webrtcSessions.on('incomingRtcSession', (session) => {
+      client.webrtcSessions.once('incomingRtcSession', (session) => {
         console.log('Pending Session received', { session });
         resolve(session);
       });
@@ -85,9 +80,12 @@ describe('Softphone Via Streaming Client [svso]', function () {
     // add the local stream and accept
     session.pc.addTrack(mediaStream.getAudioTracks()[0]);
     session.accept();
-    activeCalls.push(conversationId);
     const remoteStream = await peerTrackAdded;
-    await utils.validateStream(session, remoteStream, conversationId);
+    try {
+      await utils.validateStream(session, remoteStream, conversationId);
+    } catch (error) {
+      utils.disconnectCall(conversationId);
+    }
   }
 
   it('can connect to voicemail [streaming-softphone]', async function () {
@@ -99,14 +97,11 @@ describe('Softphone Via Streaming Client [svso]', function () {
   });
 
   it('can connect mulitple calls [streaming-softphone]', async function () {
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
-    await testCall.call(this, config.outboundNumber, 84000);
+    for (let i = 1; i <= 8; i++) {
+      console.log('making call for multiple calls test', { callNum: i });
+      await testCall.call(this, config.outboundNumber, 120000);
+      console.log('finished call for multiple calls test', { callNum: i });
+    }
   });
 
   const relayOnlyCallsToRun = 1;
