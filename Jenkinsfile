@@ -8,10 +8,10 @@ webappPipeline {
     manifest = directoryManifest('dist')
     buildType = { env.BRANCH_NAME == 'master' ? 'MAINLINE' : 'FEATURE' }
     publishPackage = { 'prod' }
-    testJob = 'spigot-tests-streaming-client'
+    testJob = null
 
     buildStep = {
-        sh('npm i && npm test && npm run build')
+        sh('npm ci && npm test && npm run build')
     }
 
     snykConfig = {

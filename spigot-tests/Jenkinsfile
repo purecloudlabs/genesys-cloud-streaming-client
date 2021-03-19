@@ -19,12 +19,12 @@ pipeline {
                     mv .npmrc spigot-tests/
 
                     npm install -g npm
-                    npm install --silent
+                    npm ci --silent
 
                     cd spigot-tests
 
                     echo "installing spigot dependencies"
-                    npm install
+                    npm ci
 
                     echo "starting tests"
                     npm run test:ci
