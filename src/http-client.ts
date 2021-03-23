@@ -23,24 +23,22 @@ export class HttpClient {
     504
   ]);
 
-  async requestApiWithRetry (path: string, opts: RequestApiOptions, retryInterval?: number): Promise<any> {
-    const request = retryPromise<any>(
+  requestApiWithRetry<T = any> (path: string, opts: RequestApiOptions, retryInterval?: number): RetryPromise<T> {
+    const retry = retryPromise<T>(
       this.requestApi.bind(this, path, opts),
       (error: any) => error && HttpClient.retryStatusCodes.has(error.status),
       retryInterval
     );
 
-    this._httpRetryingRequests.set(request._id, request);
+    this._httpRetryingRequests.set(retry._id, retry);
 
-    try {
-      const result = await request.promise;
-      return result;
-    } finally {
-      this._cancelAndRemoveValueFromRetryMap(request._id);
-    }
+    /* tslint:disable:no-floating-promises */
+    retry.promise.finally(() => this.cancelRetryRequest(retry._id));
+
+    return retry;
   }
 
-  requestApi (path: string, opts: RequestApiOptions): Promise<any> {
+  async requestApi (path: string, opts: RequestApiOptions): Promise<any> {
     let response = request[opts.method](this._buildUri(opts.host, path, opts.version))
       .use(reqlogger.bind(this, opts.logger, opts.data))
       .type(opts.contentType || 'json');
@@ -50,13 +48,26 @@ export class HttpClient {
       response.set('Authorization', `Bearer ${opts.authToken}`);
     }
 
-    return response.send(opts.data) // trigger request
-      .catch(err => { throw this.formatRequestError(err); });
+    try {
+      return await response.send(opts.data); // trigger request
+    } catch (err) {
+      throw this.formatRequestError(err);
+    }
   }
 
   stopAllRetries (): void {
     Array.from(this._httpRetryingRequests.keys())
-      .forEach(key => this._cancelAndRemoveValueFromRetryMap(key));
+      .forEach(key => this.cancelRetryRequest(key));
+  }
+
+  cancelRetryRequest (retryId: string): true {
+    const value = this._httpRetryingRequests.get(retryId);
+    if (value) {
+      /* if the promise has already completed, this will do nothing. Still need to remove it from the map */
+      value.cancel(new Error('Retry request cancelled'));
+      this._httpRetryingRequests.delete(retryId);
+    }
+    return true;
   }
 
   formatRequestError (error: Error | ISuperagentNetworkError | ISuperagentResponseError): Error | INetworkError | IResponseError {
@@ -121,14 +132,5 @@ export class HttpClient {
       return `${host}/api/${version}/${path}`;
     }
     return `https://api.${host}/api/${version}/${path}`;
-  }
-
-  private _cancelAndRemoveValueFromRetryMap (key: string): true {
-    const value = this._httpRetryingRequests.get(key);
-    if (value) {
-      value.cancel(new Error('Retry request cancelled'));
-      this._httpRetryingRequests.delete(key);
-    }
-    return true;
   }
 }

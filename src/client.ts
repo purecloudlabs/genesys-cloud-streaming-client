@@ -1,6 +1,7 @@
 'use strict';
 
 import { TokenBucket } from 'limiter';
+import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
 
 import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
@@ -8,7 +9,6 @@ import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Reconnector } from './reconnector';
 import { Ping } from './ping';
 import { parseJwt, timeoutPromise } from './utils';
-import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
 import { RequestApiOptions } from './types/interfaces';
@@ -318,7 +318,7 @@ export class Client {
         });
     }
 
-    let jidPromise;
+    let jidPromise: Promise<any>;
     if (this.config.jid) {
       jidPromise = Promise.resolve(this.config.jid);
     } else {
@@ -327,7 +327,7 @@ export class Client {
         host: this.config.apiHost,
         authToken: this.config.authToken
       };
-      jidPromise = this.http.requestApiWithRetry('users/me', opts)
+      jidPromise = this.http.requestApiWithRetry('users/me', opts).promise
         .then(res => res.body.chat.jabberId);
     }
 
@@ -337,7 +337,7 @@ export class Client {
       authToken: this.config.authToken,
       logger: this.logger
     };
-    const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', opts)
+    const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', opts).promise
       .then(res => res.body.id);
 
     return Promise.all([jidPromise, channelPromise])
