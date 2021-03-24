@@ -99,7 +99,7 @@ describe('HttpRequestClient', () => {
     it('should not retry if there is no error passed in', async () => {
       jest.spyOn(http, 'requestApi').mockRejectedValue(undefined);
 
-      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' })
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise
         .catch(e => expect(e).toBe(undefined));
     });
 
@@ -107,7 +107,7 @@ describe('HttpRequestClient', () => {
       const error = new Error('bad');
       jest.spyOn(http, 'requestApi').mockRejectedValue(error);
 
-      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' })
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise
         .catch(e => expect(e).toBe(error));
     });
 
@@ -117,14 +117,14 @@ describe('HttpRequestClient', () => {
 
       jest.spyOn(http, 'requestApi').mockRejectedValue(error);
 
-      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' })
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise
         .catch(e => expect(e).toBe(error));
     });
   });
 
   describe('stopAllRetries()', () => {
     it('should canel and remove all pending retry promises', async () => {
-      const _cancelAndRemoveValueFromRetryMapSpy = jest.spyOn(http, '_cancelAndRemoveValueFromRetryMap' as any);
+      const cancelRetryRequestSpy = jest.spyOn(http, 'cancelRetryRequest' as any);
       jest.spyOn(http, 'requestApi').mockResolvedValue(wait(150));
 
       const prom1 = http.requestApiWithRetry('some/resource/1', { method: 'get', host: '' });
@@ -133,16 +133,16 @@ describe('HttpRequestClient', () => {
       http.stopAllRetries();
 
       /* should call through to cancel before the promises have completed */
-      expect(_cancelAndRemoveValueFromRetryMapSpy).toHaveBeenCalledTimes(2);
+      expect(cancelRetryRequestSpy).toHaveBeenCalledTimes(2);
 
-      await prom1.then(() => fail('should have thrown'))
+      await prom1.promise.then(() => fail('should have thrown'))
         .catch(e => expect(e.message).toBe('Retry request cancelled'));
 
-      await prom2.then(() => fail('should have thrown'))
+      await prom2.promise.then(() => fail('should have thrown'))
         .catch(e => expect(e.message).toBe('Retry request cancelled'));
 
       /* calls through in the `finally` block – but won't do anything */
-      expect(_cancelAndRemoveValueFromRetryMapSpy).toHaveBeenCalledTimes(4);
+      expect(cancelRetryRequestSpy).toHaveBeenCalledTimes(4);
     });
   });
 

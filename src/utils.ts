@@ -52,14 +52,14 @@ export const isVideoJid = function (jid: string): boolean {
   return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
 };
 
-export type RetryPromise<T> = {
+export type RetryPromise<T = any> = {
   promise: Promise<T>;
   cancel: (reason?: string | Error) => void;
   complete: (value?: T) => void;
   _id: string;
 };
 
-export function retryPromise<T> (
+export function retryPromise<T = any> (
   promiseFn: () => Promise<T>,
   retryFn: (error?: Error | any) => boolean,
   retryInterval: number = 15000

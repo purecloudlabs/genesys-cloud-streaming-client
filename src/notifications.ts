@@ -187,7 +187,7 @@ export class Notifications {
       logger: this.client.logger
     };
     const channelId = this.client.config.channelId;
-    return this.client.http.requestApiWithRetry(`notifications/channels/${channelId}/subscriptions`, requestOptions);
+    return this.client.http.requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
   }
 
   createSubscription (topic: string, handler: (obj?: any) => void): void {
