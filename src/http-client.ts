@@ -91,13 +91,14 @@ export class HttpClient {
         status: error.status,
 
         correlationId: res.headers['inin-correlation-id'],
-        responseBody: res.text,
+        // Potentially could contain PII
+        // responseBody: res.text,
+        // requestBody: res.req._data,
+        // url: res.error.url,
+        message: 'Error making HTTP request', // res.error.message,
 
         method: res.req.method,
-        requestBody: res.req._data,
 
-        url: res.error.url,
-        message: res.error.message,
         name: res.error.name,
         stack: res.error.stack
       };

@@ -190,13 +190,13 @@ describe('HttpRequestClient', () => {
         status: origError.status,
 
         correlationId: res.headers['inin-correlation-id'],
-        responseBody: res.text,
+        // responseBody: res.text,
 
         method: res.req.method,
-        requestBody: res.req._data,
+        // requestBody: res.req._data,
 
-        url: res.error.url,
-        message: res.error.message,
+        // url: res.error.url,
+        message: 'Error making HTTP request', //res.error.message,
         name: res.error.name,
         stack: res.error.stack
       });
