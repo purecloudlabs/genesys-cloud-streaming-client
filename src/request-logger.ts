@@ -4,7 +4,7 @@ export default function attachSuperagentLogger (logger, data, req) {
   let method = req.method;
   logger = logger || console;
 
-  logger.debug(`request: ${method.toUpperCase()} ${req.url}`, { timestamp, data });
+  logger.debug(`request: ${method.toUpperCase()} ${req.url}`, { timestamp, data }, true);
 
   req.on('response', function (res) {
     let now = new Date().getTime();
@@ -13,12 +13,12 @@ export default function attachSuperagentLogger (logger, data, req) {
     let correlationId = res.headers['inin-correlation-id'];
     let body = JSON.stringify(res.body);
 
-    logger.debug(`response: ${method.toUpperCase()} ${req.url}`,
-      { now,
-        status,
-        elapsed,
-        correlationId,
-        body
-      });
+    logger.debug(`response: ${method.toUpperCase()} ${req.url}`, {
+      now,
+      status,
+      elapsed,
+      correlationId,
+      body
+    }, true);
   });
 }
