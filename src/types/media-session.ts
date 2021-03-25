@@ -31,9 +31,14 @@ export class GenesysCloudMediaSession extends MediaSession {
   }
 
   onIceStateChange () {
-    const state = this.pc.iceConnectionState;
+    const iceState = this.pc.iceConnectionState;
+    const connectionState = this.pc.connectionState;
+    const sessionId = (this as any).id;
+    const conversationId = (this as any).conversationId;
 
-    if (state === 'connected') {
+    this._log('info', 'ICE and connection state changed: ', { iceState, connectionState, sessionId, conversationId });
+
+    if (iceState === 'connected') {
       this._log('info', 'sending session-info: active');
       this.send(JingleAction.SessionInfo, {
         info: {

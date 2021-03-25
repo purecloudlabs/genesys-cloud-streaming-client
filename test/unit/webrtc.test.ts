@@ -105,6 +105,26 @@ describe('proxyEvents', () => {
     client._stanzaio.emit('jingle:outgoing', fakeSession as any);
   });
 
+  it('should emit incomingRtcSession - pendingSession', () => {
+    expect.assertions(3);
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const sessionId = 'session123';
+
+    const pending = webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', propose: {conversationId: '123', originalRoomJid: '123', sessionId: 'sessionId'}, id: 'session123' } as any;
+    const fakeSession = {
+      sid: sessionId
+    }
+
+    webrtc.on('incomingRtcSession', (session) => {
+      expect(session.conversationId).toEqual(pending.propose.conversationId);
+      expect(session.fromUserId).toEqual(pending.from);
+      expect(session.originalRoomJid).toEqual(pending.propose.originalRoomJid);
+    });
+
+    client._stanzaio.emit('jingle:incoming', fakeSession as any);
+  });
+
   it('should emit incomingRtcSession', () => {
     expect.assertions(1);
     const client = new Client({});
@@ -113,7 +133,7 @@ describe('proxyEvents', () => {
     const fakeSession = {};
 
     webrtc.on('incomingRtcSession', (session) => {
-      expect(session).toBe(fakeSession);
+      expect(session).toEqual(fakeSession);
     });
 
     client._stanzaio.emit('jingle:incoming', fakeSession as any);

@@ -234,11 +234,19 @@ export class WebrtcExtension extends EventEmitter {
     //   this.emit('send', data);
     // });
 
-    this.client._stanzaio.on('jingle:outgoing', (session) => {
+    this.client._stanzaio.on('jingle:outgoing', (session: any) => {
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
-    this.client._stanzaio.on('jingle:incoming', (session) => {
+    this.client._stanzaio.on('jingle:incoming', (session: any) => {
+      session.id = session.sid;
+      const pendingSession = this.pendingSessions[session.id];
+      if (pendingSession) {
+        session.conversationId = session.conversationId || pendingSession.propose.conversationId;
+        session.fromUserId = pendingSession.from;
+        session.originalRoomJid = pendingSession.propose.originalRoomJid;
+        delete this.pendingSessions[session.id];
+      }
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
@@ -385,7 +393,6 @@ export class WebrtcExtension extends EventEmitter {
       }
     };
     await this.client._stanzaio.send('message', proceed); // send as Message
-    delete this.pendingSessions[sessionId];
   }
 
   async rejectRtcSession (sessionId: string, ignore = false): Promise<void> {
