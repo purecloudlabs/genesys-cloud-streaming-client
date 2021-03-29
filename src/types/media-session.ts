@@ -33,11 +33,10 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   onIceStateChange () {
     const iceState = this.pc.iceConnectionState;
-    const connectionState = this.pc.connectionState;
     const sessionId = (this as any).id;
     const conversationId = (this as any).conversationId;
 
-    this._log('info', 'ICE state changed: ', { iceState, sessionId, connectionState, conversationId });
+    this._log('info', 'ICE state changed: ', { iceState, sessionId, conversationId });
 
     if (iceState === 'connected') {
       this._log('info', 'sending session-info: active');
