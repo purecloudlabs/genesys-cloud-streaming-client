@@ -23,6 +23,7 @@ export class GenesysCloudMediaSession extends MediaSession {
     if (!options.optOutOfWebrtcStatsTelemetry) {
       this.setupStatsGatherer();
     }
+    this.pc.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
   }
 
   setupStatsGatherer () {
@@ -36,7 +37,7 @@ export class GenesysCloudMediaSession extends MediaSession {
     const sessionId = (this as any).id;
     const conversationId = (this as any).conversationId;
 
-    this._log('info', 'ICE and connection state changed: ', { iceState, connectionState, sessionId, conversationId });
+    this._log('info', 'ICE state changed: ', { iceState, sessionId, connectionState, conversationId });
 
     if (iceState === 'connected') {
       this._log('info', 'sending session-info: active');
@@ -48,6 +49,12 @@ export class GenesysCloudMediaSession extends MediaSession {
     }
 
     super.onIceStateChange();
+  }
+
+  onConnectionStateChange () {
+    const sessionId = (this as any).id;
+    const conversationId = (this as any).conversationId;
+    this._log('info', 'Connection state changed: ', { sessionId, conversationId, connectionState: this.pc.connectionState });
   }
 
   onIceCandidate (e: RTCPeerConnectionIceEvent) {
