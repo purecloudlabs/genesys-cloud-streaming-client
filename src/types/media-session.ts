@@ -9,6 +9,10 @@ export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'col
 
 export class GenesysCloudMediaSession extends MediaSession {
   private statsGatherer?: StatsGatherer;
+  conversationId?: string;
+  id?: string;
+  fromUserId?: string;
+  originalRoomJid?: string;
 
   constructor (options: any, public sessionType: SessionType, private allowIPv6: boolean) {
     super(options);
@@ -23,6 +27,7 @@ export class GenesysCloudMediaSession extends MediaSession {
     if (!options.optOutOfWebrtcStatsTelemetry) {
       this.setupStatsGatherer();
     }
+    this.pc.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
   }
 
   setupStatsGatherer () {
@@ -31,9 +36,13 @@ export class GenesysCloudMediaSession extends MediaSession {
   }
 
   onIceStateChange () {
-    const state = this.pc.iceConnectionState;
+    const iceState = this.pc.iceConnectionState;
+    const sessionId = this.id;
+    const conversationId = this.conversationId;
 
-    if (state === 'connected') {
+    this._log('info', 'ICE state changed: ', { iceState, sessionId, conversationId });
+
+    if (iceState === 'connected') {
       this._log('info', 'sending session-info: active');
       this.send(JingleAction.SessionInfo, {
         info: {
@@ -43,6 +52,12 @@ export class GenesysCloudMediaSession extends MediaSession {
     }
 
     super.onIceStateChange();
+  }
+
+  onConnectionStateChange () {
+    const sessionId = this.id;
+    const conversationId = this.conversationId;
+    this._log('info', 'Connection state changed: ', { sessionId, conversationId, connectionState: this.pc.connectionState });
   }
 
   onIceCandidate (e: RTCPeerConnectionIceEvent) {
