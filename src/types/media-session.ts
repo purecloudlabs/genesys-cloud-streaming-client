@@ -9,6 +9,10 @@ export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'col
 
 export class GenesysCloudMediaSession extends MediaSession {
   private statsGatherer?: StatsGatherer;
+  conversationId?: string;
+  id?: string;
+  fromUserId?: string;
+  originalRoomJid?: string;
 
   constructor (options: any, public sessionType: SessionType, private allowIPv6: boolean) {
     super(options);
@@ -33,8 +37,8 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   onIceStateChange () {
     const iceState = this.pc.iceConnectionState;
-    const sessionId = (this as any).id;
-    const conversationId = (this as any).conversationId;
+    const sessionId = this.id;
+    const conversationId = this.conversationId;
 
     this._log('info', 'ICE state changed: ', { iceState, sessionId, conversationId });
 
@@ -51,8 +55,8 @@ export class GenesysCloudMediaSession extends MediaSession {
   }
 
   onConnectionStateChange () {
-    const sessionId = (this as any).id;
-    const conversationId = (this as any).conversationId;
+    const sessionId = this.id;
+    const conversationId = this.conversationId;
     this._log('info', 'Connection state changed: ', { sessionId, conversationId, connectionState: this.pc.connectionState });
   }
 

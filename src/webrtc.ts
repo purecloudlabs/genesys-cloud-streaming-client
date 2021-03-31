@@ -14,6 +14,7 @@ import throttle from 'lodash.throttle';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
 import { ClientOptions } from './client';
+import JingleSession from 'stanza/jingle/Session';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -234,18 +235,18 @@ export class WebrtcExtension extends EventEmitter {
     //   this.emit('send', data);
     // });
 
-    this.client._stanzaio.on('jingle:outgoing', (session: any) => {
+    this.client._stanzaio.on('jingle:outgoing', (session: JingleSession) => {
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
-    this.client._stanzaio.on('jingle:incoming', (session: any) => {
-      session.id = session.sid;
-      const pendingSession = this.pendingSessions[session.id];
+    this.client._stanzaio.on('jingle:incoming', (session: JingleSession) => {
+      (session as GenesysCloudMediaSession).id = session.sid;
+      const pendingSession = this.pendingSessions[session.sid];
       if (pendingSession) {
-        session.conversationId = session.conversationId || pendingSession.propose.conversationId;
-        session.fromUserId = pendingSession.from;
-        session.originalRoomJid = pendingSession.propose.originalRoomJid;
-        delete this.pendingSessions[session.id];
+        (session as GenesysCloudMediaSession).conversationId = (session as GenesysCloudMediaSession).conversationId || pendingSession.propose.conversationId;
+        (session as GenesysCloudMediaSession).fromUserId = pendingSession.from;
+        (session as GenesysCloudMediaSession).originalRoomJid = pendingSession.propose.originalRoomJid;
+        delete this.pendingSessions[session.sid];
       }
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
