@@ -222,6 +222,10 @@ export class WebrtcExtension extends EventEmitter {
     this.client._stanzaio.on('message', (msg: any) => {
       if (msg.propose) {
         this.handlePropose(msg);
+      } else if (msg.retract) {
+        this.handleRetract(msg.retract.sessionId);
+      } else if (msg.accept) {
+        this.handledIncomingRtcSession(msg.accept.sessionId);
       }
     });
   }
@@ -300,6 +304,17 @@ export class WebrtcExtension extends EventEmitter {
       events.REQUEST_INCOMING_RTCSESSION,
       Object.assign({ roomJid, fromJid }, msg.propose)
     );
+  }
+
+  private handleRetract (sessionId: string) {
+    this.logger.info('retract received', { sessionId });
+    delete this.pendingSessions[sessionId];
+    return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
+  }
+
+  private handledIncomingRtcSession (sessionId: string) {
+    this.logger.info('accept received', { sessionId });
+    return this.emit(events.HANDLED_INCOMING_RTCSESSION, sessionId);
   }
 
   /**

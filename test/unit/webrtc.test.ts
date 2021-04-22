@@ -78,6 +78,28 @@ describe('addEventListeners', () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it('should call handleRetract', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    //@ts-ignore
+    const spy = jest.spyOn(webrtc, 'handleRetract').mockImplementation();
+
+    client._stanzaio.emit('message', { id: 'session123', to: 'sndlgkns@lskdn.com', retract: {} } as any)
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call handledIncomingRtcSession', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    //@ts-ignore
+    const spy = jest.spyOn(webrtc, 'handledIncomingRtcSession').mockImplementation();
+
+    client._stanzaio.emit('message', { id: 'session123', to: 'sndlgkns@lskdn.com', accept: {} } as any)
+    expect(spy).toHaveBeenCalled();
+  });
+
   it('should not call handle propose', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -221,6 +243,38 @@ describe('handlePropose', () => {
     );
   });
 });
+
+describe('handleRetract', () => {
+it('should emit propose event with pending session', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    client._stanzaio.jid = 'myJid';
+
+    jest.spyOn(webrtc, 'emit');
+
+    const sessionId = '123sessionid'
+
+    webrtc['handleRetract'](sessionId);
+
+    expect(webrtc.emit).toHaveBeenCalledWith('cancelIncomingRtcSession', sessionId);
+  });
+});
+
+describe('handledIncomingRtcSession', () => {
+  it('should emit propose event with pending session', () => {
+      const client = new Client({});
+      const webrtc = new WebrtcExtension(client as any, {} as any);
+      client._stanzaio.jid = 'myJid';
+
+      jest.spyOn(webrtc, 'emit');
+
+      const sessionId = '123sessionid'
+
+      webrtc['handledIncomingRtcSession'](sessionId);
+
+      expect(webrtc.emit).toHaveBeenCalledWith('handledIncomingRtcSession', sessionId);
+    });
+  });
 
 describe('initiateRtcSession', () => {
   it('should add medias based on provided stream', async () => {
