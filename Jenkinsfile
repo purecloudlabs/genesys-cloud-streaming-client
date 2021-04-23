@@ -1,4 +1,4 @@
-@Library('pipeline-library@post-release-step-creds-for-github') _
+@Library('pipeline-library') _
 
 webappPipeline {
     slaveLabel = 'dev_v2'
