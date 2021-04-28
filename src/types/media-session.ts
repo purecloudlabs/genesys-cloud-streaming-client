@@ -3,9 +3,17 @@ import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import StatsGatherer, { StatsEvent } from 'webrtc-stats-gatherer';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
-import { JingleReason, JingleInfo } from 'stanza/protocol';
+import { JingleReason, JingleInfo, Jingle, JingleIce } from 'stanza/protocol';
+import { ActionCallback } from 'stanza/jingle/Session';
 
 export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
+
+export interface IGenesysCloudMediaSessionParams {
+  options: any;
+  sessionType: SessionType;
+  allowIPv6?: boolean;
+  ignoreHostCandidatesFromRemote?: boolean;
+}
 
 export class GenesysCloudMediaSession extends MediaSession {
   private statsGatherer?: StatsGatherer;
@@ -13,9 +21,16 @@ export class GenesysCloudMediaSession extends MediaSession {
   id?: string;
   fromUserId?: string;
   originalRoomJid?: string;
+  sessionType: SessionType;
+  ignoreHostCandidatesFromRemote: boolean;
+  allowIPv6: boolean;
 
-  constructor (options: any, public sessionType: SessionType, private allowIPv6: boolean) {
-    super(options);
+  constructor (params: IGenesysCloudMediaSessionParams) {
+    super(params.options);
+
+    this.sessionType = params.sessionType;
+    this.ignoreHostCandidatesFromRemote = !!params.ignoreHostCandidatesFromRemote;
+    this.allowIPv6 = !!params.allowIPv6;
 
     // babel does not like the typescript recipe for multiple extends so we are hacking this one
     // referencing https://github.com/babel/babel/issues/798
@@ -24,10 +39,25 @@ export class GenesysCloudMediaSession extends MediaSession {
       this[name] = eventEmitter[name];
     });
 
-    if (!options.optOutOfWebrtcStatsTelemetry) {
+    if (!params.options.optOutOfWebrtcStatsTelemetry) {
       this.setupStatsGatherer();
     }
     this.pc.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
+  }
+
+  async onTransportInfo (changes: Jingle, cb: ActionCallback) {
+    if (this.ignoreHostCandidatesFromRemote) {
+      const transport = (changes.contents?.[0].transport! as JingleIce);
+      const nonHostCandidates = transport?.candidates?.filter(candidate => candidate.type !== 'host');
+
+      if (nonHostCandidates?.length !== transport?.candidates?.length) {
+        this._log('info', 'Ignoring remote host ice candidates', { conversation: this.conversationId, sessionId: this.sid });
+
+        transport.candidates = nonHostCandidates;
+      }
+    }
+
+    return super.onTransportInfo(changes, cb);
   }
 
   setupStatsGatherer () {
