@@ -21,7 +21,11 @@ describe('GenesysCloudMediaSession', () => {
     it('should not setupStatsGatherer', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({ parent, optOutOfWebrtcStatsTelemetry: true }, 'softphone', false);
+      const session = new GenesysCloudMediaSession({
+        options: { parent, optOutOfWebrtcStatsTelemetry: true },
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
 
       expect(session['statsGatherer']).toBeFalsy();
     });
@@ -31,7 +35,11 @@ describe('GenesysCloudMediaSession', () => {
     it('should send session-info active stanza on connected', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({ parent }, 'softphone', false);
+      const session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
       (session.pc as any).iceConnectionState = 'connected';
       const spy = jest.spyOn(session, 'send').mockImplementation();
       session.onIceStateChange();
@@ -42,7 +50,11 @@ describe('GenesysCloudMediaSession', () => {
     it('should not send session-info active if not connected', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({ parent }, 'softphone', false);
+      const session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
       const spy = jest.spyOn(session, 'send').mockImplementation();
       session.onIceStateChange();
 
@@ -58,7 +70,11 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({ parent, allowIPv6: false }, 'softphone', false);
+      const session = new GenesysCloudMediaSession({
+        options: { parent, allowIPv6: false },
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
 
       const event = {
         candidate: { candidate: ipv6Candidate }
@@ -71,7 +87,11 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({ parent, allowIPv6: false }, 'softphone', false);
+      const session = new GenesysCloudMediaSession({
+        options: { parent, allowIPv6: false },
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
 
       const event = {
         candidate: { candidate: ipv4Candidate }
@@ -84,7 +104,11 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({ parent, allowIPv6: true }, 'softphone', true);
+      const session = new GenesysCloudMediaSession({
+        options: { parent, allowIPv6: true },
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
 
       const event = {
         candidate: { candidate: ipv4Candidate }
@@ -97,7 +121,11 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({ parent }, 'softphone', true);
+      const session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
 
       const event = {
         candidate: { candidate: ipv4Candidate }
@@ -110,7 +138,11 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({ parent }, 'softphone', true);
+      const session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
 
       const event = {
         candidate: null
@@ -124,7 +156,11 @@ describe('GenesysCloudMediaSession', () => {
     it('should emit event', () => {
       const parent = new FakeParent();
       jest.spyOn(ICESession.prototype as any, 'onIceEndOfCandidates').mockImplementation();
-      const session = new GenesysCloudMediaSession({ parent }, 'softphone', true);
+      const session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
 
       const spy = jest.spyOn(session, 'emit');
       session.onIceEndOfCandidates();
@@ -137,7 +173,11 @@ describe('GenesysCloudMediaSession', () => {
 
     beforeEach(() => {
       const parent = new FakeParent();
-      session = new GenesysCloudMediaSession({ parent }, 'softphone', true);
+      session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
     });
 
     it('should call replace track if there is a transceiver with an empty sender', async () => {

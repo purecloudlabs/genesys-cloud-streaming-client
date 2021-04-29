@@ -12,6 +12,9 @@ import * as utils from '../../src/utils';
 import { wait } from '../helpers/testing-utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
+import browserama from 'browserama';
+
+jest.mock('../../src/types/media-session');
 
 class Client extends WildEmitter {
   connected = false;
@@ -48,8 +51,50 @@ describe('constructor', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     shimCreatePeerConnection(client);
+    webrtc.proxyStatsForSession = jest.fn();
 
     expect(client._stanzaio.jingle.prepareSession({ parent: client._stanzaio.jingle, peerID: 'something', config: {} }) instanceof GenesysCloudMediaSession).toBeTruthy();
+  });
+});
+
+describe('prepareSession', () => {
+  it('should create media session with ignoreHostCandidates', () => {
+    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc.proxyStatsForSession = jest.fn();
+    jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('relay');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('softphone');
+    Object.defineProperty(browserama, 'isFirefox', { get: () => true });
+
+    const session = webrtc.prepareSession({});
+    expect(GenesysCloudMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: true }));
+  });
+
+  it('should create mediaSession without ignoreHostCandidates if not ff', () => {
+    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc.proxyStatsForSession = jest.fn();
+    jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('relay');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('softphone');
+    Object.defineProperty(browserama, 'isFirefox', { get: () => false });
+
+    const session = webrtc.prepareSession({});
+    expect(GenesysCloudMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
+  });
+
+  it('should create mediaSession without ignoreHostCandidates if not relay and is firefox', () => {
+    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc.proxyStatsForSession = jest.fn();
+    jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('all');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('softphone');
+    Object.defineProperty(browserama, 'isFirefox', { get: () => true });
+
+    const session = webrtc.prepareSession({});
+    expect(GenesysCloudMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
   });
 });
 
@@ -133,7 +178,7 @@ describe('proxyEvents', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     const sessionId = 'session123';
 
-    const pending = webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', propose: {conversationId: '123', originalRoomJid: '123', sessionId: 'sessionId'}, id: 'session123' } as any;
+    const pending = webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', propose: { conversationId: '123', originalRoomJid: '123', sessionId: 'sessionId' }, id: 'session123' } as any;
     const fakeSession = {
       sid: sessionId
     }
@@ -245,7 +290,7 @@ describe('handlePropose', () => {
 });
 
 describe('handleRetract', () => {
-it('should emit propose event with pending session', () => {
+  it('should emit propose event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     client._stanzaio.jid = 'myJid';
@@ -262,19 +307,19 @@ it('should emit propose event with pending session', () => {
 
 describe('handledIncomingRtcSession', () => {
   it('should emit propose event with pending session', () => {
-      const client = new Client({});
-      const webrtc = new WebrtcExtension(client as any, {} as any);
-      client._stanzaio.jid = 'myJid';
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    client._stanzaio.jid = 'myJid';
 
-      jest.spyOn(webrtc, 'emit');
+    jest.spyOn(webrtc, 'emit');
 
-      const sessionId = '123sessionid'
+    const sessionId = '123sessionid'
 
-      webrtc['handledIncomingRtcSession'](sessionId);
+    webrtc['handledIncomingRtcSession'](sessionId);
 
-      expect(webrtc.emit).toHaveBeenCalledWith('handledIncomingRtcSession', sessionId);
-    });
+    expect(webrtc.emit).toHaveBeenCalledWith('handledIncomingRtcSession', sessionId);
   });
+});
 
 describe('initiateRtcSession', () => {
   it('should add medias based on provided stream', async () => {
@@ -1009,7 +1054,7 @@ describe('sendStats', () => {
     it('should calculate payload size.', () => {
       jest.spyOn(utils, 'calculatePayloadSize')
         .mockReturnValueOnce(0)
-        .mockReturnValueOnce(1)
+        .mockReturnValueOnce(1);
 
       let testPayload = [];
 
@@ -1023,5 +1068,5 @@ describe('sendStats', () => {
       expect(utils.calculatePayloadSize('a')).toBe(3);
       expect(utils.calculatePayloadSize('¢')).toBe(4);
     });
-  })
+  });
 });

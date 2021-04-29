@@ -15,6 +15,7 @@ import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
 import { ClientOptions } from './client';
 import JingleSession from 'stanza/jingle/Session';
+import { isFirefox } from 'browserama';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -106,11 +107,14 @@ export class WebrtcExtension extends EventEmitter {
   prepareSession (options: any) {
     options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
 
-    const session = new GenesysCloudMediaSession(
+    const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
+
+    const session = new GenesysCloudMediaSession({
       options,
-      this.getSessionTypeByJid(options.peerID),
-      this.config.allowIPv6
-    );
+      sessionType: this.getSessionTypeByJid(options.peerID),
+      allowIPv6: this.config.allowIPv6,
+      ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF
+    });
     this.proxyStatsForSession(session);
     return session;
   }
@@ -557,6 +561,10 @@ export class WebrtcExtension extends EventEmitter {
 
   setIceServers (iceServers: any[]) {
     this.client._stanzaio.jingle.iceServers = iceServers;
+  }
+
+  getIceTransportPolicy () {
+    return this.client._stanzaio.jingle.config.peerConnectionConfig!.iceTransportPolicy;
   }
 
   setIceTransportPolicy (policy: 'relay' | 'all') {
