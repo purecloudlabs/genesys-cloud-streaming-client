@@ -4,11 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.4...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.5...HEAD)
+
+# [v13.2.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.4...v13.2.5)
+* [PCM-1615](https://inindca.atlassian.net/browse/PCM-1615) – Fixed Force TURN for Firefox browser
 
 # [v13.2.4](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.3...v13.2.4)
 * [PCM-1547](https://inindca.atlassian.net/browse/PCM-1547) - Fixed 1:1 video alert toast hanging after answer timeout and fixed invites hanging when accepting 1:1 video call with two clients open.
 * [PCM-1561](https://inindca.atlassian.net/browse/PCM-1561) - Added logging for ICE and connection state changes.
+
 # [v13.2.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.2...v13.2.3)
 ### Fixed
 * [PCM-1572](https://inindca.atlassian.net/browse/PCM-1572) – changed http request to `subscriptions` to not retry on failures.
