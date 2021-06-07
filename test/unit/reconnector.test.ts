@@ -4,6 +4,7 @@ import { parse } from 'stanza/jxt';
 
 import { Reconnector, CXFRDefinition } from '../../src/reconnector';
 import { HttpClient } from '../../src/http-client';
+import { flushPromises } from '../helpers/testing-utils';
 
 // controls whether clients can reconnect or not
 let SIMULTATE_ONLINE = false;
@@ -196,11 +197,7 @@ describe('Reconnector', () => {
   describe('hardReconnect()', () => {
     const step = async (ms = 15001) => {
       jest.advanceTimersByTime(ms);
-      // SANITY: have to await twice:
-      //  1. for retryPromise()'s internal `tryPromiseFn()` promise
-      //  2. for retryPromise()'s returned `promise`
-      await Promise.resolve();
-      await Promise.resolve();
+      await flushPromises();
     }
 
     it('should successfully reconnect without waiting for retry interval', async () => {

@@ -412,7 +412,9 @@ export class WebrtcExtension extends EventEmitter {
         sessionId
       }
     };
+
     await this.client._stanzaio.send('message', proceed); // send as Message
+    this.logger.info('sent jingle proceed', { sessionId, conversationId: session.propose.conversationId });
   }
 
   async rejectRtcSession (sessionId: string, ignore = false): Promise<void> {
@@ -445,6 +447,7 @@ export class WebrtcExtension extends EventEmitter {
       const secondMessage = this.client._stanzaio.send('message', reject2); // send as Message
 
       await Promise.all([firstMessage, secondMessage]);
+      this.logger.info('sent jingle reject', { sessionId, conversationId: session.propose.conversationId });
     }
   }
 
@@ -502,6 +505,7 @@ export class WebrtcExtension extends EventEmitter {
     };
     delete this.pendingSessions[sessionId];
     await this.client._stanzaio.send('message', retract); // send as Message
+    this.logger.info('sent jingle retract', { sessionId, conversationId: session.propose.conversationId });
   }
 
   async refreshIceServers (): Promise<any[]> {
