@@ -2,7 +2,7 @@
 
 webappPipeline {
     slaveLabel = 'dev_v2'
-    nodeVersion = '10.16.2'
+    nodeVersion = '14.17.0'
     useArtifactoryRepo = false
     projectName = 'developercenter-cdn/streaming-client'
     manifest = directoryManifest('dist')

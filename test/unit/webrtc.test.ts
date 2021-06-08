@@ -551,7 +551,7 @@ describe('acceptRtcSession', () => {
 
     const sessionId = 'session123';
 
-    webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com' } as any;
+    webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', propose: { conversationId: 'test' } } as any;
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
@@ -611,7 +611,7 @@ describe('rejectRtcSession', () => {
     const fromJid = 'lskn@test.com';
 
     const sessionId = 'session12355524';
-    webrtc.pendingSessions[sessionId] = { from: fromJid } as any;
+    webrtc.pendingSessions[sessionId] = { from: fromJid, propose: { conversationId: 'test123' } } as any;
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
@@ -749,7 +749,7 @@ describe('cancelRtcSession', () => {
     const sessionId = 'session12243';
     const toJid = 'room@conference.com';
 
-    webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', to: toJid } as any;
+    webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', to: toJid, propose: { conversationId: 'test' } } as any;
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot cancel session because it is not pending or does not exist');
