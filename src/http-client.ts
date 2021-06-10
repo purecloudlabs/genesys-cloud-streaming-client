@@ -65,7 +65,7 @@ export class HttpClient {
         method: res.req.method,
         name: res.error.name,
         stack: res.error.stack
-      }
+      };
     }
   }
 
