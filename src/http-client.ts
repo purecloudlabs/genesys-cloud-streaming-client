@@ -39,7 +39,6 @@ export class HttpClient {
   }
 
   async requestApi (path: string, opts: RequestApiOptions): Promise<any> {
-    console.error(opts.logger);
     let response = request[opts.method](this._buildUri(opts.host, path, opts.version))
       .use(reqlogger.bind(this, opts.logger, opts.data))
       .type(opts.contentType || 'json');
