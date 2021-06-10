@@ -39,6 +39,7 @@ export class HttpClient {
   }
 
   async requestApi (path: string, opts: RequestApiOptions): Promise<any> {
+    console.error(opts.logger);
     let response = request[opts.method](this._buildUri(opts.host, path, opts.version))
       .use(reqlogger.bind(this, opts.logger, opts.data))
       .type(opts.contentType || 'json');
@@ -51,7 +52,20 @@ export class HttpClient {
     try {
       return await response.send(opts.data); // trigger request
     } catch (err) {
-      throw this.formatRequestError(err);
+      const res = err.response;
+
+      // Potentially contains PII information - Do not send to Sumo, just log to console.
+      throw {
+        status: err.status,
+        correlationId: res.headers['inin-correlation-id'],
+        responseBody: res.text,
+        requestBody: res.req._data,
+        url: res.error.url,
+        message: res.error.message,
+        method: res.req.method,
+        name: res.error.name,
+        stack: res.error.stack
+      }
     }
   }
 
