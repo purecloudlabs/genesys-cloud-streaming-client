@@ -58,7 +58,6 @@ export class HttpClient {
         status: err.status,
         correlationId: res.headers['inin-correlation-id'],
         responseBody: res.text,
-        requestBody: res.req._data,
         url: res.error.url,
         message: res.error.message,
         method: res.req.method,
