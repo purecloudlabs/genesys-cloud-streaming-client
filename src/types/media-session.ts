@@ -15,8 +15,15 @@ export interface IGenesysCloudMediaSessionParams {
   ignoreHostCandidatesFromRemote?: boolean;
 }
 
+const loggingOverrides = {
+  'Discovered new ICE candidate': { skipMessage: true }
+};
+
 export class GenesysCloudMediaSession extends MediaSession {
   private statsGatherer?: StatsGatherer;
+  private iceCandidatesDiscovered = 0;
+  private iceCandidatesReceivedFromPeer = 0;
+
   conversationId?: string;
   id?: string;
   fromUserId?: string;
@@ -43,12 +50,14 @@ export class GenesysCloudMediaSession extends MediaSession {
       this.setupStatsGatherer();
     }
     this.pc.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
+    this.pc.addEventListener('icecandidateerror', this.onIceCandidateError.bind(this));
   }
 
   async onTransportInfo (changes: Jingle, cb: ActionCallback) {
+    const transport = (changes.contents?.[0].transport! as JingleIce);
+    const candidates = transport?.candidates;
     if (this.ignoreHostCandidatesFromRemote) {
-      const transport = (changes.contents?.[0].transport! as JingleIce);
-      const nonHostCandidates = transport?.candidates?.filter(candidate => candidate.type !== 'host');
+      const nonHostCandidates = candidates?.filter(candidate => candidate.type !== 'host');
 
       if (nonHostCandidates?.length !== transport?.candidates?.length) {
         this._log('info', 'Ignoring remote host ice candidates', { conversation: this.conversationId, sessionId: this.sid });
@@ -57,7 +66,28 @@ export class GenesysCloudMediaSession extends MediaSession {
       }
     }
 
+    if (candidates) {
+      for (const candidate of candidates) {
+        this._log('info', 'Received candidate from peer', { conversation: this.conversationId, sessionId: this.sid, candidateType: candidate.type });
+        this.iceCandidatesReceivedFromPeer++;
+      }
+    }
+
     return super.onTransportInfo(changes, cb);
+  }
+
+  protected _log (level: string, message: string, ...data: any[]) {
+    if (this.parent) {
+      const redactionInfo = loggingOverrides[message];
+
+      if (redactionInfo?.skipMessage) {
+        console.debug('not sending log message due to loggingOverride', { message, data });
+        return;
+      }
+
+      this.parent.emit('log', level, message, ...data);
+      this.parent.emit('log:' + level, message, ...data);
+    }
   }
 
   setupStatsGatherer () {
@@ -79,6 +109,13 @@ export class GenesysCloudMediaSession extends MediaSession {
           infoType: JINGLE_INFO_ACTIVE
         }
       });
+    } else if (iceState === 'failed') {
+      this._log('info', 'ICE connection failed', {
+        sessionId,
+        conversationId,
+        candidatesDiscovered: this.iceCandidatesDiscovered,
+        candidatesReceivedFromPeer: this.iceCandidatesReceivedFromPeer
+      });
     }
 
     super.onIceStateChange();
@@ -88,6 +125,15 @@ export class GenesysCloudMediaSession extends MediaSession {
     const sessionId = this.id;
     const conversationId = this.conversationId;
     this._log('info', 'Connection state changed: ', { sessionId, conversationId, connectionState: this.pc.connectionState });
+  }
+
+  onIceCandidateError (event: RTCPeerConnectionIceErrorEvent) {
+    this._log('error', 'IceCandidateError', {
+      errorCode: event.errorCode,
+      errorText: event.errorText,
+      url: event.url
+    });
+    console.error('IceCandidateError', event);
   }
 
   onIceCandidate (e: RTCPeerConnectionIceEvent) {
@@ -103,7 +149,12 @@ export class GenesysCloudMediaSession extends MediaSession {
         }
       }
 
+      // this has too much information and can only be logged locally (debug)
       this._log('debug', 'Processing ice candidate', e.candidate.candidate);
+
+      // this one is info level so it can go to the server
+      this._log('info', 'Discovered ice candidate to send to peer', { type: e.candidate.type });
+      this.iceCandidatesDiscovered++;
     }
 
     return super.onIceCandidate(e);
