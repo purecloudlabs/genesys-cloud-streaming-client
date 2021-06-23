@@ -60,6 +60,27 @@ describe('GenesysCloudMediaSession', () => {
 
       expect(spy).not.toHaveBeenCalled();
     });
+
+    it('should log ICE connection failed along with the number of candidates exchanged', () => {
+      const parent = new FakeParent();
+      const session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
+
+      session['iceCandidatesDiscovered'] = 3;
+      session['iceCandidatesReceivedFromPeer'] = 5;
+      const spy = session['_log'] = jest.fn();
+      session['pc'] = { iceConnectionState: 'failed' } as any;
+
+      session.onIceStateChange();
+
+      expect(spy).toHaveBeenCalledWith('info', 'ICE connection failed', expect.objectContaining({
+        candidatesDiscovered: 3,
+        candidatesReceivedFromPeer: 5
+      }));
+    });
   });
 
   describe('onIceCandidate', () => {
@@ -272,6 +293,31 @@ describe('GenesysCloudMediaSession', () => {
       expect(spy).not.toHaveBeenCalled();
       expect(session.pc.getTransceivers).toHaveBeenCalled();
       expect(session.pc.addTrack).toHaveBeenCalled();
+    });
+  });
+
+  describe('_log', () => {
+    let session: GenesysCloudMediaSession;
+
+    beforeEach(() => {
+      const parent = new FakeParent();
+      session = new GenesysCloudMediaSession({
+        options: { parent },
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
+    });
+
+    it('should not log if there is a log override', () => {
+      const spy = jest.spyOn(session.parent, 'emit');
+
+      session['_log']('info', 'should work');
+
+      expect(spy).toHaveBeenCalled();
+      spy.mockReset();
+
+      session['_log']('info', 'Discovered new ICE candidate');
+      expect(spy).not.toHaveBeenCalled();
     });
   });
 });
