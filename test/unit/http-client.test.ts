@@ -71,7 +71,6 @@ describe('HttpRequestClient', () => {
         await http.requestApi(path, { host, method: 'get' });
         fail('should have thrown');
       } catch (error) {
-        console.log(error.body);
         expect(error.response.body.message).toBe('bad request');
         expect(users.isDone()).toBe(true);
       }
