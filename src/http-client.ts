@@ -51,22 +51,9 @@ export class HttpClient {
     try {
       return await response.send(opts.data); // trigger request
     } catch (err) {
-      const res = err.response;
-
-      // Potentially contains PII information - Do not send to Sumo, just log to console.
-      throw {
-        status: err.status,
-        correlationId: res.headers['inin-correlation-id'],
-        responseBody: res.text,
-        url: res.error.url,
-        message: res.error.message,
-        method: res.req.method,
-        name: res.error.name,
-        stack: res.error.stack
-      };
+      throw err;
     }
   }
-
   stopAllRetries (): void {
     Array.from(this._httpRetryingRequests.keys())
       .forEach(key => this.cancelRetryRequest(key));
