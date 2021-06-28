@@ -71,7 +71,8 @@ describe('HttpRequestClient', () => {
         await http.requestApi(path, { host, method: 'get' });
         fail('should have thrown');
       } catch (error) {
-        expect(error.correlationId).toBe('abc123');
+        console.log(error.body);
+        expect(error.response.body.message).toBe('bad request');
         expect(users.isDone()).toBe(true);
       }
     });
