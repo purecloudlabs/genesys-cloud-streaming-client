@@ -51,10 +51,9 @@ export class HttpClient {
     try {
       return await response.send(opts.data); // trigger request
     } catch (err) {
-      throw this.formatRequestError(err);
+      throw err;
     }
   }
-
   stopAllRetries (): void {
     Array.from(this._httpRetryingRequests.keys())
       .forEach(key => this.cancelRetryRequest(key));
