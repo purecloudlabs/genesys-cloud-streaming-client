@@ -4,11 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.5...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.7...HEAD)
+
+# [v13.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.6...v13.2.7)
+### Added
+* [PCM-1624](https://inindca.atlassian.net/browse/PCM-1624) - Added logging for failed HTTP requests to console - not sending to Sumo.
+
+# [v13.2.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.5...v13.2.6)
 ### Fixed
 * fixed unit tests in later versions of node
 ### Added
-* [PCM-1624](https://inindca.atlassian.net/browse/PCM-1624) - Added logging for failed HTTP requests to console - not sending to Sumo.
 * added more logging around webrtc signaling
 
 # [v13.2.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.4...v13.2.5)
