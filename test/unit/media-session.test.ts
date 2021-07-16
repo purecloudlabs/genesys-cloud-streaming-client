@@ -31,7 +31,7 @@ describe('GenesysCloudMediaSession', () => {
     });
   });
 
-  describe('onIceStateChange', () => {
+  describe('handleIceStateChange', () => {
     it('should send session-info active stanza on connected', () => {
       const parent = new FakeParent();
 
@@ -42,7 +42,7 @@ describe('GenesysCloudMediaSession', () => {
       });
       (session.pc as any).iceConnectionState = 'connected';
       const spy = jest.spyOn(session, 'send').mockImplementation();
-      session.onIceStateChange();
+      session.handleIceStateChange();
 
       expect(spy).toHaveBeenCalledWith(JingleAction.SessionInfo, { info: { infoType: JINGLE_INFO_ACTIVE } });
     });
@@ -56,7 +56,7 @@ describe('GenesysCloudMediaSession', () => {
         allowIPv6: false
       });
       const spy = jest.spyOn(session, 'send').mockImplementation();
-      session.onIceStateChange();
+      session.handleIceStateChange();
 
       expect(spy).not.toHaveBeenCalled();
     });
@@ -74,7 +74,7 @@ describe('GenesysCloudMediaSession', () => {
       const spy = session['_log'] = jest.fn();
       session['pc'] = { iceConnectionState: 'failed' } as any;
 
-      session.onIceStateChange();
+      session.handleIceStateChange();
 
       expect(spy).toHaveBeenCalledWith('info', 'ICE connection failed', expect.objectContaining({
         candidatesDiscovered: 3,

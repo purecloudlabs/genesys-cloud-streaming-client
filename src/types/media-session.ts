@@ -50,6 +50,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       this.setupStatsGatherer();
     }
     this.pc.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
+    this.pc.addEventListener('iceconnectionstatechange', this.handleIceStateChange.bind(this));
     this.pc.addEventListener('icecandidateerror', this.onIceCandidateError.bind(this));
   }
 
@@ -95,7 +96,7 @@ export class GenesysCloudMediaSession extends MediaSession {
     this.statsGatherer.on('stats', this.emit.bind(this, 'stats'));
   }
 
-  onIceStateChange () {
+  handleIceStateChange () {
     const iceState = this.pc.iceConnectionState;
     const sessionId = this.id;
     const conversationId = this.conversationId;
@@ -117,8 +118,6 @@ export class GenesysCloudMediaSession extends MediaSession {
         candidatesReceivedFromPeer: this.iceCandidatesReceivedFromPeer
       });
     }
-
-    super.onIceStateChange();
   }
 
   onConnectionStateChange () {
