@@ -56,18 +56,21 @@ export type RetryPromise<T = any> = {
   promise: Promise<T>;
   cancel: (reason?: string | Error) => void;
   complete: (value?: T) => void;
+  hasCompleted: () => boolean;
   _id: string;
 };
 
 export function retryPromise<T = any> (
   promiseFn: () => Promise<T>,
   retryFn: (error?: Error | any) => boolean,
-  retryInterval: number = 15000
+  retryInterval: number = 15000,
+  logger: any = console
 ): RetryPromise<T> {
   let timeout: any;
   let cancel: any;
   let complete: any;
   let tryPromiseFn: any;
+  let _hasCompleted = false;
 
   const promise = new Promise<T>((resolve, reject) => {
     tryPromiseFn = async () => {
@@ -76,7 +79,7 @@ export function retryPromise<T = any> (
         complete(val);
       } catch (error) {
         if (retryFn(error)) {
-          console.debug('Retrying promise', error);
+          logger.debug('Retrying promise', error);
           timeout = setTimeout(tryPromiseFn, retryInterval);
         } else {
           cancel(error);
@@ -86,18 +89,26 @@ export function retryPromise<T = any> (
 
     complete = (value: T) => {
       clearTimeout(timeout);
+      _hasCompleted = true;
       resolve(value);
     };
 
     cancel = (reason?: any) => {
       clearTimeout(timeout);
+      _hasCompleted = true;
       reject(reason);
     };
 
     tryPromiseFn();
   });
 
-  return { promise, cancel, complete, _id: v4() };
+  return {
+    promise,
+    cancel,
+    complete,
+    _id: v4(),
+    hasCompleted: () => _hasCompleted
+  };
 }
 
 // from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript

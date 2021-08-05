@@ -81,7 +81,6 @@ export class GenesysCloudMediaSession extends MediaSession {
       const redactionInfo = loggingOverrides[message];
 
       if (redactionInfo?.skipMessage) {
-        console.debug('not sending log message due to loggingOverride', { message, data });
         return;
       }
 

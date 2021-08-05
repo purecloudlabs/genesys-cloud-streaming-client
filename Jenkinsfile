@@ -27,7 +27,8 @@ webappPipeline {
 
             // TODO: kick off a prepublish build of web-directory and link to tests run
             // against that feature build
-            testResults: 'https://jenkins.ininica.com/job/spigot-tests-streaming-client-test/'
+            testResults: 'https://jenkins.ininica.com/job/spigot-tests-streaming-client-test/',
+            qaId: '5d41d9195ca9700dac0ef53a'
         ]
     }
 

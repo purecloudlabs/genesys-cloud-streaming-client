@@ -1,10 +1,15 @@
 module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'jsdom',
   roots: [
     '<rootDir>/src',
     '<rootDir>/test'
   ],
   testMatch: [
     '<rootDir>/test/unit/**/*.(ts|js)'
+  ],
+  setupFiles: [
+    '<rootDir>/test/setup.js'
   ],
   transform: {
     '^.+\\.jsx?$': 'babel-jest',

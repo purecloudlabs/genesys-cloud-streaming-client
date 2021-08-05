@@ -27,18 +27,21 @@ export class HttpClient {
     const retry = retryPromise<T>(
       this.requestApi.bind(this, path, opts),
       (error: any) => error && HttpClient.retryStatusCodes.has(error.status),
-      retryInterval
+      retryInterval,
+      opts.logger
     );
 
     this._httpRetryingRequests.set(retry._id, retry);
 
     /* tslint:disable:no-floating-promises */
-    retry.promise.finally(() => this.cancelRetryRequest(retry._id));
+    retry.promise
+      .then(() => this.cancelRetryRequest(retry._id))
+      .catch(() => this.cancelRetryRequest(retry._id));
 
     return retry;
   }
 
-  async requestApi (path: string, opts: RequestApiOptions): Promise<any> {
+  requestApi (path: string, opts: RequestApiOptions): Promise<any> {
     let response = request[opts.method](this._buildUri(opts.host, path, opts.version))
       .use(reqlogger.bind(this, opts.logger, opts.data))
       .type(opts.contentType || 'json');
@@ -48,12 +51,9 @@ export class HttpClient {
       response.set('Authorization', `Bearer ${opts.authToken}`);
     }
 
-    try {
-      return await response.send(opts.data); // trigger request
-    } catch (err) {
-      throw err;
-    }
+    return response.send(opts.data); // trigger request
   }
+
   stopAllRetries (): void {
     Array.from(this._httpRetryingRequests.keys())
       .forEach(key => this.cancelRetryRequest(key));

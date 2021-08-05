@@ -1,21 +1,23 @@
-import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { EventEmitter } from 'events';
-import { ReceivedMessage } from 'stanza/protocol';
+import { ExternalService, ExternalServiceList, ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
-import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/media-session';
 import LRU from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize } from './utils';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
+import JingleSession from 'stanza/jingle/Session';
+import { isFirefox } from 'browserama';
+
+import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
+import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/media-session';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
 import { ClientOptions } from './client';
-import JingleSession from 'stanza/jingle/Session';
-import { isFirefox } from 'browserama';
+import { ExtendedRTCIceServer } from './types/interfaces';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -41,6 +43,7 @@ const events = {
 };
 
 const desiredMaxStatsSize = 15000;
+const MAX_DISCO_RETRIES = 2;
 
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
@@ -71,6 +74,8 @@ export class WebrtcExtension extends EventEmitter {
   private statsSizeDecreaseAmount = 3000;
   private statBuffer = 0;
   private throttledSendStats: any;
+  private discoRetries = 0;
+  private refreshIceServersRetryPromise: RetryPromise<ExtendedRTCIceServer[]> | undefined;
 
   get jid (): string {
     return this.client._stanzaio.jid;
@@ -508,15 +513,43 @@ export class WebrtcExtension extends EventEmitter {
     this.logger.info('sent jingle retract', { sessionId, conversationId: session.propose.conversationId });
   }
 
-  async refreshIceServers (): Promise<any[]> {
+  async refreshIceServers (): Promise<ExtendedRTCIceServer[]> {
+    if (!this.refreshIceServersRetryPromise) {
+      this.refreshIceServersRetryPromise = retryPromise<ExtendedRTCIceServer[]>(
+        this._refreshIceServers.bind(this),
+        (error): boolean => {
+          if (++this.discoRetries > MAX_DISCO_RETRIES) {
+            this.logger.warn('fetching turn servers failed. max retries reached.', {
+              retryAttempt: this.discoRetries,
+              MAX_DISCO_RETRIES
+            });
+            return false;
+          }
+
+          this.logger.warn('fetching turn servers failed. retrying', { retryAttempt: this.discoRetries, error });
+          return true;
+        },
+        0,
+        this.client.logger
+      );
+    }
+
+    return this.refreshIceServersRetryPromise.promise
+      .finally(() => {
+        this.discoRetries = 0;
+        this.refreshIceServersRetryPromise = undefined;
+      });
+  }
+
+  async _refreshIceServers (): Promise<ExtendedRTCIceServer[]> {
     const server = this.client._stanzaio.config.server;
     const turnServersPromise = this.client._stanzaio.getServices(
-      server as any,
+      server as string,
       'turn',
       '1'
     );
     const stunServersPromise = this.client._stanzaio.getServices(
-      server as any,
+      server as string,
       'stun',
       '1'
     );
@@ -524,21 +557,23 @@ export class WebrtcExtension extends EventEmitter {
     const [turnServers, stunServers] = await Promise.all([
       turnServersPromise,
       stunServersPromise
-    ]);
+    ]) as Array<Required<ExternalServiceList>>;
+
     this.logger.debug('STUN/TURN server discovery result', {
       turnServers,
       stunServers
     });
+
     const iceServers = [
-      ...(turnServers.services as any),
-      ...(stunServers.services as any)
-    ].map((service) => {
+      ...turnServers.services,
+      ...stunServers.services
+    ].map((service: ExternalService) => {
       const port = service.port ? `:${service.port}` : '';
-      const ice: RTCIceServer & { type: string } = {
-        type: service.type,
+      const ice: ExtendedRTCIceServer = {
+        type: service.type as string,
         urls: `${service.type}:${service.host}${port}`
       };
-      if (['turn', 'turns'].includes(service.type)) {
+      if (['turn', 'turns'].includes(service.type as string)) {
         if (service.transport && service.transport !== 'udp') {
           ice.urls += `?transport=${service.transport}`;
         }
@@ -553,7 +588,7 @@ export class WebrtcExtension extends EventEmitter {
     });
 
     this.setIceServers(iceServers);
-    if (!stunServers.services!.length) {
+    if (!stunServers.services.length) {
       this.logger.info('No stun servers received, setting iceTransportPolicy to "relay"');
       this.setIceTransportPolicy('relay');
     } else {

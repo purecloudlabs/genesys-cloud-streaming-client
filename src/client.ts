@@ -247,6 +247,14 @@ export class Client {
       this[extensionName] = extension.expose;
       this[`_${extensionName}`] = extension;
     });
+
+    /* clear out stanzas default use of google's stun server */
+    this._stanzaio.jingle.config.iceServers = [];
+    /**
+     * NOTE: calling this here should not interfere with the `webrtc.ts` extension
+     *  refreshingIceServers since that is async and this constructor is sync
+     */
+    this._webrtcSessions.setIceServers([]);
   }
 
   cleanupLeakTimer () {
@@ -325,7 +333,8 @@ export class Client {
       const opts: RequestApiOptions = {
         method: 'get',
         host: this.config.apiHost,
-        authToken: this.config.authToken
+        authToken: this.config.authToken,
+        logger: this.logger
       };
       jidPromise = this.http.requestApiWithRetry('users/me', opts).promise
         .then(res => res.body.chat.jabberId);
