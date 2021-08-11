@@ -2,11 +2,16 @@ import nock from 'nock';
 
 import { HttpClient } from '../../src/http-client';
 import { wait } from '../helpers/testing-utils';
+import { ILogger } from '../../src/types/interfaces';
 
 describe('HttpRequestClient', () => {
   let http: HttpClient;
+  let logger: ILogger;
 
   beforeEach(() => {
+    logger = {
+      debug: jest.fn()
+    } as any;
     http = new HttpClient();
   });
 
@@ -51,7 +56,7 @@ describe('HttpRequestClient', () => {
       const users = api.get(`/api/v2/${path}`)
         .reply(200, []);
 
-      const response = await http.requestApi(path, { host, method: 'get', noAuthHeader: true });
+      const response = await http.requestApi(path, { host, method: 'get', noAuthHeader: true, logger });
 
       expect(response.body).toEqual([]);
       expect(response)
@@ -68,7 +73,7 @@ describe('HttpRequestClient', () => {
         .reply(404, { message: 'bad request' }, { ['inin-correlation-id']: 'abc123' });
 
       try {
-        await http.requestApi(path, { host, method: 'get' });
+        await http.requestApi(path, { host, method: 'get', logger });
         fail('should have thrown');
       } catch (error) {
         expect(error.response.body.message).toBe('bad request');

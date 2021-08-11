@@ -47,7 +47,7 @@ export class Reconnector {
         return;
       }
 
-      if (this.client._stanzaio.transport?.hasStream || this.client.connecting) {
+      if (this.client._stanzaio.transport?.hasStream) {
         this.client.logger.debug('Backoff ready, connection is pending');
         this.backoff.backoff();
         return;
@@ -124,7 +124,8 @@ export class Reconnector {
     this._hardReconnectRetryInfo = retryPromise(
       this._attemptHardReconnect.bind(this),
       this._shouldRetryError.bind(this),
-      HARD_RECONNECT_RETRY_MS
+      HARD_RECONNECT_RETRY_MS,
+      this.client.logger
     );
 
     try {

@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.7...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...HEAD)
+
+# [v13.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.7...v13.2.8)
+### Fixed
+* [PCM-1692](https://inindca.atlassian.net/browse/PCM-1692) - Bump `async` to `3.2.1` (dep of `stanza`) to fix background tab throttling of WebSocket messages. This is causing webrtc sessions to not connect because `transport-info`s were being throttled.
+* [PCM-1701](https://inindca.atlassian.net/browse/PCM-1701) - Do not add/use Google STUN servers by default (ie. override `stanza`'s default behavior of adding these to the config).
+* [PCM-1529](https://inindca.atlassian.net/browse/PCM-1529) - Soft reconnects will actually attempt to connect a WebSocket
 
 # [v13.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.6...v13.2.7)
 ### Added

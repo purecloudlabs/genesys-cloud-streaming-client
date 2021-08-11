@@ -1,3 +1,7 @@
+export interface ExtendedRTCIceServer extends RTCIceServer {
+  type: string;
+}
+
 export type RequestApiOptions = {
   method: 'get' | 'post' | 'patch' | 'put' | 'delete';
   host: string;
@@ -8,7 +12,6 @@ export type RequestApiOptions = {
   logger?: any;
   noAuthHeader?: boolean;
 };
-
 export interface ISuperagentNetworkError extends Error {
   status: number | undefined; // will be `undefined` for network errors & timeouts
   method: string;
@@ -55,4 +58,12 @@ export interface IError {
   message: string;
   name: string;
   stack?: string;
+}
+
+export interface ILogger {
+  log (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
+  debug (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
+  info (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
+  warn (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
+  error (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
 }
