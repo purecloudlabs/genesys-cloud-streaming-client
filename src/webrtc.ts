@@ -44,6 +44,7 @@ const events = {
 
 const desiredMaxStatsSize = 15000;
 const MAX_DISCO_RETRIES = 2;
+const ICE_SERVER_TIMEOUT = 15000; // 15 seconds
 
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
@@ -107,6 +108,14 @@ export class WebrtcExtension extends EventEmitter {
     Object.assign(this.client._stanzaio.jingle.config.peerConnectionConfig, {
       sdpSemantics: 'unified-plan'
     });
+
+    /* clear out stanzas default use of google's stun server */
+    this.client._stanzaio.jingle.config.iceServers = [];
+    /**
+     * NOTE: calling this here should not interfere with the `webrtc.ts` extension
+     *  refreshingIceServers since that is async and this constructor is sync
+     */
+    this.setIceServers([]);
   }
 
   prepareSession (options: any) {
@@ -220,8 +229,14 @@ export class WebrtcExtension extends EventEmitter {
   }
 
   addEventListeners () {
-    this.client.on('connected', async () => {
-      await this.refreshIceServers();
+    this.client.on('connected', () => {
+      return this.refreshIceServers()
+        .catch((error) =>
+          this.logger.error('Error fetching ice servers after streaming-client connected', {
+            error,
+            channelId: this.client.config.channelId
+          })
+        );
     });
 
     this.client._stanzaio.jingle.on('log', (level, message, data?) => {
@@ -519,14 +534,20 @@ export class WebrtcExtension extends EventEmitter {
         this._refreshIceServers.bind(this),
         (error): boolean => {
           if (++this.discoRetries > MAX_DISCO_RETRIES) {
-            this.logger.warn('fetching turn servers failed. max retries reached.', {
+            this.logger.warn('fetching ice servers failed. max retries reached.', {
               retryAttempt: this.discoRetries,
-              MAX_DISCO_RETRIES
+              MAX_DISCO_RETRIES,
+              error,
+              channelId: this.client.config.channelId
             });
             return false;
           }
 
-          this.logger.warn('fetching turn servers failed. retrying', { retryAttempt: this.discoRetries, error });
+          this.logger.warn('fetching ice servers failed. retrying', {
+            retryAttempt: this.discoRetries,
+            error,
+            channelId: this.client.config.channelId
+          });
           return true;
         },
         0,
@@ -554,10 +575,23 @@ export class WebrtcExtension extends EventEmitter {
       '1'
     );
 
-    const [turnServers, stunServers] = await Promise.all([
-      turnServersPromise,
-      stunServersPromise
-    ]) as Array<Required<ExternalServiceList>>;
+    const servicesPromise = new Promise<[Required<ExternalServiceList>, Required<ExternalServiceList>]>((resolve, reject) => {
+      setTimeout(() => {
+        reject(new Error('Timeout waiting for refresh ice servers to finish'));
+      }, ICE_SERVER_TIMEOUT);
+
+      Promise.all([
+        turnServersPromise,
+        stunServersPromise
+      ])
+        .then(([turn, stun]) => {
+          resolve([turn, stun] as [Required<ExternalServiceList>, Required<ExternalServiceList>]);
+        })
+        .catch(reject);
+    });
+
+    const [turnServers, stunServers] = await servicesPromise;
+    // const [turnServers, stunServers] = await Promise.all([turnServersPromise, stunServersPromise]) as any;
 
     this.logger.debug('STUN/TURN server discovery result', {
       turnServers,

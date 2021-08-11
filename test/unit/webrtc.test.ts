@@ -44,6 +44,10 @@ function shimCreatePeerConnection (client) {
   };
 }
 
+function flush () {
+  return new Promise(res => setImmediate(res));
+}
+
 describe('constructor', () => {
   it('should override prepareSession', () => {
     const client = new Client({});
@@ -97,6 +101,25 @@ describe('prepareSession', () => {
 });
 
 describe('addEventListeners', () => {
+  it('should refresh ice servers on "connected"', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const error = new Error('Bad timing');
+
+    const spy = jest.spyOn(webrtc.logger, 'error');
+    jest.spyOn(webrtc, 'refreshIceServers').mockRejectedValue(error);
+    client.config.channelId = 'my-ws-channel';
+
+    client.emit('connected');
+
+    await flush();
+
+    expect(spy).toHaveBeenCalledWith('Error fetching ice servers after streaming-client connected', {
+      error,
+      channelId: client.config.channelId
+    });
+  });
+
   it('should listen for jingle log messages', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -873,6 +896,42 @@ describe('refreshIceServers', () => {
       expect(webrtc['discoRetries']).toBe(0);
       expect(webrtc['refreshIceServersRetryPromise']).toBe(undefined);
     }
+  });
+
+  it('should timeout after 15 seconds', async () => {
+    jest.useFakeTimers();
+
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = jest.spyOn(client._stanzaio, 'getServices')
+      /* have the call to fetch services "hang" */
+      .mockImplementation(() => new Promise(res => setTimeout(res, 100 * 1000)));
+
+    const promise = webrtc.refreshIceServers();
+
+    expect(spy).toHaveBeenCalledTimes(1 * 2);
+
+    /* I don't know why these timers & flushes have to work this way... but it is the only combo that works */
+    jest.advanceTimersByTime(15000);
+    await flush();
+
+    jest.advanceTimersByTime(15000);
+    await flush();
+
+    expect(spy).toHaveBeenCalledTimes(2 * 2);
+
+    jest.advanceTimersByTime(15000);
+    expect(spy).toHaveBeenCalledTimes(3 * 2);
+
+    try {
+      await promise;
+      fail('ice servers should have timedout');
+    } catch (error) {
+      expect(error.message).toBe('Timeout waiting for refresh ice servers to finish');
+    }
+
+    jest.clearAllTimers();
   });
 });
 

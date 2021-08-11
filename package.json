@@ -44,7 +44,7 @@
       "extensions": "ts",
       "ignore": "node_modules/**",
       "legacyWatch": true,
-      "delay": 2000
+      "delay": 1000
     }
   },
   "author": "",

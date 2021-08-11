@@ -247,14 +247,6 @@ export class Client {
       this[extensionName] = extension.expose;
       this[`_${extensionName}`] = extension;
     });
-
-    /* clear out stanzas default use of google's stun server */
-    this._stanzaio.jingle.config.iceServers = [];
-    /**
-     * NOTE: calling this here should not interfere with the `webrtc.ts` extension
-     *  refreshingIceServers since that is async and this constructor is sync
-     */
-    this._webrtcSessions.setIceServers([]);
   }
 
   cleanupLeakTimer () {

@@ -34,9 +34,10 @@ export class HttpClient {
     this._httpRetryingRequests.set(retry._id, retry);
 
     /* tslint:disable:no-floating-promises */
-    retry.promise
-      .then(() => this.cancelRetryRequest(retry._id))
-      .catch(() => this.cancelRetryRequest(retry._id));
+    retry.promise.then(
+      () => this.cancelRetryRequest(retry._id),
+      () => this.cancelRetryRequest(retry._id)
+    );
 
     return retry;
   }
