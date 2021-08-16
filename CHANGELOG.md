@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...HEAD)
 
-# [v13.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.7...v13.2.8)
+# [v13.2.8](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.7...v13.2.8)
 ### Fixed
 * [PCM-1692](https://inindca.atlassian.net/browse/PCM-1692) - Bump `async` to `3.2.1` (dep of `stanza`) to fix background tab throttling of WebSocket messages. This is causing webrtc sessions to not connect because `transport-info`s were being throttled.
 * [PCM-1701](https://inindca.atlassian.net/browse/PCM-1701) - Do not add/use Google STUN servers by default (ie. override `stanza`'s default behavior of adding these to the config).
