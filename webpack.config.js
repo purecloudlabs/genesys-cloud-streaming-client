@@ -1,4 +1,5 @@
 const Path = require('path');
+const webpack = require('webpack');
 
 module.exports = (env = {}) => {
   let babelLoader;
@@ -61,6 +62,11 @@ module.exports = (env = {}) => {
       rules: [
         babelLoader || {}
       ]
-    }
+    },
+    plugins: [
+      new webpack.ProvidePlugin({
+        process: 'process-fast'
+      }),
+    ]
   };
 };
