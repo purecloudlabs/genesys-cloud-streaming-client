@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.9...HEAD)
+
+# [v13.2.9](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...v13.2.9)
+### Fixed
+* [PCM-1712](https://inindca.atlassian.net/browse/PCM-1712) - Fixed more cases of browser throttling due to setTimeout
 
 # [v13.2.8](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.7...v13.2.8)
 ### Fixed
