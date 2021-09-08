@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.9...HEAD)
+### Added
+* [PCM-1715](https://inindca.atlassian.net/browse/PCM-1715) - Added ability to end sessions from the client.
 
 # [v13.2.9](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...v13.2.9)
 ### Fixed
