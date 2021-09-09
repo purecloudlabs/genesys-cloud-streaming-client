@@ -101,8 +101,9 @@ export class GenesysCloudMediaSession extends MediaSession {
       this.send('session-terminate', { reason });
     }
 
+    // After sending session-terminate, wait for the peer connection to die -> if it doesn't, we will manually close it.
     setTimeout(() => {
-      if (this.pc) {
+      if (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting') {
         this.pc.close();
       }
     }, 2000);
