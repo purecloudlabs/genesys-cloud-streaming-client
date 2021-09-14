@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.9...HEAD)
 ### Added
-* [PCM-1715](https://inindca.atlassian.net/browse/PCM-1715) - Added ability to end sessions from the client.
+* [PCM-1715](https://inindca.atlassian.net/browse/PCM-1715) - Updated to override how `stanza` currently ends sessions to prevent race condition. Now sending `session-terminate` and if after two seconds the peer connection is still open, manually closing it.
 
 # [v13.2.9](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...v13.2.9)
 ### Fixed
