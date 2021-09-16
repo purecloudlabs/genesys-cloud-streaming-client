@@ -1,5 +1,5 @@
 import { MediaSession } from 'stanza/jingle';
-import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
+import { JingleAction, JingleReasonCondition, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import StatsGatherer, { StatsEvent } from 'webrtc-stats-gatherer';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
@@ -87,6 +87,29 @@ export class GenesysCloudMediaSession extends MediaSession {
       this.parent.emit('log', level, message, ...data);
       this.parent.emit('log:' + level, message, ...data);
     }
+  }
+
+  end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
+    this.state = 'ended';
+    this.processingQueue.kill();
+
+    if (typeof reason === 'string') {
+      reason = { condition: reason };
+    }
+
+    if (!silent) {
+      this.send('session-terminate', { reason });
+    }
+
+    // After sending session-terminate, wait for the peer connection to die -> if it doesn't, we will manually close it.
+    setTimeout(() => {
+      if (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting') {
+        this.pc.close();
+      }
+    }, 2000);
+
+    this.parent.emit('terminated', this, reason);
+    this.parent.forgetSession(this);
   }
 
   setupStatsGatherer () {

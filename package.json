@@ -9,7 +9,7 @@
   },
   "main": "dist/npm/index.js",
   "module": "dist/es/module.js",
-  "browser": "dist/streaming-client-browser.js",
+  "browser": "dist/streaming-client.browser.js",
   "files": [
     "dist"
   ],
