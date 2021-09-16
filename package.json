@@ -8,7 +8,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "main": "dist/npm/index.js",
-  "module": "dist/es/module.js",
+  "module": "dist/es/index.js",
   "browser": "dist/streaming-client.browser.js",
   "files": [
     "dist"
