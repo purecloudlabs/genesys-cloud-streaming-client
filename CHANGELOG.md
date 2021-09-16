@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 * [PCM-1722](https://inindca.atlassian.net/browse/PCM-1722) - Fixed issue where file path in `package.json` did not match the actual built file path.
+* [PCM-1722](https://inindca.atlassian.net/browse/PCM-1722) - Fixed issue where file path for `module` in `package.json` pointed to a file that did not exist.
 
 # [v13.2.9](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.8...v13.2.9)
 ### Fixed
