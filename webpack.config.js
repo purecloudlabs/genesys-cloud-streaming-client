@@ -1,14 +1,17 @@
 const Path = require('path');
 const webpack = require('webpack');
 
+const browserFilename = 'streaming-client.browser.js';
+const ieFilename = 'streaming-client.browser.ie.js'
+
 module.exports = (env = {}) => {
   let babelLoader;
   let entry = './dist/npm/module.js';
-  let filename = 'streaming-client.browser.js';
+  let filename = browserFilename;
 
   if (env.ie) {
     console.log('Building for IE compatibility');
-    filename = 'streaming-client.browser.ie.js';
+    filename = ieFilename;
 
     entry = [
       './node_modules/unorm/lib/unorm.js',
@@ -70,3 +73,6 @@ module.exports = (env = {}) => {
     ]
   };
 };
+
+module.exports.browserFilename = browserFilename;
+module.exports.ieFilename = ieFilename;

@@ -1,6 +1,8 @@
 import { execSync as Child } from 'child_process';
 import FS from 'fs';
 
+const { browserFilename } = require('../webpack.config');
+
 const Pkg = JSON.parse(FS.readFileSync('package.json').toString());
 
 function fileReplace (fileName: string, placeholder: string, value: string) {
@@ -19,9 +21,15 @@ fileReplace('dist/es/client.js', '__STREAMING_CLIENT_VERSION__', Pkg.version);
 
 Child('npm run compile:rollup');
 
+// this `npm` folder is really pointless. don't want to introduce any
+//  breaking changes, though. So it will stay for now.
 Child('mkdir dist/npm');
 Child('cp -r dist/cjs/* dist/npm/');
+// this `index.module.js` file isn't super useful either
 Child('cp dist/es/index.module.js dist/npm/module.js');
 Child(`cp ${__dirname}/../*.md dist/npm`);
 Child('npm run compile:webpack');
 Child('npm run compile:webpack:ie');
+
+// to backward compat – replace the old file on cdn
+Child(`cp dist/${browserFilename} dist/streaming-client-browser.js`);
