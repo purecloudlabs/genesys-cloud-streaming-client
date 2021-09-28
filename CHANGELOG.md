@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.1...HEAD)
+
+# [v13.3.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.0...v13.3.1)
+### Fixed
+* [PCM-1726](https://inindca.atlassian.net/browse/PCM-1726) - Removed `package.json#browser` (it still gets built and is available at `dist/streaming-client.browser.js`) since streaming-client is only designed for the web anyway. Keeping the build to `commonJS` and `ES Modules` (`cjs` & `es` in `dist/`). Also, corrected `package.json#module` to point to the built file (previously was pointing at the incorrect file name).
 
 # [v13.3.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.9...v13.3.0)
 ### Added
