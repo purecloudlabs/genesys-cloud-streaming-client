@@ -1086,8 +1086,6 @@ describe('sendStats', () => {
     expect(sendSpy).not.toHaveBeenCalled();
   });
 
-
-
   it('should send stats', async () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -1099,6 +1097,25 @@ describe('sendStats', () => {
     await webrtc.sendStats();
     expect(sendSpy).toHaveBeenCalled();
     expect(webrtc['statsArr'].length).toBe(0);
+  });
+
+  it('should append parent app name and version', async () => {
+    const parentAppName = 'sdk';
+    const parentAppVersion = '1.2.3';
+    const client = new Client({ authToken: '123', parentAppName, parentAppVersion });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
+    webrtc['statsArr'].push({} as any);
+    sendSpy.mockReset();
+
+    await webrtc.sendStats();
+
+    expect(sendSpy.mock.calls[0][1].data).toEqual({
+      appName: `streamingclient-${parentAppName}`,
+      appVersion: `__STREAMING_CLIENT_VERSION__-${parentAppVersion}`, //
+      actions: [{}]
+    })
   });
 
   it('should not send stats if theres no auth token', async () => {
