@@ -75,6 +75,8 @@ export interface ClientOptions {
   logger?: any;
   optOutOfWebrtcStatsTelemetry?: boolean;
   allowIPv6?: boolean;
+  appName?: string;
+  appVersion?: string;
 }
 
 export class Client {
@@ -123,7 +125,9 @@ export class Client {
       jwt: options.jwt,
       jid: options.jid,
       jidResource: options.jidResource,
-      channelId: null // created on connect
+      channelId: null, // created on connect
+      appName: options.appName,
+      appVersion: options.appVersion
     };
 
     this.on('disconnected', () => {
