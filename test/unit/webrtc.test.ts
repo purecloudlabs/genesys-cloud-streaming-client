@@ -1100,9 +1100,9 @@ describe('sendStats', () => {
   });
 
   it('should append parent app name and version', async () => {
-    const parentAppName = 'sdk';
-    const parentAppVersion = '1.2.3';
-    const client = new Client({ authToken: '123', parentAppName, parentAppVersion });
+    const appName = 'sdk';
+    const appVersion = '1.2.3';
+    const client = new Client({ authToken: '123', appName, appVersion });
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
@@ -1112,8 +1112,8 @@ describe('sendStats', () => {
     await webrtc.sendStats();
 
     expect(sendSpy.mock.calls[0][1].data).toEqual({
-      appName: `streamingclient-${parentAppName}`,
-      appVersion: `__STREAMING_CLIENT_VERSION__-${parentAppVersion}`, //
+      appName: `streamingclient-${appName}`,
+      appVersion: `__STREAMING_CLIENT_VERSION__-${appVersion}`, //
       actions: [{}]
     })
   });

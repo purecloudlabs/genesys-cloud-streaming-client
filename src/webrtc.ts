@@ -188,8 +188,8 @@ export class WebrtcExtension extends EventEmitter {
       return;
     }
 
-    const appName = `streamingclient${this.client.config.parentAppName ? '-' + this.client.config.parentAppName : ''}`;
-    const appVersion = `${Client.version}${this.client.config.parentAppVersion ? '-' + this.client.config.parentAppVersion : ''}`;
+    const appName = `streamingclient${this.client.config.appName ? '-' + this.client.config.appName : ''}`;
+    const appVersion = `${Client.version}${this.client.config.appVersion ? '-' + this.client.config.appVersion : ''}`;
 
     const data = {
       appName,
