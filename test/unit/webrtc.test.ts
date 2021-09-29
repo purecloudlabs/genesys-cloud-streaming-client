@@ -1112,8 +1112,10 @@ describe('sendStats', () => {
     await webrtc.sendStats();
 
     expect(sendSpy.mock.calls[0][1].data).toEqual({
-      appName: `streamingclient-${appName}`,
-      appVersion: `__STREAMING_CLIENT_VERSION__-${appVersion}`, //
+      appName: 'streamingclient',
+      appVersion: '__STREAMING_CLIENT_VERSION__',
+      secondaryAppName: 'sdk',
+      secondaryAppVersion: '1.2.3',
       actions: [{}]
     })
   });

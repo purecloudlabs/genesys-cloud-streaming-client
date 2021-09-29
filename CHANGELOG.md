@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 * [PCM-1726](https://inindca.atlassian.net/browse/PCM-1726) - Removed `package.json#browser` (it still gets built and is available at `dist/streaming-client.browser.js`) since streaming-client is only designed for the web anyway. Keeping the build to `commonJS` and `ES Modules` (`cjs` & `es` in `dist/`). Also, corrected `package.json#module` to point to the built file (previously was pointing at the incorrect file name).
 ### Added
-* [PCM-1727](https://inindca.atlassian.net/browse/PCM-1727) – Added optional config options `appName` and `appVersion` to pass into the constructor. Streaming-client will append these values to the stats pushed to new relic.
+* [PCM-1727](https://inindca.atlassian.net/browse/PCM-1727) – Added optional config options `appName` and `appVersion` to pass into the constructor. Streaming-client will send these values to the stats pushed to new relic.
 
 # [v13.3.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.2.9...v13.3.0)
 ### Added
