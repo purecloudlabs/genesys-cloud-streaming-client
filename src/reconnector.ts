@@ -188,13 +188,17 @@ export class Reconnector {
   private _shouldRetryError (error: Error): boolean {
     /* we throw this is we are offline */
     if (error.message === OFFLINE_ERROR) {
-      return this.client.logger.debug('Browser is offline. Not attempting to reconnect with new channel.') || true;
+      this.client.logger.debug('Browser is offline. Not attempting to reconnect with new channel.');
+      return true;
     } else if (error.message.startsWith('Request has been terminated')) {
-      return this.client.logger.debug('request offline. attempting reconnect again', error) || true;
+      this.client.logger.debug('request offline. attempting reconnect again', error);
+      return true;
     } else if (error.message.startsWith('Timeout: ')) {
-      return this.client.logger.debug(`Streaming-client timed out. attempting reconnect again: "${error.message}"`) || true;
+      this.client.logger.debug(`Streaming-client timed out. attempting reconnect again: "${error.message}"`);
+      return true;
     } else if (error && HttpClient.retryStatusCodes.has((error as any).status)) {
-      return this.client.logger.debug('Received HTTP status code eligible for retry. attempting reconnect again', error) || true;
+      this.client.logger.debug('Received HTTP status code eligible for retry. attempting reconnect again', error);
+      return true;
     }
 
     return false;

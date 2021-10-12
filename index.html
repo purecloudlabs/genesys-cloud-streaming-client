@@ -1,12 +1,35 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 
 <head>
-  <meta http-equiv="Refresh" content="0; url=https://localhost:8443/test/">
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GC Streaming Client Test Page</title>
 </head>
 
 <body>
-  <!-- page for local testing – redirects to test/index.html -->
-  Redirecting...
+
+  <script src="dist/streaming-client.browser.js"></script>
+  <script>
+    window.scConfig = {
+      authToken: 'INSERT_TOKEN_HERE',
+      host: 'wss://streaming.inindca.com',
+      optOutOfWebrtcStatsTelemetry: true
+    };
+
+    window.loadScript = (src) => {
+      const script = document.createElement('script');
+      script.src = src;
+      console.log('loading script...', src);
+      document.body.appendChild(script);
+      console.log('script loaded    ', src);
+    };
+
+    loadScript('test/scripts/custom-logger.js');
+    // loadScript('test/scripts/429s.js');
+  </script>
+
 </body>
 
 </html>

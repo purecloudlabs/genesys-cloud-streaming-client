@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.1...HEAD)
 
+### Added
+* Bumped from stanza `^12.13.x` to `^12.17.x`
+* [PCM-1737](https://inindca.atlassian.net/browse/PCM-1737) – Pulled in [GenesysCloudClientLogger](https://github.com/purecloudlabs/genesys-cloud-client-logger/).
+    * Streaming-client will now construct its own logger to send logs to the server. Opt out of this by using `optOutOfWebrtcStatsTelemetry = true`.
+    * Added the following options to constructor config: `logLevel`, `appId`, and `logger`. `appId` should be a unique identifier of the parent app to be able to tie individual clients to each other in the logs.
+
 # [v13.3.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.0...v13.3.1)
 ### Fixed
 * [PCM-1726](https://inindca.atlassian.net/browse/PCM-1726) - Removed `package.json#browser` (it still gets built and is available at `dist/streaming-client.browser.js`) since streaming-client is only designed for the web anyway. Keeping the build to `commonJS` and `ES Modules` (`cjs` & `es` in `dist/`). Also, corrected `package.json#module` to point to the built file (previously was pointing at the incorrect file name).

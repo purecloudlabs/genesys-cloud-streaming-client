@@ -16,8 +16,7 @@ import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/me
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
-import { ClientOptions } from './client';
-import { ExtendedRTCIceServer } from './types/interfaces';
+import { ExtendedRTCIceServer, IClientOptions } from './types/interfaces';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -82,7 +81,7 @@ export class WebrtcExtension extends EventEmitter {
     return this.client._stanzaio.jid;
   }
 
-  constructor (client: Client, clientOptions: ClientOptions) {
+  constructor (client: Client, clientOptions: IClientOptions) {
     super();
     this.client = client;
     this.config = {

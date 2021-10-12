@@ -1,3 +1,37 @@
+
+import { ILogger, LogLevel } from 'genesys-cloud-client-logger';
+export { ILogger, LogLevel };
+export interface IClientOptions {
+  host: string;
+  apiHost?: string;
+  authToken?: string;
+  jwt?: string;
+  jid?: string;
+  jidResource?: string;
+  reconnectOnNoLongerSubscribed?: boolean;
+  optOutOfWebrtcStatsTelemetry?: boolean;
+  allowIPv6?: boolean;
+  logger?: ILogger;
+  logLevel?: LogLevel;
+  /* secondary/parent app info */
+  appName?: string;
+  appVersion?: string;
+  appId?: string;
+}
+
+export interface IClientConfig {
+  host: string;
+  apiHost: string;
+  authToken?: string;
+  jwt?: string;
+  jid?: string;
+  jidResource?: string;
+  channelId: string;
+  appName?: string;
+  appVersion?: string;
+  appId?: string;
+  logLevel?: LogLevel;
+}
 export interface ExtendedRTCIceServer extends RTCIceServer {
   type: string;
 }
@@ -58,12 +92,4 @@ export interface IError {
   message: string;
   name: string;
   stack?: string;
-}
-
-export interface ILogger {
-  log (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
-  debug (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
-  info (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
-  warn (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
-  error (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
 }

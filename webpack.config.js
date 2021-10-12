@@ -69,7 +69,7 @@ module.exports = (env = {}) => {
     plugins: [
       new webpack.ProvidePlugin({
         process: 'process-fast'
-      }),
+      })
     ]
   };
 };
