@@ -13,6 +13,7 @@ export interface IClientOptions {
   allowIPv6?: boolean;
   logger?: ILogger;
   logLevel?: LogLevel;
+  signalIceConnected?: boolean;
   /* secondary/parent app info */
   appName?: string;
   appVersion?: string;
