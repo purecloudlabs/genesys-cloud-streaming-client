@@ -5,7 +5,6 @@ import { parse } from 'stanza/jxt';
 import { Reconnector, CXFRDefinition } from '../../src/reconnector';
 import { HttpClient } from '../../src/http-client';
 import { flushPromises } from '../helpers/testing-utils';
-import { ILogger } from '../../src/types/interfaces';
 
 // controls whether clients can reconnect or not
 let SIMULTATE_ONLINE = false;
@@ -31,17 +30,18 @@ class MockStanzaIo extends WildEmitter {
     };
   }
 
-  connect () {
+  async connect () {
     this.client.connectAttempts++;
-    setTimeout(() => {
-      if (SIMULTATE_ONLINE) {
-        this.emit('connected');
-        this.client.connected = true;
-      } else {
-        this.emit('disconnected');
-        this.client.connected = false;
-      }
-    }, this.connectTimeout || 10);
+    if (this.connectTimeout) {
+      await new Promise(res => setTimeout(res, this.connectTimeout));
+    }
+    if (SIMULTATE_ONLINE) {
+      this.emit('connected');
+      this.client.connected = true;
+    } else {
+      this.emit('disconnected');
+      this.client.connected = false;
+    }
   }
 }
 
@@ -67,22 +67,13 @@ class Client {
     (this._stanzaio.on as any)(...arguments);
   }
 
-  async connect () { }
+  async connect () { return this._stanzaio.connect(); }
   reconnect () { }
 }
 
 describe('Reconnector', () => {
-  let logger: ILogger;
 
   beforeEach(() => {
-    logger = {
-      log: jest.fn(),
-      debug: jest.fn(),
-      info: jest.fn(),
-      warn: jest.fn(),
-      error: jest.fn(),
-    };
-
     SIMULTATE_ONLINE = false;
     jest.useFakeTimers();
   });
@@ -474,7 +465,6 @@ describe('Reconnector', () => {
     client._stanzaio.emit('sasl', { type: 'failure', condition: 'not-authorized' });
     jest.advanceTimersByTime(250);
 
-    reconnect.start();
     jest.advanceTimersByTime(300);
     expect(client.connectAttempts).toBe(1);
     expect(client.connected).toBe(true); // should have successfully reconnected
