@@ -12,6 +12,7 @@ import { GenesysCloudMediaSession } from '../../src/types/media-session';
 import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
+import { ISessionInfo } from '../../src/types/interfaces';
 
 jest.mock('../../src/types/media-session');
 class Client extends WildEmitter {
@@ -199,15 +200,23 @@ describe('proxyEvents', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     const sessionId = 'session123';
 
-    const pending = webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', propose: { conversationId: '123', originalRoomJid: '123', sessionId: 'sessionId' }, id: 'session123' } as any;
+    const pending = webrtc.pendingSessions[sessionId] = {
+      fromJid: 'abcjid@test.com',
+      conversationId: '123',
+      originalRoomJid: '123',
+      sessionId: 'sessionId',
+      autoAnswer: false,
+      toJid: 'lkjsd',
+      sessionType: 'softphone'
+    };
     const fakeSession = {
       sid: sessionId
     }
 
     webrtc.on('incomingRtcSession', (session) => {
-      expect(session.conversationId).toEqual(pending.propose.conversationId);
-      expect(session.fromUserId).toEqual(pending.from);
-      expect(session.originalRoomJid).toEqual(pending.propose.originalRoomJid);
+      expect(session.conversationId).toEqual(pending.conversationId);
+      expect(session.fromUserId).toEqual(pending.fromJid);
+      expect(session.originalRoomJid).toEqual(pending.originalRoomJid);
     });
 
     client._stanzaio.emit('jingle:incoming', fakeSession as any);
@@ -303,6 +312,8 @@ describe('handlePropose', () => {
       'requestIncomingRtcSession',
       {
         ...propose,
+        sessionType: 'unknown',
+        toJid: 'myJid',
         roomJid: 'someotherjid',
         fromJid: 'someotherjid'
       }
@@ -632,7 +643,7 @@ describe('rejectRtcSession', () => {
     const fromJid = 'lskn@test.com';
 
     const sessionId = 'session12355524';
-    webrtc.pendingSessions[sessionId] = { from: fromJid, propose: { conversationId: 'test123' } } as any;
+    webrtc.pendingSessions[sessionId] = { fromJid, conversationId: 'test123' } as ISessionInfo;
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
@@ -770,7 +781,7 @@ describe('cancelRtcSession', () => {
     const sessionId = 'session12243';
     const toJid = 'room@conference.com';
 
-    webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com', to: toJid, propose: { conversationId: 'test' } } as any;
+    webrtc.pendingSessions[sessionId] = { fromJid: 'abcjid@test.com', toJid, conversationId: 'test' } as ISessionInfo;
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot cancel session because it is not pending or does not exist');
