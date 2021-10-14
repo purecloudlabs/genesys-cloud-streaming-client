@@ -126,9 +126,9 @@ export class Client {
       logLevel: this.config.logLevel || 'info',
       logger: options.logger || console,
       /* secondary/parent app info */
-      secondaryAppName: options.appName,
-      secondaryAppVersion: options.appVersion,
-      secondaryAppId: options.appId
+      originAppName: options.appName,
+      originAppVersion: options.appVersion,
+      originAppId: options.appId
     });
 
     this.on('disconnected', () => {

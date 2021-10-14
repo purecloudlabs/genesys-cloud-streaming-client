@@ -1114,8 +1114,8 @@ describe('sendStats', () => {
     expect(sendSpy.mock.calls[0][1].data).toEqual({
       appName: 'streamingclient',
       appVersion: '__STREAMING_CLIENT_VERSION__',
-      secondaryAppName: 'sdk',
-      secondaryAppVersion: '1.2.3',
+      originAppName: 'sdk',
+      originAppVersion: '1.2.3',
       actions: [{}]
     })
   });
