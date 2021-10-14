@@ -67,3 +67,17 @@ export interface ILogger {
   warn (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
   error (messageOrError: string | Error, details?: any, skipServer?: boolean): void;
 }
+
+export type SessionTypes = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
+
+export interface ISessionInfo {
+  sessionId: string;
+  autoAnswer: boolean;
+  toJid: string;
+  fromJid: string;
+  conversationId: string;
+  originalRoomJid?: string;
+  fromUserId?: string;
+  roomJid?: string;
+  sessionType: SessionTypes;
+}

@@ -17,7 +17,7 @@ import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePa
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
 import { ClientOptions } from './client';
-import { ExtendedRTCIceServer } from './types/interfaces';
+import { ExtendedRTCIceServer, ISessionInfo, SessionTypes } from './types/interfaces';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -45,6 +45,7 @@ const events = {
 const desiredMaxStatsSize = 15000;
 const MAX_DISCO_RETRIES = 2;
 const ICE_SERVER_TIMEOUT = 15000; // 15 seconds
+const ICE_SERVER_REFRESH_PERIOD = 1000 * 60 * 60 * 6; // 6 hours
 
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
@@ -64,7 +65,7 @@ export class WebrtcExtension extends EventEmitter {
   jingleJs: Jingle.SessionManager;
 
   logger: any;
-  pendingSessions: { [sessionId: string]: ProposeStanza } = {};
+  pendingSessions: { [sessionId: string]: ISessionInfo } = {};
   config: {
     allowIPv6: boolean;
     optOutOfWebrtcStatsTelemetry?: boolean;
@@ -77,6 +78,7 @@ export class WebrtcExtension extends EventEmitter {
   private throttledSendStats: any;
   private discoRetries = 0;
   private refreshIceServersRetryPromise: RetryPromise<ExtendedRTCIceServer[]> | undefined;
+  private refreshIceServersTimer: any;
 
   get jid (): string {
     return this.client._stanzaio.jid;
@@ -164,6 +166,20 @@ export class WebrtcExtension extends EventEmitter {
     });
   }
 
+  getLogDetailsForPendingSessionId (sessionId: string): { conversationId?: string, sessionId: string, sessionType?: SessionTypes } {
+    const logDetails: any = {
+      sessionId
+    };
+
+    const pendingSession = this.pendingSessions[sessionId];
+    if (pendingSession) {
+      logDetails.sessionType = pendingSession.sessionType;
+      logDetails.conversationId = pendingSession.conversationId;
+    }
+
+    return logDetails;
+  }
+
   async sendStats () {
     const statsToSend: any[] = [];
     let currentSize = 0;
@@ -206,7 +222,7 @@ export class WebrtcExtension extends EventEmitter {
         data
       });
       this.currentMaxStatSize = desiredMaxStatsSize;
-    } catch (err) {
+    } catch (err: any) {
       if (err.status === 413) {
         const attemptedPayloadSize = this.currentMaxStatSize;
         this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
@@ -232,6 +248,13 @@ export class WebrtcExtension extends EventEmitter {
 
   addEventListeners () {
     this.client.on('connected', () => {
+      if (this.refreshIceServersTimer) {
+        clearInterval(this.refreshIceServersTimer);
+        this.refreshIceServersTimer = null;
+      }
+
+      this.refreshIceServersTimer = setInterval(this.refreshIceServers.bind(this), ICE_SERVER_REFRESH_PERIOD);
+
       return this.refreshIceServers()
         .catch((error) =>
           this.logger.error('Error fetching ice servers after streaming-client connected', {
@@ -239,6 +262,11 @@ export class WebrtcExtension extends EventEmitter {
             channelId: this.client.config.channelId
           })
         );
+    });
+
+    this.client.on('disconnected', () => {
+      clearInterval(this.refreshIceServersTimer);
+      this.refreshIceServersTimer = null;
     });
 
     this.client._stanzaio.jingle.on('log', (level, message, data?) => {
@@ -273,11 +301,14 @@ export class WebrtcExtension extends EventEmitter {
       (session as GenesysCloudMediaSession).id = session.sid;
       const pendingSession = this.pendingSessions[session.sid];
       if (pendingSession) {
-        (session as GenesysCloudMediaSession).conversationId = (session as GenesysCloudMediaSession).conversationId || pendingSession.propose.conversationId;
-        (session as GenesysCloudMediaSession).fromUserId = pendingSession.from;
-        (session as GenesysCloudMediaSession).originalRoomJid = pendingSession.propose.originalRoomJid;
+        (session as GenesysCloudMediaSession).conversationId = (session as GenesysCloudMediaSession).conversationId || pendingSession.conversationId;
+        (session as GenesysCloudMediaSession).fromUserId = pendingSession.fromJid;
+        (session as GenesysCloudMediaSession).originalRoomJid = pendingSession.originalRoomJid;
         delete this.pendingSessions[session.sid];
       }
+
+      const mediaSession = session as GenesysCloudMediaSession;
+      this.logger.info('received webrtc session', { sessionType: mediaSession.sessionType, conversationId: mediaSession.conversationId, sessionId: mediaSession.sid });
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
@@ -319,27 +350,37 @@ export class WebrtcExtension extends EventEmitter {
       return;
     }
 
-    this.logger.info('propose received', { sessionId: msg.propose.sessionId, conversationId: msg.propose.conversationId });
-    this.pendingSessions[msg.propose.sessionId] = msg;
+    const sessionType = this.getSessionTypeByJid(msg.from);
+    this.logger.info('propose received', { sessionId: msg.propose.sessionId, conversationId: msg.propose.conversationId, sessionType });
     // TODO: is ofrom used?
     // const roomJid = (msg.ofrom && msg.ofrom.full) || msg.from.full || msg.from;
     const fromJid = msg.from;
     const roomJid = fromJid;
     msg.propose.originalRoomJid = msg.propose.originalRoomJid || roomJid;
+
+    const sessionInfo: ISessionInfo = {
+      ...msg.propose,
+      toJid: msg.to,
+      fromJid,
+      sessionType,
+      roomJid
+    };
+
+    this.pendingSessions[msg.propose.sessionId] = sessionInfo;
     return this.emit(
       events.REQUEST_INCOMING_RTCSESSION,
-      Object.assign({ roomJid, fromJid }, msg.propose)
+      Object.assign(sessionInfo)
     );
   }
 
   private handleRetract (sessionId: string) {
-    this.logger.info('retract received', { sessionId });
+    this.logger.info('retract received', this.getLogDetailsForPendingSessionId(sessionId));
     delete this.pendingSessions[sessionId];
     return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
   }
 
   private handledIncomingRtcSession (sessionId: string) {
-    this.logger.info('accept received', { sessionId });
+    this.logger.info('accept received', this.getLogDetailsForPendingSessionId(sessionId));
     return this.emit(events.HANDLED_INCOMING_RTCSESSION, sessionId);
   }
 
@@ -429,18 +470,22 @@ export class WebrtcExtension extends EventEmitter {
     }
 
     const proceed = {
-      to: session.from,
+      to: session.fromJid,
       proceed: {
         sessionId
       }
     };
 
+    const details = this.getLogDetailsForPendingSessionId(sessionId);
+    this.logger.info('attempting jingle proceed', details);
     await this.client._stanzaio.send('message', proceed); // send as Message
-    this.logger.info('sent jingle proceed', { sessionId, conversationId: session.propose.conversationId });
+    this.logger.info('sent jingle proceed', details);
   }
 
   async rejectRtcSession (sessionId: string, ignore = false): Promise<void> {
+    const logDetails = this.getLogDetailsForPendingSessionId(sessionId);
     const session = this.pendingSessions[sessionId];
+
     if (!session) {
       this.emit(
         events.RTCSESSION_ERROR,
@@ -461,7 +506,7 @@ export class WebrtcExtension extends EventEmitter {
       };
       const firstMessage = this.client._stanzaio.send('message', reject1); // send as Message
       const reject2 = {
-        to: session.from,
+        to: session.fromJid,
         reject: {
           id: sessionId
         }
@@ -469,18 +514,24 @@ export class WebrtcExtension extends EventEmitter {
       const secondMessage = this.client._stanzaio.send('message', reject2); // send as Message
 
       await Promise.all([firstMessage, secondMessage]);
-      this.logger.info('sent jingle reject', { sessionId, conversationId: session.propose.conversationId });
+      this.logger.info('sent jingle reject', logDetails);
     }
   }
 
-  rtcSessionAccepted (sessionId: string): Promise<void> {
-    const proceed = {
+  async rtcSessionAccepted (sessionId: string): Promise<void> {
+    const pendingSession = this.pendingSessions[sessionId];
+    const logDetails = this.getLogDetailsForPendingSessionId(sessionId);
+
+    const accept = {
       to: toBare(this.jid),
       accept: {
         sessionId
       }
     };
-    return this.client._stanzaio.send('message', proceed); // send as Message
+
+    this.logger.info('sending session-info:accept', logDetails);
+    await this.client._stanzaio.send('message', accept); // send as Message
+    this.logger.info('sent session-info:accept', logDetails);
   }
 
   notifyScreenShareStart (session: GenesysCloudMediaSession): Promise<void> {
@@ -511,6 +562,8 @@ export class WebrtcExtension extends EventEmitter {
 
   async cancelRtcSession (sessionId: string): Promise<void> {
     const session = this.pendingSessions[sessionId];
+    const logDetails = this.getLogDetailsForPendingSessionId(sessionId);
+
     if (!session) {
       this.emit(
         events.RTCSESSION_ERROR,
@@ -520,14 +573,14 @@ export class WebrtcExtension extends EventEmitter {
     }
 
     const retract = {
-      to: session.to,
+      to: session.toJid,
       retract: {
         sessionId
       }
     };
     delete this.pendingSessions[sessionId];
     await this.client._stanzaio.send('message', retract); // send as Message
-    this.logger.info('sent jingle retract', { sessionId, conversationId: session.propose.conversationId });
+    this.logger.info('sent jingle retract', logDetails);
   }
 
   async refreshIceServers (): Promise<ExtendedRTCIceServer[]> {
