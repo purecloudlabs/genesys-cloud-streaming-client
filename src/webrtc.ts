@@ -12,7 +12,7 @@ import JingleSession from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/media-session';
+import { GenesysCloudMediaSession, SessionEvents } from './types/media-session';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
@@ -698,7 +698,7 @@ export class WebrtcExtension extends EventEmitter {
     this.client._stanzaio.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
   }
 
-  getSessionTypeByJid (jid: string): SessionType {
+  getSessionTypeByJid (jid: string): SessionTypes {
     if (isAcdJid(jid)) {
       return 'screenShare';
     } else if (isScreenRecordingJid(jid)) {
@@ -747,6 +747,6 @@ export interface WebrtcExtensionAPI {
   initiateRtcSession (opts: InitRtcSessionOptions): Promise<void>;
   notifyScreenShareStart (session: GenesysCloudMediaSession): void;
   notifyScreenShareStop (session: GenesysCloudMediaSession): void;
-  getSessionTypeByJid (jid: string): SessionType;
+  getSessionTypeByJid (jid: string): SessionTypes;
   jingle: SessionManager;
 }
