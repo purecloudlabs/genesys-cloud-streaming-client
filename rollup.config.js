@@ -6,6 +6,7 @@ export default {
     'browserama',
     'crypto',
     'events',
+    'genesys-cloud-client-logger',
     'limiter',
     'lodash.throttle',
     'lru-cache',

@@ -2,6 +2,7 @@
 
 import { TokenBucket } from 'limiter';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
+import { Logger, ILogger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
@@ -11,7 +12,7 @@ import { Ping } from './ping';
 import { parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
-import { RequestApiOptions } from './types/interfaces';
+import { RequestApiOptions, IClientOptions, IClientConfig } from './types/interfaces';
 
 let extensions = {
   ping: Ping,
@@ -20,7 +21,7 @@ let extensions = {
   webrtcSessions: WebrtcExtension
 };
 
-function stanzaioOptions (config: ClientOptions & { channelId: string }): AgentConfig {
+function stanzaioOptions (config: IClientOptions & { channelId: string }): AgentConfig {
   let wsHost = config.host.replace(/\/$/, '');
   let stanzaOptions: AgentConfig = {
     jid: config.jid,
@@ -64,33 +65,18 @@ const REMAPPED_EVENTS = {
   '_connected': 'connected'
 };
 
-export interface ClientOptions {
-  host: string;
-  apiHost?: string;
-  authToken?: string;
-  jwt?: string;
-  jid?: string;
-  jidResource?: string;
-  reconnectOnNoLongerSubscribed?: boolean;
-  logger?: any;
-  optOutOfWebrtcStatsTelemetry?: boolean;
-  allowIPv6?: boolean;
-  appName?: string;
-  appVersion?: string;
-}
-
 export class Client {
   _stanzaio: Agent;
   connected = false;
   connecting = false;
   autoReconnect = true;
   reconnectOnNoLongerSubscribed: boolean;
-  logger: any;
+  logger: ILogger;
   leakyReconnectTimer: any;
   hardReconnectCount = 0;
   reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
   deadChannels: string[] = [];
-  config: any;
+  config: IClientConfig;
   streamId: any;
 
   http: HttpClient;
@@ -103,7 +89,7 @@ export class Client {
   _ping!: Ping;
   _reconnector!: Reconnector;
 
-  constructor (options: ClientOptions) {
+  constructor (options: IClientOptions) {
     this.http = new HttpClient();
 
     const stanzaio = createStanzaClient({});
@@ -116,8 +102,6 @@ export class Client {
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
 
-    this.logger = options.logger || console;
-
     this.config = {
       host: options.host,
       apiHost: options.apiHost || options.host.replace('wss://streaming.', ''),
@@ -125,10 +109,27 @@ export class Client {
       jwt: options.jwt,
       jid: options.jid,
       jidResource: options.jidResource,
-      channelId: null, // created on connect
+      channelId: null as any, // created on connect
       appName: options.appName,
       appVersion: options.appVersion
     };
+
+    const accessToken = options.authToken || '';
+    this.logger = new Logger({
+      accessToken,
+      url: `https://api.${this.config.apiHost}/api/v2/diagnostics/trace`,
+      uploadDebounceTime: 1000,
+      initializeServerLogging: !options.optOutOfWebrtcStatsTelemetry,
+      /* streaming-client logging info */
+      appVersion: Client.version,
+      appName: 'streaming-client',
+      logLevel: this.config.logLevel || 'info',
+      logger: options.logger || console,
+      /* secondary/parent app info */
+      originAppName: options.appName,
+      originAppVersion: options.appVersion,
+      originAppId: options.appId
+    });
 
     this.on('disconnected', () => {
       if (this._stanzaio.transport || this.connecting) {

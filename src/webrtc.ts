@@ -12,12 +12,11 @@ import JingleSession from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { GenesysCloudMediaSession, SessionEvents, SessionType } from './types/media-session';
+import { GenesysCloudMediaSession, SessionEvents } from './types/media-session';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
-import { ClientOptions } from './client';
-import { ExtendedRTCIceServer, ISessionInfo, SessionTypes } from './types/interfaces';
+import { ExtendedRTCIceServer, IClientOptions, ISessionInfo, SessionTypes } from './types/interfaces';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -84,7 +83,7 @@ export class WebrtcExtension extends EventEmitter {
     return this.client._stanzaio.jid;
   }
 
-  constructor (client: Client, clientOptions: ClientOptions) {
+  constructor (client: Client, clientOptions: IClientOptions) {
     super();
     this.client = client;
     this.config = {
@@ -207,8 +206,8 @@ export class WebrtcExtension extends EventEmitter {
     const data = {
       appName: 'streamingclient',
       appVersion: Client.version,
-      secondaryAppName: this.client.config.appName,
-      secondaryAppVersion: this.client.config.appVersion,
+      originAppName: this.client.config.appName,
+      originAppVersion: this.client.config.appVersion,
       actions: statsToSend
     };
 
@@ -699,7 +698,7 @@ export class WebrtcExtension extends EventEmitter {
     this.client._stanzaio.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
   }
 
-  getSessionTypeByJid (jid: string): SessionType {
+  getSessionTypeByJid (jid: string): SessionTypes {
     if (isAcdJid(jid)) {
       return 'screenShare';
     } else if (isScreenRecordingJid(jid)) {
@@ -748,6 +747,6 @@ export interface WebrtcExtensionAPI {
   initiateRtcSession (opts: InitRtcSessionOptions): Promise<void>;
   notifyScreenShareStart (session: GenesysCloudMediaSession): void;
   notifyScreenShareStop (session: GenesysCloudMediaSession): void;
-  getSessionTypeByJid (jid: string): SessionType;
+  getSessionTypeByJid (jid: string): SessionTypes;
   jingle: SessionManager;
 }

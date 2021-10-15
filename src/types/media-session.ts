@@ -5,12 +5,11 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { JingleReason, JingleInfo, Jingle, JingleIce } from 'stanza/protocol';
 import { ActionCallback } from 'stanza/jingle/Session';
-
-export type SessionType = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
+import { SessionTypes } from './interfaces';
 
 export interface IGenesysCloudMediaSessionParams {
   options: any;
-  sessionType: SessionType;
+  sessionType: SessionTypes;
   allowIPv6?: boolean;
   ignoreHostCandidatesFromRemote?: boolean;
 }
@@ -28,7 +27,7 @@ export class GenesysCloudMediaSession extends MediaSession {
   id?: string;
   fromUserId?: string;
   originalRoomJid?: string;
-  sessionType: SessionType;
+  sessionType: SessionTypes;
   ignoreHostCandidatesFromRemote: boolean;
   allowIPv6: boolean;
 
@@ -53,6 +52,14 @@ export class GenesysCloudMediaSession extends MediaSession {
     this.pc.addEventListener('icecandidateerror', this.onIceCandidateError.bind(this));
   }
 
+  private getLogDetails (): { conversationId: string, sessionId: string, sessionType: SessionTypes } {
+    return {
+      conversationId: this.conversationId as string,
+      sessionId: this.sid,
+      sessionType: this.sessionType
+    };
+  }
+
   async onTransportInfo (changes: Jingle, cb: ActionCallback) {
     const transport = (changes.contents?.[0].transport! as JingleIce);
     const candidates = transport?.candidates;
@@ -60,7 +67,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       const nonHostCandidates = candidates?.filter(candidate => candidate.type !== 'host');
 
       if (nonHostCandidates?.length !== transport?.candidates?.length) {
-        this._log('info', 'Ignoring remote host ice candidates', { conversation: this.conversationId, sessionId: this.sid });
+        this._log('info', 'Ignoring remote host ice candidates', this.getLogDetails());
 
         transport.candidates = nonHostCandidates;
       }
@@ -68,7 +75,7 @@ export class GenesysCloudMediaSession extends MediaSession {
 
     if (candidates) {
       for (const candidate of candidates) {
-        this._log('info', 'Received candidate from peer', { conversation: this.conversationId, sessionId: this.sid, candidateType: candidate.type });
+        this._log('info', 'Received candidate from peer', { ...this.getLogDetails(), candidateType: candidate.type });
         this.iceCandidatesReceivedFromPeer++;
       }
     }
@@ -133,8 +140,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       });
     } else if (iceState === 'failed') {
       this._log('info', 'ICE connection failed', {
-        sessionId,
-        conversationId,
+        ...this.getLogDetails(),
         candidatesDiscovered: this.iceCandidatesDiscovered,
         candidatesReceivedFromPeer: this.iceCandidatesReceivedFromPeer
       });
@@ -146,7 +152,7 @@ export class GenesysCloudMediaSession extends MediaSession {
   onConnectionStateChange () {
     const sessionId = this.id;
     const conversationId = this.conversationId;
-    this._log('info', 'Connection state changed: ', { sessionId, conversationId, connectionState: this.pc.connectionState });
+    this._log('info', 'Connection state changed: ', { ...this.getLogDetails(), connectionState: this.pc.connectionState });
   }
 
   onIceCandidateError (event: RTCPeerConnectionIceErrorEvent) {
@@ -175,7 +181,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       this._log('debug', 'Processing ice candidate', e.candidate.candidate);
 
       // this one is info level so it can go to the server
-      this._log('info', 'Discovered ice candidate to send to peer', { type: e.candidate.type });
+      this._log('info', 'Discovered ice candidate to send to peer', { ...this.getLogDetails(), type: e.candidate.type });
       this.iceCandidatesDiscovered++;
     }
 
