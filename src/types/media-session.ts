@@ -4,14 +4,18 @@ import StatsGatherer, { StatsEvent } from 'webrtc-stats-gatherer';
 import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { JingleReason, JingleInfo, Jingle, JingleIce } from 'stanza/protocol';
-import { ActionCallback } from 'stanza/jingle/Session';
+import { ActionCallback, SessionOpts } from 'stanza/jingle/Session';
 import { SessionTypes } from './interfaces';
 
 export interface IGenesysCloudMediaSessionParams {
-  options: any;
+  options: SessionOpts;
   sessionType: SessionTypes;
   allowIPv6?: boolean;
   ignoreHostCandidatesFromRemote?: boolean;
+  optOutOfWebrtcStatsTelemetry?: boolean;
+  conversationId?: string;
+  fromUserId?: string;
+  originalRoomJid?: string;
 }
 
 const loggingOverrides = {
@@ -34,6 +38,9 @@ export class GenesysCloudMediaSession extends MediaSession {
   constructor (params: IGenesysCloudMediaSessionParams) {
     super(params.options);
 
+    this.conversationId = params.conversationId;
+    this.fromUserId = params.fromUserId;
+    this.originalRoomJid = params.originalRoomJid;
     this.sessionType = params.sessionType;
     this.ignoreHostCandidatesFromRemote = !!params.ignoreHostCandidatesFromRemote;
     this.allowIPv6 = !!params.allowIPv6;
@@ -45,7 +52,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       this[name] = eventEmitter[name];
     });
 
-    if (!params.options.optOutOfWebrtcStatsTelemetry) {
+    if (!params.optOutOfWebrtcStatsTelemetry) {
       this.setupStatsGatherer();
     }
     this.pc.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
@@ -67,7 +74,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       const nonHostCandidates = candidates?.filter(candidate => candidate.type !== 'host');
 
       if (nonHostCandidates?.length !== transport?.candidates?.length) {
-        this._log('info', 'Ignoring remote host ice candidates', this.getLogDetails());
+        this._log('info', 'Ignoring remote host ice candidates');
 
         transport.candidates = nonHostCandidates;
       }
@@ -75,7 +82,7 @@ export class GenesysCloudMediaSession extends MediaSession {
 
     if (candidates) {
       for (const candidate of candidates) {
-        this._log('info', 'Received candidate from peer', { ...this.getLogDetails(), candidateType: candidate.type });
+        this._log('info', 'Received candidate from peer', { candidateType: candidate.type });
         this.iceCandidatesReceivedFromPeer++;
       }
     }
@@ -89,6 +96,23 @@ export class GenesysCloudMediaSession extends MediaSession {
 
       if (redactionInfo?.skipMessage) {
         return;
+      }
+
+      if (data.length) {
+        const firstItem = data[0];
+
+        // if first item is an object, merge the details, else wrap them
+        if (
+          typeof firstItem === 'object' &&
+          !Array.isArray(firstItem) &&
+          firstItem !== null
+        ) {
+          Object.assign(data[0], this.getLogDetails());
+        } else {
+          data[0] = { ...this.getLogDetails(), data: firstItem };
+        }
+      } else {
+        data.push(this.getLogDetails());
       }
 
       this.parent.emit('log', level, message, ...data);
@@ -140,7 +164,6 @@ export class GenesysCloudMediaSession extends MediaSession {
       });
     } else if (iceState === 'failed') {
       this._log('info', 'ICE connection failed', {
-        ...this.getLogDetails(),
         candidatesDiscovered: this.iceCandidatesDiscovered,
         candidatesReceivedFromPeer: this.iceCandidatesReceivedFromPeer
       });
@@ -150,9 +173,7 @@ export class GenesysCloudMediaSession extends MediaSession {
   }
 
   onConnectionStateChange () {
-    const sessionId = this.id;
-    const conversationId = this.conversationId;
-    this._log('info', 'Connection state changed: ', { ...this.getLogDetails(), connectionState: this.pc.connectionState });
+    this._log('info', 'Connection state changed: ', { connectionState: this.pc.connectionState });
   }
 
   onIceCandidateError (event: RTCPeerConnectionIceErrorEvent) {
@@ -181,7 +202,7 @@ export class GenesysCloudMediaSession extends MediaSession {
       this._log('debug', 'Processing ice candidate', e.candidate.candidate);
 
       // this one is info level so it can go to the server
-      this._log('info', 'Discovered ice candidate to send to peer', { ...this.getLogDetails(), type: e.candidate.type });
+      this._log('info', 'Discovered ice candidate to send to peer', { type: e.candidate.type });
       this.iceCandidatesDiscovered++;
     }
 
