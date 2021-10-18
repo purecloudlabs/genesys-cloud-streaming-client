@@ -3,13 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.4...HEAD)
-# [v13.3.4](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.3...v13.3.4)
-### Fixed
-* [PCM-1752](https://inindca.atlassian.net/browse/PCM-1752) - Tag all the messages from the webrtc sessions with conversationId, sessionType, and sessionId.
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.3...HEAD)
 
 # [v13.3.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.2...v13.3.3)
 ### Fixed
+* [PCM-1752](https://inindca.atlassian.net/browse/PCM-1752) - Tag all the messages from the webrtc sessions with conversationId, sessionType, and sessionId.
 * [PCM-1749](https://inindca.atlassian.net/browse/PCM-1749) - Streaming client will now automatically update ice servers every 6 hours. Also added some minor logging enhancements.
 
 # [v13.3.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.1...v13.3.2)
