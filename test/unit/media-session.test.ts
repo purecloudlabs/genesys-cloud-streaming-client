@@ -25,7 +25,8 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
 
       const session = new GenesysCloudMediaSession({
-        options: { parent, optOutOfWebrtcStatsTelemetry: true },
+        options: { parent } as any,
+        optOutOfWebrtcStatsTelemetry: true,
         sessionType: 'softphone',
         allowIPv6: false
       });
@@ -43,7 +44,7 @@ describe('GenesysCloudMediaSession', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'collaborateVideo',
         allowIPv6: false
       });
@@ -66,7 +67,7 @@ describe('GenesysCloudMediaSession', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'collaborateVideo',
         allowIPv6: false
       });
@@ -89,7 +90,7 @@ describe('GenesysCloudMediaSession', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'collaborateVideo',
         allowIPv6: false
       });
@@ -114,7 +115,7 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
 
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: false
       });
@@ -129,7 +130,7 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
 
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: false
       });
@@ -142,7 +143,7 @@ describe('GenesysCloudMediaSession', () => {
     it('should log ICE connection failed along with the number of candidates exchanged', () => {
       const parent = new FakeParent();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: false
       });
@@ -170,7 +171,7 @@ describe('GenesysCloudMediaSession', () => {
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
       const session = new GenesysCloudMediaSession({
-        options: { parent, allowIPv6: false },
+        options: { parent, allowIPv6: false } as any,
         sessionType: 'softphone',
         allowIPv6: false
       });
@@ -187,7 +188,7 @@ describe('GenesysCloudMediaSession', () => {
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
       const session = new GenesysCloudMediaSession({
-        options: { parent, allowIPv6: false },
+        options: { parent, allowIPv6: false } as any,
         sessionType: 'softphone',
         allowIPv6: false
       });
@@ -204,7 +205,7 @@ describe('GenesysCloudMediaSession', () => {
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
       const session = new GenesysCloudMediaSession({
-        options: { parent, allowIPv6: true },
+        options: { parent, allowIPv6: true } as any,
         sessionType: 'softphone',
         allowIPv6: true
       });
@@ -221,7 +222,7 @@ describe('GenesysCloudMediaSession', () => {
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: true
       });
@@ -238,7 +239,7 @@ describe('GenesysCloudMediaSession', () => {
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: true
       });
@@ -256,7 +257,7 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       jest.spyOn(ICESession.prototype as any, 'onIceEndOfCandidates').mockImplementation();
       const session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: true
       });
@@ -273,7 +274,7 @@ describe('GenesysCloudMediaSession', () => {
     beforeEach(() => {
       const parent = new FakeParent();
       session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: true
       });
@@ -380,7 +381,7 @@ describe('GenesysCloudMediaSession', () => {
     beforeEach(() => {
       const parent = new FakeParent();
       session = new GenesysCloudMediaSession({
-        options: { parent },
+        options: { parent } as any,
         sessionType: 'softphone',
         allowIPv6: true
       });

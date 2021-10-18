@@ -8,11 +8,11 @@ import { v4 } from 'uuid';
 import { Jingle } from 'stanza';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
-import JingleSession from 'stanza/jingle/Session';
+import JingleSession, { SessionOpts } from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { GenesysCloudMediaSession, SessionEvents } from './types/media-session';
+import { GenesysCloudMediaSession, IGenesysCloudMediaSessionParams, SessionEvents } from './types/media-session';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
@@ -119,17 +119,26 @@ export class WebrtcExtension extends EventEmitter {
     this.setIceServers([]);
   }
 
-  prepareSession (options: any) {
-    options.optOutOfWebrtcStatsTelemetry = !!this.config.optOutOfWebrtcStatsTelemetry;
+  prepareSession (options: SessionOpts) {
+    const pendingSession = this.pendingSessions[options.sid!];
+    if (pendingSession) {
+      delete this.pendingSessions[pendingSession.sessionId];
+    }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
 
-    const session = new GenesysCloudMediaSession({
+    const gcSessionOpts: IGenesysCloudMediaSessionParams = {
       options,
-      sessionType: this.getSessionTypeByJid(options.peerID),
+      optOutOfWebrtcStatsTelemetry: !!this.config.optOutOfWebrtcStatsTelemetry,
+      conversationId: pendingSession?.conversationId,
+      fromUserId: pendingSession?.fromJid,
+      originalRoomJid: pendingSession?.originalRoomJid,
+      sessionType: this.getSessionTypeByJid(options.sid!),
       allowIPv6: this.config.allowIPv6,
       ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF
-    });
+    };
+
+    const session = new GenesysCloudMediaSession(gcSessionOpts);
     this.proxyStatsForSession(session);
     return session;
   }
@@ -297,17 +306,6 @@ export class WebrtcExtension extends EventEmitter {
     });
 
     this.client._stanzaio.on('jingle:incoming', (session: JingleSession) => {
-      (session as GenesysCloudMediaSession).id = session.sid;
-      const pendingSession = this.pendingSessions[session.sid];
-      if (pendingSession) {
-        (session as GenesysCloudMediaSession).conversationId = (session as GenesysCloudMediaSession).conversationId || pendingSession.conversationId;
-        (session as GenesysCloudMediaSession).fromUserId = pendingSession.fromJid;
-        (session as GenesysCloudMediaSession).originalRoomJid = pendingSession.originalRoomJid;
-        delete this.pendingSessions[session.sid];
-      }
-
-      const mediaSession = session as GenesysCloudMediaSession;
-      this.logger.info('received webrtc session', { sessionType: mediaSession.sessionType, conversationId: mediaSession.conversationId, sessionId: mediaSession.sid });
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
