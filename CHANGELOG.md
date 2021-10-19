@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.3...HEAD)
+### Changed
+* [PCM-1754](https://inindca.atlassian.net/browse/PCM-1754) – Added several webrtc related logs
 
 # [v13.3.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.2...v13.3.3)
 ### Fixed
