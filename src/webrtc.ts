@@ -474,7 +474,7 @@ export class WebrtcExtension extends EventEmitter {
     };
 
     const details = this.getLogDetailsForPendingSessionId(sessionId);
-    this.logger.info('attempting jingle proceed', details);
+    this.logger.info('sending jingle proceed', details);
     await this.client._stanzaio.send('message', proceed); // send as Message
     this.logger.info('sent jingle proceed', details);
   }
@@ -510,6 +510,7 @@ export class WebrtcExtension extends EventEmitter {
       };
       const secondMessage = this.client._stanzaio.send('message', reject2); // send as Message
 
+      this.logger.info('sending jingle reject', logDetails);
       await Promise.all([firstMessage, secondMessage]);
       this.logger.info('sent jingle reject', logDetails);
     }
@@ -576,6 +577,7 @@ export class WebrtcExtension extends EventEmitter {
       }
     };
     delete this.pendingSessions[sessionId];
+    this.logger.info('sending jingle retract', logDetails);
     await this.client._stanzaio.send('message', retract); // send as Message
     this.logger.info('sent jingle retract', logDetails);
   }
