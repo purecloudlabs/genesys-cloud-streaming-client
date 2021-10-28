@@ -281,9 +281,9 @@ export class WebrtcExtension extends EventEmitter {
       this.logger[level](message, data);
     });
 
-    this.client._stanzaio.on('message', (msg: any) => {
+    this.client._stanzaio.on('message', async (msg: any) => {
       if (msg.propose) {
-        this.handlePropose(msg);
+        await this.handlePropose(msg);
       } else if (msg.retract) {
         this.handleRetract(msg.retract.sessionId);
       } else if (msg.accept) {
@@ -342,29 +342,45 @@ export class WebrtcExtension extends EventEmitter {
   /**
    * Stanza Handlers
    */
-  private handlePropose (msg: ProposeStanza) {
+  private async handlePropose (msg: ProposeStanza) {
     if (msg.from === this.jid) {
       return;
     }
 
+    const sessionId = msg.propose.sessionId;
+
+    let sessionInfo = this.pendingSessions[sessionId];
+    const isDuplicatePropose = !!sessionInfo;
+
     const sessionType = this.getSessionTypeByJid(msg.from);
-    this.logger.info('propose received', { sessionId: msg.propose.sessionId, conversationId: msg.propose.conversationId, sessionType });
-    // TODO: is ofrom used?
-    // const roomJid = (msg.ofrom && msg.ofrom.full) || msg.from.full || msg.from;
-    const fromJid = msg.from;
-    const roomJid = fromJid;
-    msg.propose.originalRoomJid = msg.propose.originalRoomJid || roomJid;
+    const loggingParams = { sessionId: sessionId, conversationId: msg.propose.conversationId, sessionType, isDuplicatePropose };
+    this.logger.info('propose received', loggingParams);
 
-    const sessionInfo: ISessionInfo = {
-      ...msg.propose,
-      toJid: msg.to,
-      fromJid,
-      sessionType,
-      roomJid
-    };
+    if (!isDuplicatePropose) {
+      // TODO: is ofrom used?
+      // const roomJid = (msg.ofrom && msg.ofrom.full) || msg.from.full || msg.from;
+      const fromJid = msg.from;
+      const roomJid = fromJid;
+      msg.propose.originalRoomJid = msg.propose.originalRoomJid || roomJid;
 
-    this.pendingSessions[msg.propose.sessionId] = sessionInfo;
-    return this.emit(
+      sessionInfo = {
+        ...msg.propose,
+        toJid: msg.to,
+        fromJid,
+        sessionType,
+        roomJid
+      };
+
+      this.pendingSessions[sessionId] = sessionInfo;
+    }
+
+    if (sessionInfo.accepted) {
+      this.logger.info('proceed already sent for this session, but sending another', loggingParams);
+      await this.acceptRtcSession(sessionId);
+      return;
+    }
+
+    this.emit(
       events.REQUEST_INCOMING_RTCSESSION,
       Object.assign(sessionInfo)
     );
@@ -456,6 +472,7 @@ export class WebrtcExtension extends EventEmitter {
     return session.propose.id;
   }
 
+  // jingle proceed
   async acceptRtcSession (sessionId: string): Promise<void> {
     const session = this.pendingSessions[sessionId];
     if (!session) {
@@ -472,6 +489,8 @@ export class WebrtcExtension extends EventEmitter {
         sessionId
       }
     };
+
+    session.accepted = true;
 
     const details = this.getLogDetailsForPendingSessionId(sessionId);
     this.logger.info('sending jingle proceed', details);
