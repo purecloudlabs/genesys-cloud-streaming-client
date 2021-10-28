@@ -106,5 +106,6 @@ export interface ISessionInfo {
   originalRoomJid?: string;
   fromUserId?: string;
   roomJid?: string;
+  accepted?: boolean;
   sessionType: SessionTypes;
 }

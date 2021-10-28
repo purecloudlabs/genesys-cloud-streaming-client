@@ -323,6 +323,31 @@ describe('handlePropose', () => {
       }
     );
   });
+
+  it('should call acceptRtcSession for accepted pending sessions on propose', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    client._stanzaio.jid = 'myJid';
+
+    const spy = jest.spyOn(webrtc, 'acceptRtcSession');
+    const sessionId = v4();
+
+    webrtc.pendingSessions[sessionId] = { accepted: true } as any;
+
+    const propose = {
+      autoAnswer: false,
+      conversationId: v4(),
+      sessionId
+    };
+
+    await webrtc['handlePropose']({
+      from: 'someotherjid',
+      propose,
+      to: 'myJid'
+    });
+    
+    expect(spy).toHaveBeenCalled();
+  });
 });
 
 describe('handleRetract', () => {
