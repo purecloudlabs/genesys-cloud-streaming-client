@@ -89,6 +89,20 @@ describe('prepareSession', () => {
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
   });
 
+  it('should use sessionType from pendingSession', () => {
+    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    GenesysCloudMediaSession.prototype.on = jest.fn();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    webrtc.pendingSessions = { mysid: { sessionId: 'mysid', sessionType: 'softphone' } as any };
+
+    expect(Object.values(webrtc.pendingSessions).length).toBe(1);
+    const session = webrtc.prepareSession({sid: 'mysid'} as any);
+    expect((GenesysCloudMediaSession as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({sessionType: 'softphone'}));
+    expect(Object.values(webrtc.pendingSessions).length).toBe(0);
+  });
+
   it('should create mediaSession without ignoreHostCandidates if not ff', () => {
     (GenesysCloudMediaSession as jest.Mock).mockReset();
     const client = new Client({});

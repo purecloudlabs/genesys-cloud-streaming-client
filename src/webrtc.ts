@@ -133,7 +133,7 @@ export class WebrtcExtension extends EventEmitter {
       conversationId: pendingSession?.conversationId,
       fromUserId: pendingSession?.fromJid,
       originalRoomJid: pendingSession?.originalRoomJid,
-      sessionType: this.getSessionTypeByJid(options.sid!),
+      sessionType: pendingSession?.sessionType,
       allowIPv6: this.config.allowIPv6,
       ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF
     };
