@@ -3,11 +3,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.6...HEAD)
-# [v13.3.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.5...v13.3.6)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.7...HEAD)
+# [v13.3.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.6...v13.3.7)
 ### Fixed
 * [PCM-1760](https://inindca.atlassian.net/browse/PCM-1760) – GenesysCloudMediaSessions are now passed the correct sessionType
-
+# [v13.3.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.5...v13.3.6)
+* repeat of 13.3.5
 # [v13.3.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.4...v13.3.5)
 ### Changed
 * [PCM-1758](https://inindca.atlassian.net/browse/PCM-1758) – Auto send proceeds after the initial proceed when we get proposes
