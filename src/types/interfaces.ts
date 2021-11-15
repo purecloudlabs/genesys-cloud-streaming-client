@@ -1,5 +1,5 @@
 
-import { ILogger, LogLevel } from 'genesys-cloud-client-logger';
+import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
 export { ILogger, LogLevel };
 export interface IClientOptions {
   host: string;
@@ -13,6 +13,7 @@ export interface IClientOptions {
   allowIPv6?: boolean;
   logger?: ILogger;
   logLevel?: LogLevel;
+  logFormatters?: LogFormatterFn[];
   signalIceConnected?: boolean;
   /* secondary/parent app info */
   appName?: string;
