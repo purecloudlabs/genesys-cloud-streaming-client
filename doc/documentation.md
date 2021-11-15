@@ -80,6 +80,9 @@ client.on('requestReconnect', function (callback) {
     - `String jwt` : Optional (Required for guest authentication); Json Web Token fetched from public API for acess
         to a particular feature in guest mode (see documentation for Screen Share or Web Chat for details)
     - `Boolean optOutOfWebrtcStatsTelemetry` : Optional; if true, streaming-client will not send webrtc stats to server (packet loss, bitrate, jitter, etc...)
+    - `ILogger logger`: Optional; This is a secondary logger to be used in conjuction with the built-in logger for the streaming-client;
+    - `LogLevel logLevel`: Optional; Specifies the minimum level of logs that will be sent to the server
+    - `LogFormatterFn[] logFormatters`: Optional; see https://github.com/purecloudlabs/genesys-cloud-client-logger#how-formatters-work for more information.
 
 #### Methods
 

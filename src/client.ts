@@ -125,6 +125,7 @@ export class Client {
       appName: 'streaming-client',
       logLevel: this.config.logLevel || 'info',
       logger: options.logger || console,
+      formatters: options.logFormatters,
       /* secondary/parent app info */
       originAppName: options.appName,
       originAppVersion: options.appVersion,
