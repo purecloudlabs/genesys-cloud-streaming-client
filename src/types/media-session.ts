@@ -11,6 +11,7 @@ export interface IGenesysCloudMediaSessionParams {
   options: SessionOpts;
   sessionType: SessionTypes;
   allowIPv6?: boolean;
+  allowTCP?: boolean;
   ignoreHostCandidatesFromRemote?: boolean;
   optOutOfWebrtcStatsTelemetry?: boolean;
   conversationId?: string;
@@ -34,6 +35,7 @@ export class GenesysCloudMediaSession extends MediaSession {
   sessionType: SessionTypes;
   ignoreHostCandidatesFromRemote: boolean;
   allowIPv6: boolean;
+  allowTCP: boolean;
 
   constructor (params: IGenesysCloudMediaSessionParams) {
     super(params.options);
@@ -44,6 +46,7 @@ export class GenesysCloudMediaSession extends MediaSession {
     this.sessionType = params.sessionType;
     this.ignoreHostCandidatesFromRemote = !!params.ignoreHostCandidatesFromRemote;
     this.allowIPv6 = !!params.allowIPv6;
+    this.allowTCP = !!params.allowTCP;
 
     // babel does not like the typescript recipe for multiple extends so we are hacking this one
     // referencing https://github.com/babel/babel/issues/798
@@ -187,6 +190,9 @@ export class GenesysCloudMediaSession extends MediaSession {
 
   onIceCandidate (e: RTCPeerConnectionIceEvent) {
     if (e.candidate) {
+      if (!this.allowTCP && e.candidate.protocol === 'tcp') {
+        return;
+      }
       if (!this.allowIPv6) {
         const addressRegex = /.+udp [^ ]+ ([^ ]+).*typ host/;
         const matches = addressRegex.exec(e.candidate.candidate);
