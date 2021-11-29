@@ -165,6 +165,7 @@ describe('GenesysCloudMediaSession', () => {
   describe('onIceCandidate', () => {
     const ipv6Candidate = 'a=candidate:4089960842 1 udp 2122197247 2603:900a:160a:aa00:540:b412:2a2d:1f5b 53622 typ host generation 0';
     const ipv4Candidate = 'a=candidate:2999745851 1 udp 2122129151 192.168.56.1 53623 typ host generation 0';
+    const tcpCandidate = 'a=candidate:993906868 1 tcp 1518280447 172.24.144.1 9 typ host tcptype active generation 0 ufrag gDcL network-id 1';
 
     it('should not call super with ipv6 candidate if !allowIPv6', () => {
       const parent = new FakeParent();
@@ -180,6 +181,24 @@ describe('GenesysCloudMediaSession', () => {
         candidate: { candidate: ipv6Candidate }
       };
       session.onIceCandidate(event as any);
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should not call super with tcp candidate if !allowTCP', () => {
+      const parent = new FakeParent();
+      // @ts-ignore
+      const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowTCP: false
+      });
+
+      const event = {
+        candidate: { candidate: tcpCandidate, protocol: "tcp" }
+      };
+      const result = session.onIceCandidate(event as any);
+      expect(result).toBeUndefined();
       expect(spy).not.toHaveBeenCalled();
     });
 
@@ -233,6 +252,40 @@ describe('GenesysCloudMediaSession', () => {
       session.onIceCandidate(event as any);
       expect(spy).toHaveBeenCalledWith(event);
     });
+
+    it('should call super with TCP candidate if allowTCP', () => {
+      const parent = new FakeParent();
+      // @ts-ignore
+      const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowTCP: true
+      });
+
+      const event = {
+        candidate: { candidate: tcpCandidate, protocol: "tcp" }
+      };
+      session.onIceCandidate(event as any);
+      expect(spy).toHaveBeenCalledWith(event);
+    });
+
+    it('should call super with UDP candidate if allowTCP BUT protocol does not equal TCP', () => {
+      const parent = new FakeParent();
+      // @ts-ignore
+      const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowTCP: true
+      });
+
+      const event = {
+        candidate: { candidate: ipv4Candidate, protocol: "udp"}
+      };
+      session.onIceCandidate(event as any);
+      expect(spy).toHaveBeenCalledWith(event);
+    })
 
     it('should call super if no canidate', () => {
       const parent = new FakeParent();
