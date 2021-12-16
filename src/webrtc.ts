@@ -719,15 +719,15 @@ export class WebrtcExtension extends EventEmitter {
 
   getSessionTypeByJid (jid: string): SessionTypes {
     if (isAcdJid(jid)) {
-      return 'screenShare';
+      return SessionTypes.acdScreenShare;
     } else if (isScreenRecordingJid(jid)) {
-      return 'screenRecording';
+      return SessionTypes.screenRecording;
     } else if (isSoftphoneJid(jid)) {
-      return 'softphone';
+      return SessionTypes.softphone;
     } else if (isVideoJid(jid)) {
-      return 'collaborateVideo';
+      return SessionTypes.collaborateVideo;
     } else {
-      return 'unknown';
+      return SessionTypes.unknown;
     }
   }
 

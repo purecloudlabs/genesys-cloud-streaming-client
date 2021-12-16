@@ -5,11 +5,11 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { JingleReason, JingleInfo, Jingle, JingleIce } from 'stanza/protocol';
 import { ActionCallback, SessionOpts } from 'stanza/jingle/Session';
-import { SessionTypes } from './interfaces';
+import { SessionTypes, SessionTypesAsStrings } from './interfaces';
 
 export interface IGenesysCloudMediaSessionParams {
   options: SessionOpts;
-  sessionType: SessionTypes;
+  sessionType: SessionTypes | SessionTypesAsStrings;
   allowIPv6?: boolean;
   allowTCP?: boolean;
   ignoreHostCandidatesFromRemote?: boolean;
@@ -43,7 +43,7 @@ export class GenesysCloudMediaSession extends MediaSession {
     this.conversationId = params.conversationId;
     this.fromUserId = params.fromUserId;
     this.originalRoomJid = params.originalRoomJid;
-    this.sessionType = params.sessionType;
+    this.sessionType = SessionTypes[params.sessionType];
     this.ignoreHostCandidatesFromRemote = !!params.ignoreHostCandidatesFromRemote;
     this.allowIPv6 = !!params.allowIPv6;
     this.allowTCP = !!params.allowTCP;
