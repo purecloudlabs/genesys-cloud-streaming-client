@@ -106,7 +106,8 @@ export enum SessionTypes {
   unknown = 'unknown'
 }
 
-export interface ISessionInfo {
+export interface ISessionInfo extends IPendingSession { }
+export interface IPendingSession {
   sessionId: string;
   autoAnswer: boolean;
   toJid: string;

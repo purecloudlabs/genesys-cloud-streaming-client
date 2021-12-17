@@ -12,7 +12,7 @@ import { GenesysCloudMediaSession } from '../../src/types/media-session';
 import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
-import { ISessionInfo } from '../../src/types/interfaces';
+import { ISessionInfo, SessionTypes } from '../../src/types/interfaces';
 
 jest.mock('../../src/types/media-session');
 GenesysCloudMediaSession.prototype.on = jest.fn();
@@ -69,7 +69,7 @@ describe('prepareSession', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.proxyStatsForSession = jest.fn();
     jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('relay');
-    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('softphone');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue(SessionTypes.softphone);
     Object.defineProperty(browserama, 'isFirefox', { get: () => true });
 
     const session = webrtc.prepareSession({} as any);
@@ -109,7 +109,7 @@ describe('prepareSession', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.proxyStatsForSession = jest.fn();
     jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('relay');
-    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('softphone');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue(SessionTypes.softphone);
     Object.defineProperty(browserama, 'isFirefox', { get: () => false });
 
     const session = webrtc.prepareSession({} as any);
@@ -122,7 +122,7 @@ describe('prepareSession', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.proxyStatsForSession = jest.fn();
     jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('all');
-    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('softphone');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue(SessionTypes.softphone);
     Object.defineProperty(browserama, 'isFirefox', { get: () => true });
 
     const session = webrtc.prepareSession({} as any);
@@ -359,7 +359,7 @@ describe('handlePropose', () => {
       propose,
       to: 'myJid'
     });
-    
+
     expect(spy).toHaveBeenCalled();
   });
 });
