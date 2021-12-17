@@ -109,6 +109,7 @@ export enum SessionTypes {
 export interface ISessionInfo extends IPendingSession { }
 export interface IPendingSession {
   sessionId: string;
+  id: string;
   autoAnswer: boolean;
   toJid: string;
   fromJid: string;

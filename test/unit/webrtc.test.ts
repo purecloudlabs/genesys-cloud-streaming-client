@@ -330,6 +330,7 @@ describe('handlePropose', () => {
       'requestIncomingRtcSession',
       {
         ...propose,
+        id: propose.sessionId,
         sessionType: 'unknown',
         toJid: 'myJid',
         roomJid: 'someotherjid',
