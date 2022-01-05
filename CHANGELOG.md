@@ -3,8 +3,15 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.1...HEAD)
 
+# [v13.4.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.0...v13.4.1)
+### Added
+* [PCM-1773](https://inindca.atlassian.net/browse/PCM-1773) – Added an es bundle for consumers that cannot bundle mixed node_modules.
+  `package.json` entry point is `rollup:bundle` as to not coflict with the SDK's `es:bundle`. This is effectively not "turning on" this feature.
+  But can still be opt-in. Generally, if this is needed, consumers should be utilizing the SDK's bundled es modules.
+* [PCM-1770](https://inindca.atlassian.net/browse/PCM-1770) – Converted `SessionTypes` to an `enum` but still left the union type as to not break consumers' typings.
+* Renamed `ISessionInfo` to `IPendingSession` (but kept `ISessionInfo` for backwards compatibility).
 # [v13.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.7...v13.4.0
 ### Added
 * [PCM-1753](https://inindca.atlassian.net/browse/PCM-1753) – Add an option for log formatters

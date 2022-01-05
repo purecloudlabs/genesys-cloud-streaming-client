@@ -1,4 +1,4 @@
-@Library('pipeline-library') _
+@Library('pipeline-library@ui-pipeline-legacy') _
 
 webappPipeline {
     slaveLabel = 'dev_v2'

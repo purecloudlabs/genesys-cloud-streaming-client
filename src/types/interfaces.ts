@@ -96,10 +96,20 @@ export interface IError {
   stack?: string;
 }
 
-export type SessionTypes = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
+export type SessionTypesAsStrings = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
 
-export interface ISessionInfo {
+export enum SessionTypes {
+  softphone = 'softphone',
+  collaborateVideo = 'collaborateVideo',
+  acdScreenShare = 'screenShare',
+  screenRecording = 'screenRecording',
+  unknown = 'unknown'
+}
+
+export interface ISessionInfo extends IPendingSession { }
+export interface IPendingSession {
   sessionId: string;
+  id: string;
   autoAnswer: boolean;
   toJid: string;
   fromJid: string;
@@ -108,5 +118,5 @@ export interface ISessionInfo {
   fromUserId?: string;
   roomJid?: string;
   accepted?: boolean;
-  sessionType: SessionTypes;
+  sessionType: SessionTypes | SessionTypesAsStrings;
 }

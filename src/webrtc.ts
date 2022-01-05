@@ -16,7 +16,7 @@ import { GenesysCloudMediaSession, IGenesysCloudMediaSessionParams, SessionEvent
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
-import { ExtendedRTCIceServer, IClientOptions, ISessionInfo, SessionTypes } from './types/interfaces';
+import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession } from './types/interfaces';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -64,7 +64,7 @@ export class WebrtcExtension extends EventEmitter {
   jingleJs: Jingle.SessionManager;
 
   logger: any;
-  pendingSessions: { [sessionId: string]: ISessionInfo } = {};
+  pendingSessions: { [sessionId: string]: IPendingSession } = {};
   config: {
     allowIPv6: boolean;
     optOutOfWebrtcStatsTelemetry?: boolean;
@@ -368,7 +368,8 @@ export class WebrtcExtension extends EventEmitter {
         toJid: msg.to,
         fromJid,
         sessionType,
-        roomJid
+        roomJid,
+        id: sessionId
       };
 
       this.pendingSessions[sessionId] = sessionInfo;
@@ -719,15 +720,15 @@ export class WebrtcExtension extends EventEmitter {
 
   getSessionTypeByJid (jid: string): SessionTypes {
     if (isAcdJid(jid)) {
-      return 'screenShare';
+      return SessionTypes.acdScreenShare;
     } else if (isScreenRecordingJid(jid)) {
-      return 'screenRecording';
+      return SessionTypes.screenRecording;
     } else if (isSoftphoneJid(jid)) {
-      return 'softphone';
+      return SessionTypes.softphone;
     } else if (isVideoJid(jid)) {
-      return 'collaborateVideo';
+      return SessionTypes.collaborateVideo;
     } else {
-      return 'unknown';
+      return SessionTypes.unknown;
     }
   }
 
