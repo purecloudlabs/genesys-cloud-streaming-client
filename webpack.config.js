@@ -1,6 +1,11 @@
 const Path = require('path');
 const webpack = require('webpack');
 
+const version = require('./package.json').version;
+const versionDir = `dist/v${version}`;
+const majorVersion = version.split('.')[0];
+const majorVersionDir = `dist/v${majorVersion}`;
+
 const browserFilename = 'streaming-client.browser.js';
 const ieFilename = 'streaming-client.browser.ie.js'
 
@@ -58,7 +63,7 @@ module.exports = (env = {}) => {
       library: 'GenesysCloudStreamingClient',
       libraryTarget: 'window',
       libraryExport: 'default',
-      path: Path.resolve('dist')
+      path: Path.resolve(versionDir)
     },
 
     module: {
@@ -76,3 +81,7 @@ module.exports = (env = {}) => {
 
 module.exports.browserFilename = browserFilename;
 module.exports.ieFilename = ieFilename;
+module.exports.version = version;
+module.exports.versionDir = versionDir;
+module.exports.majorVersion = majorVersion;
+module.exports.majorVersionDir = majorVersionDir;
