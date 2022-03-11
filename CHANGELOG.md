@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.5.0...HEAD)
+
+# [v13.4.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.1...v13.5.0)
+### Added
+* [PCM-1837](https://inindca.atlassian.net/browse/PCM-1837) – add `setAccessToken(token)` function
 
 # [v13.4.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.0...v13.4.1)
 ### Added

@@ -499,4 +499,19 @@ describe('Client', () => {
 
     expect(reconnectSpy).not.toHaveBeenCalled();
   });
+
+  describe('setAccessToken()', () => {
+    it('should update token and logger token', () => {
+      const token = 'I_AM_A_NEW_TOKEN';
+      const client = new Client(getDefaultOptions() as any);
+      const loggerSpy = jest.spyOn(client.logger, 'setAccessToken');
+
+      expect(client.config.authToken).toBe(defaultOptions.authToken);
+
+      client.setAccessToken(token);
+
+      expect(client.config.authToken).toBe(token);
+      expect(loggerSpy).toHaveBeenCalledWith(token);
+    });
+  });
 });

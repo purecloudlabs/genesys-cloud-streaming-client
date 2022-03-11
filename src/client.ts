@@ -2,7 +2,7 @@
 
 import { TokenBucket } from 'limiter';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
-import { Logger, ILogger } from 'genesys-cloud-client-logger';
+import { Logger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
@@ -71,7 +71,7 @@ export class Client {
   connecting = false;
   autoReconnect = true;
   reconnectOnNoLongerSubscribed: boolean;
-  logger: ILogger;
+  logger: Logger;
   leakyReconnectTimer: any;
   hardReconnectCount = 0;
   reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
@@ -364,6 +364,11 @@ export class Client {
         return Promise.reject(err);
       });
 
+  }
+
+  setAccessToken (token: string): void {
+    this.config.authToken = token;
+    this.logger.setAccessToken(token);
   }
 
   static extend (namespace, extension: StreamingClientExtension | ((client: Client) => void)) {
