@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842) – migrate to the new pipeline. Also versioning cdn urls with major and exact versions. For example:
     * `/v13.5.0/streaming-client.browser.js` (exact version)
     * `/v13/streaming-client.browser.js` (locked to latest for a specific major version)
+* [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842)/[PCM-1560](https://inindca.atlassian.net/browse/PCM-1560) – Upgrade to new pipeline
 ### Fixed
 * Addressed snyk and npm audit issues
 

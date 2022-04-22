@@ -1,7 +1,6 @@
-import groovy.json.JsonBuilder
+@Library('pipeline-library@OMUI-857') _
 
-@Library('pipeline-library@COMUI-857') _
-
+def isBB = false
 def MAIN_BRANCH = 'master'
 def DEVELOP_BRANCH = 'develop'
 
@@ -26,8 +25,8 @@ def getBuildType = {
 def testSpigotByEnv = { environment, version ->
    stage("Spigot test '${environment}'") {
         script {
-            println("Scheduling spigot test for: { env: '${environment}', branch: '${version}' }")
-            build(job: 'spigot-tests-streamingclient-entry',
+            println("Scheduling spigot test for: { env: '${environment}', branch: '${version}'")
+            build(job: 'spigot-tests-streaming-client-entry',
                     parameters: [
                         string(name: 'ENVIRONMENT', value: environment),
                         string(name: 'BRANCH_TO_TEST', value: version)
@@ -41,47 +40,33 @@ def testSpigotByEnv = { environment, version ->
 def hasRunSpigotTests = false
 
 webappPipeline {
+    nodeVersion = '14.x'
     projectName = 'developercenter-cdn/streaming-client'
     team = 'Genesys Client Media (WebRTC)'
     mailer = 'genesyscloud-client-media@genesys.com'
-    chatGroupId = '763fcc91-e530-4ed7-b318-03f525a077f6'
 
-    nodeVersion = '14.x'
     buildType = getBuildType
-
     manifest = customManifest('dist') {
         sh('node ./create-manifest.js')
         readJSON(file: 'dist/manifest.json')
     }
+    testJob = 'no-tests' // see buildStep to spigot tests
 
     snykConfig = {
         return [
             organization: 'genesys-client-media-webrtc',
+            wait: true
         ]
     }
-
-    cmConfig = {
-        return [
-            managerEmail: 'genesyscloud-client-media@genesys.com',
-            rollbackPlan: 'Patch version with fix',
-
-            // TODO: kick off a prepublish build of web-directory and link to tests run
-            // against that feature build
-            testResults: 'https://jenkins.ininica.com/job/spigot-tests-streaming-client-test/',
-            qaId: '5d41d9195ca9700dac0ef53a'
-        ]
-    }
-
-    deployConfig = [
-      dev : 'always',
-      test : 'always',
-      prod : 'always',
-      'fedramp-use2-core': 'always'
-    ]
 
     autoSubmitCm = true
 
-    testJob = 'no-tests' // see buildStep to spigot tests
+    deployConfig = [
+        dev : 'always',
+        test : 'always',
+        prod : 'always',
+        'fedramp-use2-core': 'always'
+    ]
 
     ciTests = {
         println("""
@@ -192,7 +177,7 @@ VERSION      : ${env.VERSION}
                 dir(pwd) {
                     npmFunctions.publishNpmPackage([
                         tag: tag, // optional
-                        useArtifactoryRepo: false, // optional, default `true`
+                        useArtifactoryRepo: isBB, // optional, default `true`
                         version: version, // optional, default is version in package.json
                         dryRun: false // dry run the publish, default `false`
                     ])
@@ -201,19 +186,19 @@ VERSION      : ${env.VERSION}
         } // end publish to npm
 
         if (isMain()) {
-            stage('Tag commit and merge main branch back into develop branch') {
+            stage('Tag commit and merge back') {
                 script {
                     gitFunctions.tagCommit(
                       "v${version}",
                       gitFunctions.getCurrentCommit(),
-                      false
+                      isBB
                     )
 
                     gitFunctions.mergeBackAndPrep(
                       MAIN_BRANCH,
                       DEVELOP_BRANCH,
                       'patch',
-                      false
+                      isBB
                     )
                 }
             } // end tag commit and merge back
@@ -221,4 +206,3 @@ VERSION      : ${env.VERSION}
 
     } // onSuccess
 } // end
-
