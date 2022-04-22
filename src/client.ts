@@ -289,6 +289,7 @@ export class Client {
 
   disconnect () {
     this.logger.info('streamingClient.disconnect was called');
+    this.stopServerLogging();
     return timeoutPromise(resolve => {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
@@ -309,8 +310,10 @@ export class Client {
   }
 
   connect () {
+    this.startServerLogging();
     this.logger.info('streamingClient.connect was called');
     this.connecting = true;
+
     if (this.config.jwt) {
       return timeoutPromise(resolve => {
         this.once('connected', resolve);
@@ -364,6 +367,17 @@ export class Client {
         return Promise.reject(err);
       });
 
+  }
+
+  stopServerLogging () {
+    /* flush all pending logs and webrtc stats – then turn off the logger */
+    this.logger.sendAllLogsInstantly();
+    this.logger.stopServerLogging();
+    this._webrtcSessions.flushStats();
+  }
+
+  startServerLogging () {
+    this.logger.startServerLogging();
   }
 
   setAccessToken (token: string): void {

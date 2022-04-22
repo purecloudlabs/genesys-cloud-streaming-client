@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 * [PCM-1837](https://inindca.atlassian.net/browse/PCM-1837) – add `setAccessToken(token)` function
+* [PCM-1844](https://inindca.atlassian.net/browse/PCM-1844) – stop sending logs on disconnect:
+  * add `stopServerLogging()` & `startServerLogging()` functions to allow consumers to stop sending server
+    logs that are sent via the client-logger.
+  * on `client.disconnect()`, logs will stop being sent to the server.
+  * on `client.connect()`, logs will start being sent to the server again.
 
 ### Changed
 * [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842) – migrate to the new pipeline. Also versioning cdn urls with major and exact versions. For example:
