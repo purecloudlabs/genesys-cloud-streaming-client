@@ -106,6 +106,8 @@ service
 
 `client.once(eventName, handler) : void` - like `on` but handler will be called only once
 
+`client.setAccessToken(token): void` – sets the client's and the logger's access token
+
 #### Extensions
 
 > For details on implementing new extensions, see [extensions.md].

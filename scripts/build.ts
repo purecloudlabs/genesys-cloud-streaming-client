@@ -1,7 +1,8 @@
 import { execSync as Child } from 'child_process';
 import FS from 'fs';
 
-const { browserFilename } = require('../webpack.config');
+const { majorVersionDir, versionDir, version } = require('../webpack.config');
+const { dirWalk } = require('./utils');
 
 const Pkg = JSON.parse(FS.readFileSync('package.json').toString());
 
@@ -32,5 +33,27 @@ Child(`cp ${__dirname}/../*.md dist/npm`);
 Child('npm run compile:webpack');
 Child('npm run compile:webpack:ie');
 
-// to backward compat – replace the old file on cdn
-Child(`cp dist/${browserFilename} dist/streaming-client-browser.js`);
+/* create our major version folder */
+if (!FS.existsSync(majorVersionDir)) {
+  FS.mkdirSync(majorVersionDir);
+}
+
+/* copy vX.Y.Z files over to majoy 'dist/vX/' */
+[...dirWalk(versionDir)].forEach(fromFile => {
+  if (!FS.existsSync(fromFile)) {
+    return console.warn(`File did not exist. not able to copy it over: "${fromFile}"`);
+  }
+
+  const toFile = fromFile.replace(versionDir, majorVersionDir);
+
+  console.log('Copying bundle file to non-bundle name', { fromFile, __toFile: toFile });
+  Child(`cp ${fromFile} ${toFile}`);
+
+  /*
+    for backwards compat for apps that load from:
+    node_modules/genesys-cloud-webrtc-sdk/dist/genesys-cloud-webrtc-sdk.js
+  */
+  const toRootDistFile = fromFile.replace(versionDir, 'dist/');
+  console.log(`Copying ${version} file to dist/`, { fromFile, __toFile: toRootDistFile });
+  Child(`cp ${fromFile} ${toRootDistFile}`);
+});

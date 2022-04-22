@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.1...HEAD)
+
+### Added
+* [PCM-1837](https://inindca.atlassian.net/browse/PCM-1837) – add `setAccessToken(token)` function
+
+### Changed
+* [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842) – migrate to the new pipeline. Also versioning cdn urls with major and exact versions. For example:
+    * `/v13.5.0/streaming-client.browser.js` (exact version)
+    * `/v13/streaming-client.browser.js` (locked to latest for a specific major version)
 ### Fixed
 * Addressed snyk and npm audit issues
 
