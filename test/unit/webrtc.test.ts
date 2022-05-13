@@ -698,14 +698,14 @@ describe('rejectRtcSession', () => {
     const reject1 = {
       to: bareJid,
       reject: {
-        id: sessionId
+        sessionId
       }
     };
 
     const reject2 = {
       to: fromJid,
       reject: {
-        id: sessionId
+        sessionId
       }
     };
 
