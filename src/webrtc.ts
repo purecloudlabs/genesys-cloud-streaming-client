@@ -518,14 +518,14 @@ export class WebrtcExtension extends EventEmitter {
       const reject1 = {
         to: toBare(this.jid),
         reject: {
-          id: sessionId
+          sessionId
         }
       };
       const firstMessage = this.client._stanzaio.send('message', reject1); // send as Message
       const reject2 = {
         to: session.fromJid,
         reject: {
-          id: sessionId
+          sessionId
         }
       };
       const secondMessage = this.client._stanzaio.send('message', reject2); // send as Message
