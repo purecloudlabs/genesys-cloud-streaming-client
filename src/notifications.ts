@@ -210,6 +210,10 @@ export class Notifications {
       if (handlerIndex > -1) {
         handlers.splice(handlerIndex, 1);
       }
+      if (!handlers.length) {
+        this.subscriptions[t] = [];
+        delete this.bulkSubscriptions[t];
+      }
     });
   }
 

@@ -138,43 +138,41 @@ describe('Notifications', () => {
       .reply(200, { id: 'streaming-someid' });
     await notification.expose.bulkSubscribe(['topic.test', 'topic.one', 'topic.two', 'topic.three']);
     // didn't subscribe via xmpp any more (was once previously)
-    console.warn('subscribeToNode 4');
     expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
     apiRequest.done();
-    expect(notification.bulkSubscriptions['topic.three']).toBe(true);
 
     const apiRequest2 = nock('https://api.example.com')
       .put('/api/v2/notifications/channels/notification-test-channel/subscriptions', () => true)
       .reply(200, { id: 'streaming-someid' });
     await notification.expose.bulkSubscribe(['topic.test', 'topic.one', 'topic.two'], { replace: true });
     // didn't subscribe via xmpp any more (was once previously)
-    console.warn('subscribeToNode 5');
     expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
     apiRequest2.done();
     expect(notification.bulkSubscriptions['topic.three']).toBe(undefined);
 
     // unsubscribing
     jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+
     await notification.expose.unsubscribe('topic.test', handler2, true);
+
     // there are still more subscriptions
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
     await notification.expose.unsubscribe('topic.test', () => { }, true);
+
     // unsubscribing with an unused handler won't trigger any unsubscribe
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
-    await notification.expose.unsubscribe('topic.test', handler, true);
-    // unsubscribing when there's record of a bulk subscription won't trigger any unsubscribe
-    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
-
+    // unsubscribing the last handler will unsubscribe the topic
     client.connected = false;
-    // unsubscribing without a handler removes the bulkScubscription handler
-    const unsubscribe = notification.expose.unsubscribe('topic.test', undefined, true);
+
     // well, not until we reconnect
+    const unsubscribe = notification.expose.unsubscribe('topic.test', handler, true);
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
     client.emit('connected');
     await unsubscribe;
+
     expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledTimes(1);
     expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledWith('notifications.example.com', 'topic.test');
   });
@@ -225,6 +223,7 @@ describe('Notifications', () => {
     // subscribing
     jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
     jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+
     await Promise.all([
       notification.expose.subscribe('topic.test', jest.fn()),
       notification.expose.subscribe('topic.test', jest.fn()),
