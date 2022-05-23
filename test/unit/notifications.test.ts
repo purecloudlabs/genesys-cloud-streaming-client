@@ -140,6 +140,7 @@ describe('Notifications', () => {
     // didn't subscribe via xmpp any more (was once previously)
     expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
     apiRequest.done();
+    expect(notification.bulkSubscriptions['topic.three']).toBe(true);
 
     const apiRequest2 = nock('https://api.example.com')
       .put('/api/v2/notifications/channels/notification-test-channel/subscriptions', () => true)
@@ -159,6 +160,8 @@ describe('Notifications', () => {
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
     await notification.expose.unsubscribe('topic.test', () => { }, true);
+    // unsubscribing with an unused handler won't trigger any unsubscribe
+    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
     // unsubscribing with an unused handler won't trigger any unsubscribe
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
