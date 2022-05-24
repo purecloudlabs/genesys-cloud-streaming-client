@@ -163,9 +163,6 @@ describe('Notifications', () => {
     // unsubscribing with an unused handler won't trigger any unsubscribe
     expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
 
-    // unsubscribing with an unused handler won't trigger any unsubscribe
-    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
-
     // unsubscribing the last handler will unsubscribe the topic
     client.connected = false;
 
