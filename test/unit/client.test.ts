@@ -21,6 +21,12 @@ const defaultOptions = {
 };
 Object.freeze(defaultOptions);
 
+function wait (ms: number = 2000) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 // const crypto = require('crypto');
 // global.crypto = {
 //   getRandomValues: function (rawBytes) {
@@ -57,7 +63,7 @@ function mockApi () {
 }
 
 describe('Client', () => {
-  test('client creation', () => {
+  it('client creation', () => {
     const client = new Client(getDefaultOptions() as any);
     expect(typeof client.on).toBe('function');
     expect(typeof client.connect).toBe('function');
@@ -75,7 +81,7 @@ describe('Client', () => {
       });
   }, 12 * 1000);
 
-  test('connect will not fetch the jid if it was provided in client options', () => {
+  it('connect will not fetch the jid if it was provided in client options', () => {
     const client = new Client(getDefaultOptions() as any);
     jest.spyOn(client._stanzaio, 'connect').mockImplementation(() => client._stanzaio.emit('session:started', {} as any));
     const apis = mockApi();
@@ -85,7 +91,7 @@ describe('Client', () => {
       });
   });
 
-  test('connect will fetch the jid if not provided', () => {
+  it('connect will fetch the jid if not provided', () => {
     const client = new Client({
       host: defaultOptions.host,
       authToken: defaultOptions.authToken
@@ -103,7 +109,7 @@ describe('Client', () => {
       });
   });
 
-  test('connect will fetch the jid if not provided with a custom api host', () => {
+  it('connect will fetch the jid if not provided with a custom api host', () => {
     const client = new Client({
       host: 'wss://localhost:3000',
       apiHost: 'https://api.example.com',
@@ -145,7 +151,7 @@ describe('Client', () => {
       .catch(() => expect(true).toBeTruthy()); // it threw, success
   });
 
-  test('extend add an extension for creating clients', () => {
+  it('extend add an extension for creating clients', () => {
     class TestExtension {
       on () { }
       off () { }
@@ -159,7 +165,7 @@ describe('Client', () => {
     expect(typeof (client as any).test1234.foo).toBe('function');
   });
 
-  test('should call handleIq or handleMessage on those events, if an extension registered for them', () => {
+  it('should call handleIq or handleMessage on those events, if an extension registered for them', () => {
     expect.assertions(2);
     const testIq = { to: 'you', from: 'someone' };
     const testMessage = { to: 'you', from: 'someoneElse' };
@@ -180,8 +186,9 @@ describe('Client', () => {
     client._stanzaio.emit('message', testMessage);
   });
 
-  test('Should begin to reconnect when it becomes disconnected', () => {
+  it('Should begin to reconnect when it becomes disconnected', () => {
     const client = new Client(getDefaultOptions() as any);
+    client.autoReconnect = true;
 
     return new Promise<void>(resolve => {
       client._stanzaio.connect = jest.fn().mockImplementation(() => {
@@ -192,21 +199,8 @@ describe('Client', () => {
     });
   });
 
-  test('Should begin to reconnect when it becomes disconnected', () => {
+  it('Should not begin to reconnect when it becomes disconnected if autoReconnect is off', async () => {
     const client = new Client(getDefaultOptions() as any);
-
-    return new Promise<void>(resolve => {
-      client._stanzaio.connect = jest.fn().mockImplementation(() => {
-        client._stanzaio.emit('connected');
-        resolve();
-      });
-      client._stanzaio.emit('disconnected', { conn: { url: 'wss://streaming.inindca.com/stream/channels/streaming-cgr4iprj4e8038aluvgmdn74fr' } } as any);
-    });
-  });
-
-  test('Should not begin to reconnect when it becomes disconnected if autoReconnect is off', async () => {
-    const client = new Client(getDefaultOptions() as any);
-    client.autoReconnect = false;
     client._stanzaio.emit('disconnected', {} as any);
     jest.spyOn(client._stanzaio, 'emit').mockReturnValue(undefined);
     await new Promise(resolve => setTimeout(resolve, 100));
@@ -215,7 +209,7 @@ describe('Client', () => {
 
   it('Should not reconnect if already reconnecting', async () => {
     const client = new Client(getDefaultOptions() as any);
-    client.autoReconnect = true;
+    client.autoReconnect = true; /* defaults to false */
     client.connecting = true;
     jest.spyOn(client._reconnector, 'start').mockReturnValue(undefined);
     jest.spyOn(client.logger, 'warn').mockReturnValue(void 0);
@@ -226,7 +220,7 @@ describe('Client', () => {
 
   it('Should not reconnect if stanza has an active transport', async () => {
     const client = new Client(getDefaultOptions() as any);
-    client.autoReconnect = true;
+    client.autoReconnect = true; /* defaults to false */
     client._stanzaio.transport = {} as any;
     jest.spyOn(client._reconnector, 'start').mockReturnValue(undefined);
     jest.spyOn(client.logger, 'warn').mockReturnValue(void 0);
@@ -235,26 +229,82 @@ describe('Client', () => {
     expect(client._reconnector.start).not.toHaveBeenCalled();
   });
 
-  test('Should not reconnect if disconnect is triggered with no event', async () => {
+  it('Should not reconnect if disconnect is triggered with no event', async () => {
     const client = new Client(getDefaultOptions() as any);
-    client.autoReconnect = false;
+    expect(client.autoReconnect).toBe(false);
     jest.spyOn(client._reconnector, 'start').mockReturnValue(undefined);
     client._stanzaio.emit('disconnected', {} as any);
     await new Promise(resolve => setTimeout(resolve, 100));
     expect(client._reconnector.start).not.toHaveBeenCalled();
   });
 
-  test('Disconnecting explicitly will set autoReconnect to false', async () => {
+  it('Disconnecting explicitly will set autoReconnect to false', async () => {
     const client = new Client(getDefaultOptions() as any);
-    expect(client.autoReconnect).toBe(true);
+    client.autoReconnect = true; /* defaults to false */
     client._stanzaio.disconnect = jest.fn().mockImplementation(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } } as any));
     await client.disconnect();
     expect(client.autoReconnect).toBe(false);
     expect(client._stanzaio.disconnect).toHaveBeenCalledTimes(1);
   });
-  test('reconnect should disconnect but allow autoReconnect', async () => {
+
+  it('connecting to stanza with a timeout, should call through to stanza to stop any pending connection', async () => {
     const client = new Client(getDefaultOptions() as any);
-    client.autoReconnect = false;
+    client._stanzaio.connect = jest.fn();
+    client._stanzaio.disconnect = jest.fn();
+
+    const promise = client._connectStanza();
+    /* simulate stanza attempting to connect */
+    client._stanzaio.transport = {} as any; /* fake WS */
+    /* wait for the timeout to trip */
+    await wait(1100);
+    expect(client._stanzaio.connect).toHaveBeenCalled();
+
+    try {
+      await promise;
+      fail('should have thrown');
+    } catch (error) {
+      expect(error.message.startsWith('Timeout: ')).toBeTruthy();
+      expect(client._stanzaio.disconnect).toHaveBeenCalled();
+    }
+  }, 15000);
+
+  it('when connecting to stanza and stanza throws an error (in the form of a disconnect), we should reject with that error', async () => {
+    const client = new Client(getDefaultOptions() as any);
+    client._stanzaio.connect = jest.fn();
+
+    const promise = client._connectStanza();
+    /* simulate stanza attempting to connect */
+    client._stanzaio.transport = {} as any; /* fake WS */
+    client._stanzaio.emit('--transport-disconnected'); /* fake WS error */
+
+    try {
+      await promise;
+      fail('should have thrown');
+    } catch (error) {
+      expect(error.message.startsWith('unexpected disconnect')).toBeTruthy();
+    }
+  });
+
+  it('when connecting to stanza when there is already an active WS should disconnect it and not throw an error on the discconect event', async () => {
+    const client = new Client(getDefaultOptions() as any);
+    client._stanzaio.connect = jest.fn();
+
+    /* simulate stanza already connected to a WS */
+    client._stanzaio.transport = {} as any;
+    const promise = client._connectStanza();
+
+    /* simulate stanza disconnecting existing WS */
+    client._stanzaio.emit('--transport-disconnected');
+    /* then the new one connecting */
+    client._stanzaio.emit('session:started', {} as any);
+
+    await promise;
+
+    expect('It did not reject on first --transport-disconnected event').toBeTruthy();
+  });
+
+  it('reconnect should disconnect but allow autoReconnect', async () => {
+    const client = new Client(getDefaultOptions() as any);
     client._stanzaio.disconnect = jest.fn().mockImplementation(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } } as any));
     client._stanzaio.connect = jest.fn().mockImplementation(() => client._stanzaio.emit('session:started', {} as any));
     await client.reconnect();
@@ -262,17 +312,17 @@ describe('Client', () => {
     expect(client._stanzaio.disconnect).toHaveBeenCalledTimes(1);
   });
 
-  test('sasl should ignore non-failures', () => {
+  it('sasl should ignore non-failures', () => {
     const client = new Client(getDefaultOptions() as any);
-    expect(client.autoReconnect).toBe(true);
+    client.autoReconnect = true; /* defaults to false */
     client._stanzaio.disconnect = jest.fn().mockImplementation(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } } as any));
     client._stanzaio.emit('sasl' as any, { type: 'success' } as any);
     expect(client._stanzaio.disconnect).not.toHaveBeenCalled();
   });
 
-  test('sasl should disable autoReconnect and disconnect', () => {
+  it('sasl should disable autoReconnect and disconnect', () => {
     const client = new Client(getDefaultOptions() as any);
-    expect(client.autoReconnect).toBe(true);
+    client.autoReconnect = true; /* defaults to false */
     client._stanzaio.disconnect = jest.fn().mockImplementation(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } } as any));
     client._stanzaio.emit('sasl' as any, { type: 'failure' } as any);
     expect(client.autoReconnect).toBe(false);
@@ -281,6 +331,7 @@ describe('Client', () => {
 
   it('sasl temporary auth failure should not disable autoReconnect and disconnect', () => {
     const client = new Client(getDefaultOptions() as any);
+    client.autoReconnect = true; /* defaults to false */
     expect(client.autoReconnect).toBe(true);
     client._stanzaio.disconnect = jest.fn().mockImplementation(() => client._stanzaio.emit('disconnected', { conn: { url: 'someurl' } } as any));
     client._stanzaio.emit('sasl' as any, { type: 'failure', condition: 'temporary-auth-failure' });
@@ -288,7 +339,7 @@ describe('Client', () => {
     expect(client._stanzaio.disconnect).not.toHaveBeenCalled();
   });
 
-  test('session:started event sets the client streamId', () => {
+  it('session:started event sets the client streamId', () => {
     const client = new Client(getDefaultOptions() as any);
     client._stanzaio.emit('session:started', { resource: 'foobar' } as any);
     expect(client.streamId).toBe('foobar');
@@ -304,7 +355,7 @@ describe('Client', () => {
     expect(client._stanzaio.sendIQ).toHaveBeenCalledTimes(1);
   });
 
-  test('extension.on(send) will send a message stanza', async () => {
+  it('extension.on(send) will send a message stanza', async () => {
     const client = new Client(getDefaultOptions() as any);
     jest.spyOn(client._stanzaio, 'sendIQ').mockResolvedValue({} as any);
     jest.spyOn(client._stanzaio, 'sendMessage').mockReturnValue('');
@@ -314,7 +365,7 @@ describe('Client', () => {
     expect(client._stanzaio.sendIQ).not.toHaveBeenCalled();
   });
 
-  test('it will rate limit extensions sending stanzas', async () => {
+  it('it will rate limit extensions sending stanzas', async () => {
     const client = new Client(getDefaultOptions() as any);
     jest.spyOn(client._stanzaio, 'sendIQ').mockResolvedValue({} as any);
     for (let i = 0; i < 100; i++) {
@@ -336,7 +387,7 @@ describe('Client', () => {
     within((client._stanzaio.sendIQ as jest.Mock).mock.calls.length, 100, 3);
   });
 
-  test('it will rate limit extensions with their own tokenBucket', async () => {
+  it('it will rate limit extensions with their own tokenBucket', async () => {
     Client.extend('tokenBucket', class CustomExtension extends WildEmitter {
       tokenBucket: any;
 
@@ -367,13 +418,13 @@ describe('Client', () => {
     within((client._stanzaio.sendIQ as jest.Mock).mock.calls.length, 200, 3);
   });
 
-  test('extend throws if an extension is already registered to a namespace', () => {
+  it('extend throws if an extension is already registered to a namespace', () => {
     expect(() => {
       Client.extend('testExtension', () => { });
     }).toThrow();
   });
 
-  test('it will remap some events for our client to the underlying stanza client', async () => {
+  it('it will remap some events for our client to the underlying stanza client', async () => {
     const client = new Client(getDefaultOptions() as any);
     const connected = jest.fn();
     const _connected = jest.fn();
@@ -407,7 +458,7 @@ describe('Client', () => {
     expect(_connected).not.toHaveBeenCalled();
   });
 
-  test('it will return the app version', () => {
+  it('it will return the app version', () => {
     expect(Client.version).toBe('__STREAMING_CLIENT_VERSION__');
   });
 
@@ -423,7 +474,7 @@ describe('Client', () => {
     expect(reconnectSpy).toHaveBeenCalled();
   });
 
-  test('it will not try to reconnect on no_longer_subscribed if reconnectOnNoLongerSubscribed is false', () => {
+  it('it will not try to reconnect on no_longer_subscribed if reconnectOnNoLongerSubscribed is false', () => {
     const options: any = getDefaultOptions();
     options.reconnectOnNoLongerSubscribed = false;
     const client = new Client(options);

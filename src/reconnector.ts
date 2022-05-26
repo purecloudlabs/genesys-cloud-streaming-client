@@ -113,7 +113,7 @@ export class Reconnector {
     this._backoffActive = false;
   }
 
-  async hardReconnect (): Promise<void> {
+  async hardReconnect (maxAttempts?: number, interval = HARD_RECONNECT_RETRY_MS): Promise<void> {
     if (this._hardReconnectRetryInfo) {
       return this._hardReconnectRetryInfo.promise;
     }
@@ -123,15 +123,17 @@ export class Reconnector {
 
     this._hardReconnectRetryInfo = retryPromise(
       this._attemptHardReconnect.bind(this),
-      this._shouldRetryError.bind(this),
-      HARD_RECONNECT_RETRY_MS,
+      (error, retryCount) => {
+        return this._shouldRetryError(error, retryCount, maxAttempts);
+      },
+      interval,
       this.client.logger
     );
 
     try {
       await this._hardReconnectRetryInfo.promise;
       this._stopHardReconnect();
-    } catch (error) {
+    } catch (error: any) {
       this._stopHardReconnect(error);
       throw error;
     }
@@ -155,7 +157,7 @@ export class Reconnector {
     this._stopHardReconnect(error);
   }
 
-  private _stopHardReconnect (error?: Error | string) {
+  private _stopHardReconnect (error?: Error | string | any) {
     if (!this._hardReconnectRetryInfo) return;
 
     // SANITY: this is here for cases where `_stopHardReconnect()`
@@ -166,15 +168,15 @@ export class Reconnector {
         error = new Error(error);
       }
 
-      this._hardReconnectRetryInfo.cancel(error);
+      this._hardReconnectRetryInfo.reject(error);
     } else {
-      this._hardReconnectRetryInfo.complete();
+      this._hardReconnectRetryInfo.resolve();
     }
 
     this._hardReconnectRetryInfo = null;
   }
 
-  private async _attemptHardReconnect () {
+  private _attemptHardReconnect (): Promise<void> {
     /* if we aren't online, don't retry the new channel */
     if (!navigator.onLine) {
       throw new Error(OFFLINE_ERROR);
@@ -182,10 +184,22 @@ export class Reconnector {
 
     this.client.logger.info('Attempting to reconnect with new channel.');
 
-    await this.client.connect();
+    return this.client.connect();
   }
 
-  private _shouldRetryError (error: Error): boolean {
+  private _shouldRetryError (error: Error, attemptNumber?: number, maxAttempts?: number): boolean {
+    if (typeof maxAttempts === 'number' && typeof attemptNumber === 'number') {
+      if (attemptNumber > maxAttempts) {
+        this.client.logger.debug('Max retry attempts reached trying to connect to new channel. Stopping retry',
+          { attemptNumber, maxAttempts });
+        return false;
+      } else {
+        this.client.logger.debug('Max retry attempts NOT reached trying to connect to new channel. Retrying',
+          { attemptNumber, maxAttempts });
+        return true;
+      }
+    }
+
     /* we throw this is we are offline */
     if (error.message === OFFLINE_ERROR) {
       this.client.logger.debug('Browser is offline. Not attempting to reconnect with new channel.');

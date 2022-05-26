@@ -13,6 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     * `/v13.5.0/streaming-client.browser.js` (exact version)
     * `/v13/streaming-client.browser.js` (locked to latest for a specific major version)
 ### Fixed
+* [PCM-1908](https://inindca.atlassian.net/browse/PCM-1908) – fixing some `.connect()` functionality:
+    * `autoReconnect` no longer default to `true` but will be set to true after successfully connecting once
+    * when `connect()` times out, it will call through to stop any pending WS connect that stanza my still be attempting
+    * `connect()` will now reject when stanza emits a `--transport-disconnected` event which is what stanza emits when there
+        was a WS connection that failed or terminated. Note that stanza does not sufface the error, so we will be rejecting
+        with a generic error.
 * Addressed snyk and npm audit issues
 
 # [v13.4.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.0...v13.4.1)
