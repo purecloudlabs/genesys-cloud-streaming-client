@@ -1,4 +1,4 @@
-@Library('pipeline-library@OMUI-857') _
+@Library('pipeline-library@COMUI-857') _
 
 def isBB = false
 def MAIN_BRANCH = 'master'
