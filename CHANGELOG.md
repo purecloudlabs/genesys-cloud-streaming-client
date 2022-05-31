@@ -33,6 +33,12 @@ const users = response.data;
 * [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842)/[PCM-1560](https://inindca.atlassian.net/browse/PCM-1560) – Upgrade to new pipeline
 
 ### Fixed
+* [PCM-1908](https://inindca.atlassian.net/browse/PCM-1908) – fixing some `.connect()` functionality:
+    * `autoReconnect` no longer default to `true` but will be set to true after successfully connecting once
+    * when `connect()` times out, it will call through to stop any pending WS connect that stanza my still be attempting
+    * `connect()` will now reject when stanza emits a `--transport-disconnected` event which is what stanza emits when there
+        was a WS connection that failed or terminated. Note that stanza does not sufface the error, so we will be rejecting
+        with a generic error.
 * Addressed snyk and npm audit issues
 * [PCM-1862](https://inindca.atlassian.net/browse/PCM-1862) - remove individual topics from the tracked lists (subscriptions) after their last handlers have been removed. Fixed `_notifications.resubscribe()` to not treat individual topics as bulk topics
 

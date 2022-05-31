@@ -1,4 +1,4 @@
-import { v4 } from 'uuid';
+export { retryPromise, RetryPromise } from './types/retry-utils';
 
 export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, details?: any) {
   return new Promise<void>(function (resolve, reject) {
@@ -51,65 +51,6 @@ export const isSoftphoneJid = function (jid: string): boolean {
 export const isVideoJid = function (jid: string): boolean {
   return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
 };
-
-export type RetryPromise<T = any> = {
-  promise: Promise<T>;
-  cancel: (reason?: string | Error) => void;
-  complete: (value?: T) => void;
-  hasCompleted: () => boolean;
-  _id: string;
-};
-
-export function retryPromise<T = any> (
-  promiseFn: () => Promise<T>,
-  retryFn: (error?: Error | any) => boolean,
-  retryInterval: number = 15000,
-  logger: any = console
-): RetryPromise<T> {
-  let timeout: any;
-  let cancel: any;
-  let complete: any;
-  let tryPromiseFn: any;
-  let _hasCompleted = false;
-
-  const promise = new Promise<T>((resolve, reject) => {
-    tryPromiseFn = async () => {
-      try {
-        const val = await promiseFn();
-        complete(val);
-      } catch (error) {
-        if (retryFn(error)) {
-          logger.debug('Retrying promise', error);
-          timeout = setTimeout(tryPromiseFn, retryInterval);
-        } else {
-          cancel(error);
-        }
-      }
-    };
-
-    complete = (value: T) => {
-      clearTimeout(timeout);
-      _hasCompleted = true;
-      resolve(value);
-    };
-
-    cancel = (reason?: any) => {
-      clearTimeout(timeout);
-      _hasCompleted = true;
-      reject(reason);
-    };
-
-    tryPromiseFn();
-  });
-
-  return {
-    promise,
-    cancel,
-    complete,
-    _id: v4(),
-    hasCompleted: () => _hasCompleted
-  };
-}
 
 // from https://stackoverflow.com/questions/38552003/how-to-decode-jwt-token-in-javascript
 export const parseJwt = (token: string) => {
