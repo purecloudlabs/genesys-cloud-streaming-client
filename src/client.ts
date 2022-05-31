@@ -338,7 +338,7 @@ export class Client {
         logger: this.logger
       };
       jidPromise = this.http.requestApiWithRetry('users/me', opts).promise
-        .then(res => res.body.chat.jabberId);
+        .then(res => res.data.chat.jabberId);
     }
 
     const opts: RequestApiOptions = {
@@ -348,7 +348,7 @@ export class Client {
       logger: this.logger
     };
     const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', opts).promise
-      .then(res => res.body.id);
+      .then(res => res.data.id);
 
     return Promise.all([jidPromise, channelPromise])
       .then(([jid, channelId]) => {

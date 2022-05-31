@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.1...HEAD)
+### Breaking Changes
+* HttpClient response objects now use `data` instead of `body`. For example, if you make a request like this:
+```ts
+const response = await HttpClient.requestApi('/users/', { method: 'get' })
+
+// old way which is no longer valid:
+const users = response.body;
+
+// new way:
+const users = response.data;
+```
+### Fixed
+* [ACE-2053](https://inindca.atlassian.net/browse/ACE-2053) – Remove superagent which is no longer maintained in order to get away from the 'formidable' snyke vulnerability.
 
 ### Added
 * [PCM-1837](https://inindca.atlassian.net/browse/PCM-1837) – add `setAccessToken(token)` function

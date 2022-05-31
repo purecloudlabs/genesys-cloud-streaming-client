@@ -4,6 +4,8 @@ import { HttpClient } from '../../src/http-client';
 import { wait } from '../helpers/testing-utils';
 import { ILogger } from '../../src/types/interfaces';
 
+import axios from 'axios';
+
 describe('HttpRequestClient', () => {
   let http: HttpClient;
   let logger: ILogger;
@@ -21,7 +23,37 @@ describe('HttpRequestClient', () => {
   });
 
   describe('requestApi()', () => {
-    it('should make a request using superagent with authorization header', async () => {
+    describe('axios error without response', () => {
+      let originalAdapter: any;
+
+      // use an adapter that will die instead of making a request
+      beforeAll(() => {
+        originalAdapter = axios.defaults.adapter;
+
+        const path = require('path');
+        const lib = path.join(path.dirname(require.resolve('axios')),'lib/adapters/xhr');
+        const xhr = require(lib);
+        axios.defaults.adapter = xhr;
+      });
+
+      afterAll(() => {
+        axios.defaults.adapter = originalAdapter;
+      });
+
+      it('should handle axios errors without a response', async () => {
+        const host = 'example.com';
+        const path = 'users/me';
+
+        try {
+          const response = await http.requestApi(path, { host, method: 'get' });
+          fail('should have thrown');
+        } catch (e) {
+          expect(e).toBeTruthy();
+        }
+      });
+    });
+
+    it('should make a request with authorization header', async () => {
       const host = 'example.com';
       const path = 'users/me';
 
@@ -38,11 +70,11 @@ describe('HttpRequestClient', () => {
 
       const response = await http.requestApi(path, { host, method: 'get' });
 
-      expect(response.body).toEqual([]);
+      expect(response.data).toEqual([]);
       expect(users.isDone()).toBe(true);
     });
 
-    it('should make a request using superagent without an authorization header', async () => {
+    it('should make a request without an authorization header', async () => {
       const host = 'example.com';
       const path = 'users/me';
 
@@ -58,12 +90,12 @@ describe('HttpRequestClient', () => {
 
       const response = await http.requestApi(path, { host, method: 'get', noAuthHeader: true, logger });
 
-      expect(response.body).toEqual([]);
+      expect(response.data).toEqual([]);
       expect(response)
       expect(users.isDone()).toBe(true);
     });
 
-    it('should handle errors from superagent', async () => {
+    it('should handle errors', async () => {
       const host = 'example.com';
       const path = 'users/me';
 
@@ -76,7 +108,7 @@ describe('HttpRequestClient', () => {
         await http.requestApi(path, { host, method: 'get', logger });
         fail('should have thrown');
       } catch (error) {
-        expect(error.response.body.message).toBe('bad request');
+        expect(error.response.data.message).toBe('bad request');
         expect(users.isDone()).toBe(true);
       }
     });
