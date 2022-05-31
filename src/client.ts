@@ -2,7 +2,7 @@
 
 import { TokenBucket } from 'limiter';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
-import { Logger, ILogger } from 'genesys-cloud-client-logger';
+import { Logger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
@@ -71,7 +71,7 @@ export class Client {
   connecting = false;
   autoReconnect = true;
   reconnectOnNoLongerSubscribed: boolean;
-  logger: ILogger;
+  logger: Logger;
   leakyReconnectTimer: any;
   hardReconnectCount = 0;
   reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
@@ -289,6 +289,7 @@ export class Client {
 
   disconnect () {
     this.logger.info('streamingClient.disconnect was called');
+    this.stopServerLogging();
     return timeoutPromise(resolve => {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
@@ -309,8 +310,10 @@ export class Client {
   }
 
   connect () {
+    this.startServerLogging();
     this.logger.info('streamingClient.connect was called');
     this.connecting = true;
+
     if (this.config.jwt) {
       return timeoutPromise(resolve => {
         this.once('connected', resolve);
@@ -364,6 +367,22 @@ export class Client {
         return Promise.reject(err);
       });
 
+  }
+
+  stopServerLogging () {
+    /* flush all pending logs and webrtc stats – then turn off the logger */
+    this.logger.sendAllLogsInstantly();
+    this.logger.stopServerLogging();
+    this._webrtcSessions.flushStats();
+  }
+
+  startServerLogging () {
+    this.logger.startServerLogging();
+  }
+
+  setAccessToken (token: string): void {
+    this.config.authToken = token;
+    this.logger.setAccessToken(token);
   }
 
   static extend (namespace, extension: StreamingClientExtension | ((client: Client) => void)) {

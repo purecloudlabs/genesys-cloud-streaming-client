@@ -17,7 +17,9 @@ const defaultOptions = {
     debug () { },
     info () { },
     log () { },
-  }
+  },
+  startServerLogging: jest.fn(),
+  stopServerLogging: jest.fn()
 };
 Object.freeze(defaultOptions);
 
@@ -498,5 +500,20 @@ describe('Client', () => {
     client._stanzaio.emit(eventPrefix as any, { eventBody: { channelId } });
 
     expect(reconnectSpy).not.toHaveBeenCalled();
+  });
+
+  describe('setAccessToken()', () => {
+    it('should update token and logger token', () => {
+      const token = 'I_AM_A_NEW_TOKEN';
+      const client = new Client(getDefaultOptions() as any);
+      const loggerSpy = jest.spyOn(client.logger, 'setAccessToken');
+
+      expect(client.config.authToken).toBe(defaultOptions.authToken);
+
+      client.setAccessToken(token);
+
+      expect(client.config.authToken).toBe(token);
+      expect(loggerSpy).toHaveBeenCalledWith(token);
+    });
   });
 });

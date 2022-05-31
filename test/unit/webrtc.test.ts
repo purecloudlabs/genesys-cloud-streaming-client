@@ -85,7 +85,7 @@ describe('prepareSession', () => {
     webrtc.pendingSessions = { mysid: { sessionId: 'mysid' } as any };
 
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
-    const session = webrtc.prepareSession({sid: 'mysid'} as any);
+    const session = webrtc.prepareSession({ sid: 'mysid' } as any);
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
   });
 
@@ -98,8 +98,8 @@ describe('prepareSession', () => {
     webrtc.pendingSessions = { mysid: { sessionId: 'mysid', sessionType: 'softphone' } as any };
 
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
-    const session = webrtc.prepareSession({sid: 'mysid'} as any);
-    expect((GenesysCloudMediaSession as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({sessionType: 'softphone'}));
+    const session = webrtc.prepareSession({ sid: 'mysid' } as any);
+    expect((GenesysCloudMediaSession as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({ sessionType: 'softphone' }));
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
   });
 
@@ -698,14 +698,14 @@ describe('rejectRtcSession', () => {
     const reject1 = {
       to: bareJid,
       reject: {
-        id: sessionId
+        sessionId
       }
     };
 
     const reject2 = {
       to: fromJid,
       reject: {
-        id: sessionId
+        sessionId
       }
     };
 
@@ -1042,6 +1042,10 @@ describe('getSessionTypeByJid', () => {
 });
 
 describe('proxyStatsForSession', () => {
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
   it('should call throttledSendStats', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -1106,7 +1110,22 @@ describe('proxyStatsForSession', () => {
     expect(webrtc['throttledSendStats'].flush).toHaveBeenCalled();
   });
 
+  it('should not proxy stats if the logger has stopped', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const session: any = new EventEmitter();
 
+    const spy = jest.spyOn(statsFormatter, 'formatStatsEvent');
+
+    webrtc.proxyStatsForSession(session);
+    client.logger['stopReason'] = '401';
+
+    session.emit('stats', {
+      actionName: 'test'
+    });
+
+    expect(spy).not.toHaveBeenCalled();
+  });
 });
 
 describe('sendStats', () => {

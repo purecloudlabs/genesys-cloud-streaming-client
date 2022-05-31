@@ -18,6 +18,24 @@ const users = response.data;
 ### Fixed
 * [ACE-2053](https://inindca.atlassian.net/browse/ACE-2053) – Remove superagent which is no longer maintained in order to get away from the 'formidable' snyke vulnerability.
 
+### Added
+* [PCM-1837](https://inindca.atlassian.net/browse/PCM-1837) – add `setAccessToken(token)` function
+* [PCM-1844](https://inindca.atlassian.net/browse/PCM-1844) – stop sending logs on disconnect:
+  * add `stopServerLogging()` & `startServerLogging()` functions to allow consumers to stop sending server
+    logs that are sent via the client-logger.
+  * on `client.disconnect()`, logs will stop being sent to the server.
+  * on `client.connect()`, logs will start being sent to the server again.
+
+### Changed
+* [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842) – migrate to the new pipeline. Also versioning cdn urls with major and exact versions. For example:
+    * `/v13.5.0/streaming-client.browser.js` (exact version)
+    * `/v13/streaming-client.browser.js` (locked to latest for a specific major version)
+* [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842)/[PCM-1560](https://inindca.atlassian.net/browse/PCM-1560) – Upgrade to new pipeline
+
+### Fixed
+* Addressed snyk and npm audit issues
+* [PCM-1862](https://inindca.atlassian.net/browse/PCM-1862) - remove individual topics from the tracked lists (subscriptions) after their last handlers have been removed. Fixed `_notifications.resubscribe()` to not treat individual topics as bulk topics
+
 # [v13.4.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.0...v13.4.1)
 ### Added
 * [PCM-1773](https://inindca.atlassian.net/browse/PCM-1773) – Added an es bundle for consumers that cannot bundle mixed node_modules.
