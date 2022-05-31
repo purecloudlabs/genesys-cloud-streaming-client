@@ -1,6 +1,5 @@
-import request from 'superagent';
+import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 
-import reqlogger from './request-logger';
 import { RetryPromise, retryPromise } from './utils';
 import {
   RequestApiOptions,
@@ -9,6 +8,8 @@ import {
   INetworkError,
   IResponseError
 } from './types/interfaces';
+
+const correlationIdHeaderName = 'inin-correlation-id';
 
 export class HttpClient {
   private _httpRetryingRequests = new Map<string, RetryPromise<any>>();
@@ -43,16 +44,68 @@ export class HttpClient {
   }
 
   requestApi (path: string, opts: RequestApiOptions): Promise<any> {
-    let response = request[opts.method](this._buildUri(opts.host, path, opts.version))
-      .use(reqlogger.bind(this, opts.logger, opts.data))
-      .type(opts.contentType || 'json');
+    const logger = opts.logger || console;
+    const start = new Date().getTime();
+
+    const url = this._buildUri(opts.host, path, opts.version);
+
+    const params: AxiosRequestConfig = {
+      method: opts.method,
+
+      url,
+
+      headers: {
+        'content-type': opts.contentType || 'application/json',
+        // we may not need this
+        'accept-encoding': 'gzip, deflate'
+      }
+    };
 
     // default to include auth header
     if (!opts.noAuthHeader) {
-      response.set('Authorization', `Bearer ${opts.authToken}`);
+      params.headers!['Authorization'] = `Bearer ${opts.authToken}`;
     }
 
-    return response.send(opts.data); // trigger request
+    const handleResponse = function (res: AxiosResponse): Promise<AxiosResponse> {
+      let now = new Date().getTime();
+      let elapsed = (now - start) + 'ms';
+
+      if (res instanceof AxiosError) {
+        /* istanbul ignore next */
+        const response = res.response || {} as any;
+        let status = response.status;
+        let correlationId = response.headers?.[correlationIdHeaderName];
+        let body = response.data;
+
+        logger.debug(`request error: ${params.url}`, {
+          message: res.message,
+          now,
+          elapsed,
+          status,
+          correlationId,
+          body
+        }, true);
+
+        return Promise.reject(res);
+      }
+
+      let status = res.status;
+      let correlationId = res.headers[correlationIdHeaderName];
+      let body = JSON.stringify(res.data);
+
+      logger.debug(`response: ${opts.method.toUpperCase()} ${params.url}`, {
+        now,
+        status,
+        elapsed,
+        correlationId,
+        body
+      }, true);
+
+      return Promise.resolve(res);
+    };
+
+    return axios(params)
+      .then(handleResponse.bind(this), handleResponse.bind(this));
   }
 
   stopAllRetries (): void {
