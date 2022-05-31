@@ -147,6 +147,11 @@ export class WebrtcExtension extends EventEmitter {
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: GenesysCloudMediaSession) {
     session.on('stats', (statsEvent: StatsEvent) => {
+      /* if our logger was stopped, we need to stop stats logging too */
+      if (this.client.logger['stopReason']) {
+        return;
+      }
+
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
         conference: (session as any).conversationId,
@@ -167,7 +172,7 @@ export class WebrtcExtension extends EventEmitter {
 
       // If it exceeds max size, don't append just send current payload.
       if (exceedsMaxStatSize) {
-        this.throttledSendStats.flush();
+        this.flushStats();
       } else {
         this.throttledSendStats();
       }
@@ -186,6 +191,10 @@ export class WebrtcExtension extends EventEmitter {
     }
 
     return logDetails;
+  }
+
+  flushStats () {
+    this.throttledSendStats.flush();
   }
 
   async sendStats () {

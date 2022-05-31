@@ -17,7 +17,9 @@ const defaultOptions = {
     debug () { },
     info () { },
     log () { },
-  }
+  },
+  startServerLogging: jest.fn(),
+  stopServerLogging: jest.fn()
 };
 Object.freeze(defaultOptions);
 
