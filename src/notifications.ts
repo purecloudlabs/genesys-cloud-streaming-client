@@ -210,6 +210,12 @@ export class Notifications {
       if (handlerIndex > -1) {
         handlers.splice(handlerIndex, 1);
       }
+
+      /* if we have removed all our individual handlers, we don't need the topic anymore
+        (note: we aren't removing any bulkSubs if they exist for this topic) */
+      if (!handlers.length) {
+        delete this.subscriptions[t];
+      }
     });
   }
 
@@ -241,18 +247,23 @@ export class Notifications {
   }
 
   resubscribe (): Promise<any> {
-    let topicsToResubscribe = mergeAndDedup(Object.keys(this.bulkSubscriptions), this.getActiveIndividualTopics());
-    if (topicsToResubscribe.length === 0) {
+    const bulkSubs = Object.keys(this.bulkSubscriptions);
+
+    /* if we don't have bulk or individual subs, we don't need to resubscribe */
+    const noTopics = bulkSubs.length + this.getActiveIndividualTopics().length === 0;
+    if (noTopics) {
       return Promise.resolve();
     }
-    return this.bulkSubscribe(topicsToResubscribe, { replace: true });
+
+    /* only pass in bulk subs with the replace flag – bulkSubscribe() will handle merging our individual topics (see PCM-1846) */
+    return this.bulkSubscribe(bulkSubs, { replace: true });
   }
 
   subscriptionsKeepAlive (): void {
     const topic = 'streaming-subscriptions-expiring';
     if (this.topicHandlers(topic).length === 0) {
       this.createSubscription(topic, () => {
-        this.client.logger.info(`${topic} - Triggering resubscribe.`);
+        this.client.logger.info(`${topic} - Triggering resubscribe.`, { channelId: this.client.config.channelId });
         this.resubscribe().catch((err) => {
           const msg = 'Error resubscribing to topics';
           this.client.logger.error(msg, err);
@@ -352,10 +363,13 @@ export class Notifications {
       // if it's a forcible bulk subscribe, wipe out individual subscriptions
       this.subscriptions = {};
     }
+
     await this.makeBulkSubscribeRequest(toSubscribe, options);
+
     if (options.replace) {
       this.bulkSubscriptions = {};
     }
+
     topics.forEach(topic => {
       this.bulkSubscriptions[topic] = true;
     });

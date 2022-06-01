@@ -2,7 +2,7 @@
 
 import { TokenBucket } from 'limiter';
 import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
-import { Logger, ILogger } from 'genesys-cloud-client-logger';
+import { Logger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
@@ -69,9 +69,9 @@ export class Client {
   _stanzaio: Agent;
   connected = false;
   connecting = false;
-  autoReconnect = true;
+  autoReconnect = false;
   reconnectOnNoLongerSubscribed: boolean;
-  logger: ILogger;
+  logger: Logger;
   leakyReconnectTimer: any;
   hardReconnectCount = 0;
   reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
@@ -154,8 +154,9 @@ export class Client {
     this.on('connected', async (event) => {
       this.streamId = event.resource;
       this._ping.start();
-      this.connected = true;
       this._reconnector.stop();
+      this.autoReconnect = true;
+      this.connected = true;
       this.connecting = false;
     });
 
@@ -289,6 +290,7 @@ export class Client {
 
   disconnect () {
     this.logger.info('streamingClient.disconnect was called');
+    this.stopServerLogging();
     return timeoutPromise(resolve => {
       this._stanzaio.once('disconnected', resolve);
       this.autoReconnect = false;
@@ -309,19 +311,12 @@ export class Client {
   }
 
   connect () {
+    this.startServerLogging();
     this.logger.info('streamingClient.connect was called');
     this.connecting = true;
+
     if (this.config.jwt) {
-      return timeoutPromise(resolve => {
-        this.once('connected', resolve);
-        const options = stanzaOptionsJwt(this.config);
-        this._stanzaio.updateConfig(options);
-        this._stanzaio.connect();
-      }, 10 * 1000, 'connecting to streaming service with jwt')
-        .catch((err) => {
-          this.connecting = false;
-          return Promise.reject(err);
-        });
+      return this._connectStanza();
     }
 
     let jidPromise: Promise<any>;
@@ -335,7 +330,7 @@ export class Client {
         logger: this.logger
       };
       jidPromise = this.http.requestApiWithRetry('users/me', opts).promise
-        .then(res => res.body.chat.jabberId);
+        .then(res => res.data.chat.jabberId);
     }
 
     const opts: RequestApiOptions = {
@@ -345,25 +340,75 @@ export class Client {
       logger: this.logger
     };
     const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', opts).promise
-      .then(res => res.body.id);
+      .then(res => res.data.id);
 
     return Promise.all([jidPromise, channelPromise])
       .then(([jid, channelId]) => {
         this.config.jid = jid;
         this.config.channelId = channelId;
-        this.autoReconnect = true;
-        return timeoutPromise(resolve => {
-          this.once('connected', resolve);
-          const options = stanzaioOptions(this.config);
-          this._stanzaio.updateConfig(options);
-          this._stanzaio.connect();
-        }, 10 * 1000, 'connecting to streaming service', { jid, channelId });
-      })
+        return this._connectStanza();
+      });
+  }
+
+  async _connectStanza () {
+    const guestConnection = !!this.config.jwt;
+    const timeoutMsg = 'connecting to streaming service';
+    const options = guestConnection ? stanzaOptionsJwt(this.config) : stanzaioOptions(this.config);
+    const timeoutDetails = guestConnection
+      ? { usingJwt: true }
+      : { channelId: this.config.channelId, jidResource: this.config.jidResource };
+
+    /* if we already have a WS, we need to wait for the 2nd disconnect */
+    let skipDisconnectEvent = !!this._stanzaio.transport;
+    let rejectCallback: () => void;
+
+    return timeoutPromise((resolve, reject) => {
+      rejectCallback = () => {
+        if (skipDisconnectEvent) {
+          this.logger.debug('received a --transport-disconnected event from existing WS. Not rejecting new attempt to connect WS.');
+          skipDisconnectEvent = false;
+        } else {
+          this.logger.debug('received a --transport-disconnected event while attempting to connect new WS. rejecting new attempt to connect WS.');
+          reject(new Error('unexpected disconnect from the WebSocket connecting streaming service'));
+        }
+      };
+
+      /* if stanza runs into an error, we want to reject right away. There is no reason to wait for our timeout */
+      this._stanzaio.on('--transport-disconnected', rejectCallback);
+      this.once('connected', resolve);
+
+      this._stanzaio.updateConfig(options);
+      this._stanzaio.connect();
+    }, 10 * 1000, timeoutMsg, timeoutDetails)
       .catch((err) => {
         this.connecting = false;
-        return Promise.reject(err);
-      });
 
+        /* if _we_ timed out but stanza is still trying to connect, we need to stop stanza's WS */
+        if (err.message === `Timeout: ${timeoutMsg}` && this._stanzaio.transport) {
+          this._stanzaio.disconnect();
+          this.logger.debug('timing out WS connect(), calling through to stanza to disconnect');
+        }
+
+        throw err;
+      }).finally(() => {
+        this._stanzaio.off('--transport-disconnected', rejectCallback);
+      });
+  }
+
+  stopServerLogging () {
+    /* flush all pending logs and webrtc stats – then turn off the logger */
+    this.logger.sendAllLogsInstantly();
+    this.logger.stopServerLogging();
+    this._webrtcSessions.flushStats();
+  }
+
+  startServerLogging () {
+    this.logger.startServerLogging();
+  }
+
+  setAccessToken (token: string): void {
+    this.config.authToken = token;
+    this.logger.setAccessToken(token);
   }
 
   static extend (namespace, extension: StreamingClientExtension | ((client: Client) => void)) {

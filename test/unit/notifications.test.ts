@@ -215,6 +215,44 @@ describe('Notifications', () => {
     expect(notification.bulkSubscribe).toHaveBeenCalledTimes(3);
   });
 
+  test('notifications | unsubscribe should not remove subs when they are shared by a bulk subscribe', async () => {
+    const client = new Client({
+      apiHost: 'inindca.com'
+    });
+    const notification = new Notifications(client);
+
+    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
+
+    const topic1 = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'
+    const topic2 = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence';
+    const handler = () => { };
+
+    await notification.subscribe(topic1, handler);
+    await notification.subscribe(topic2, handler);
+
+    /* adds individual subs */
+    expect(notification.subscriptions).toEqual({
+      [topic1]: [handler],
+      [topic2]: [handler]
+    });
+
+    /* only bulkSub to topic2 */
+    await notification.bulkSubscribe([topic2]);
+    expect(notification.bulkSubscriptions).toEqual({
+      [topic2]: true
+    });
+
+    /* unsub from individual topic2 should not remove it from bulkSub list but remove it from individual sub list */
+    await notification.unsubscribe(topic2, handler);
+    expect(notification.subscriptions).toEqual({
+      [topic1]: [handler]
+    });
+    expect(notification.bulkSubscriptions).toEqual({
+      [topic2]: true
+    });
+  });
+
   test('unsubscribe should remove all handlers if a handler is not passed in', async () => {
     const client = new Client({
       apiHost: 'example.com',
@@ -473,17 +511,17 @@ describe('Notifications', () => {
     expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0]).toEqual(handler);
 
     notification.removeSubscription(topic, handler);
-    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'].length).toBe(0);
-    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'].length).toBe(0);
-    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'].length).toBe(0);
-    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'].length).toBe(0);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation']).toBe(undefined);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence']).toBe(undefined);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus']).toBe(undefined);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary']).toBe(undefined);
 
     // Subscribe to precombined topic, then remove one individually
     notification.createSubscription(topic, handler);
     expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'][0]).toEqual(handler);
     notification.removeSubscription('v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation', handler);
 
-    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'].length).toBe(0);
+    expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation']).toBe(undefined);
     expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence'][0]).toEqual(handler);
     expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.routingStatus'][0]).toEqual(handler);
     expect(notification.subscriptions['v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.conversationsummary'][0]).toEqual(handler);
