@@ -79,9 +79,11 @@ describe('Utils', () => {
 
   describe('RetryPromise', () => {
     it('should export RetryPromise',  () => {
-      return new RetryPromise({
+      const rPromise = new RetryPromise({
         promiseFn: () => Promise.resolve()
       });
+
+      return rPromise.promise;
     });
   });
 });
