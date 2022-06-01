@@ -17,9 +17,6 @@ const users = response.body;
 // new way:
 const users = response.data;
 ```
-### Fixed
-* [ACE-2053](https://inindca.atlassian.net/browse/ACE-2053) – Remove superagent which is no longer maintained in order to get away from the 'formidable' snyke vulnerability.
-
 ### Added
 * [PCM-1837](https://inindca.atlassian.net/browse/PCM-1837) – add `setAccessToken(token)` function
 * [PCM-1844](https://inindca.atlassian.net/browse/PCM-1844) – stop sending logs on disconnect:
@@ -35,6 +32,7 @@ const users = response.data;
 * [PCM-1842](https://inindca.atlassian.net/browse/PCM-1842)/[PCM-1560](https://inindca.atlassian.net/browse/PCM-1560) – Upgrade to new pipeline
 
 ### Fixed
+* [ACE-2053](https://inindca.atlassian.net/browse/ACE-2053) – Remove superagent which is no longer maintained in order to get away from the 'formidable' snyke vulnerability.
 * [PCM-1908](https://inindca.atlassian.net/browse/PCM-1908) – fixing some `.connect()` functionality:
     * `autoReconnect` no longer default to `true` but will be set to true after successfully connecting once
     * when `connect()` times out, it will call through to stop any pending WS connect that stanza my still be attempting
