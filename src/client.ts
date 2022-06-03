@@ -418,6 +418,10 @@ export class Client {
     extensions[namespace] = extension;
   }
 
+  get version () {
+    return Client.version;
+  }
+
   static get version () {
     return '__STREAMING_CLIENT_VERSION__';
   }

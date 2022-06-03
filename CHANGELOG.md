@@ -5,6 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.0.0...HEAD)
 
+### Fixed
+* [PCM-1926](https://inindca.atlassian.net/browse/PCM-1926) – make sure that the `data` (ie. body) is sent with HTTP post & put requests.
+
+### Added
+* Added instance level version property. The streaming-client version can now be accessed statically or on constructed instances.
+
 # [v14.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.4.1...v14.0.0)
 ### Breaking Changes
 * HttpClient response objects now use `data` instead of `body`. For example, if you make a request like this:
