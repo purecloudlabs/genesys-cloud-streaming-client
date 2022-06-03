@@ -51,9 +51,8 @@ export class HttpClient {
 
     const params: AxiosRequestConfig = {
       method: opts.method,
-
       url,
-
+      data: opts.data,
       headers: {
         'content-type': opts.contentType || 'application/json',
         // we may not need this
