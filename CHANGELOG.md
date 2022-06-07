@@ -3,7 +3,9 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.0.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.1.0...HEAD)
+
+# [v14.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.0.1...v14.1.0)
 ### Added
 * [PCM-1819](https://inindca.atlassian.net/browse/PCM-1819) Added separate backgroundassistant endpoints that will be used when using a screen recording jwt
 
