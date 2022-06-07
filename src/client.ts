@@ -78,6 +78,8 @@ export class Client {
   deadChannels: string[] = [];
   config: IClientConfig;
   streamId: any;
+  backgroundAssistantMode = false;
+  isGuest = false;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
@@ -114,12 +116,21 @@ export class Client {
       appVersion: options.appVersion
     };
 
-    const accessToken = options.authToken || '';
+    this.backgroundAssistantMode = this.checkIsBackgroundAssistant();
+    this.isGuest = !this.backgroundAssistantMode && !options.authToken;
+
+    let loggerAccessToken = options.authToken || '';
+    let loggerUrl = `https://api.${this.config.apiHost}/api/v2/diagnostics/trace`;
+    if (this.backgroundAssistantMode) {
+      loggerAccessToken = options.jwt!;
+      loggerUrl += '/backgroundassistant';
+    }
+
     this.logger = new Logger({
-      accessToken,
-      url: `https://api.${this.config.apiHost}/api/v2/diagnostics/trace`,
+      accessToken: loggerAccessToken,
+      url: loggerUrl,
       uploadDebounceTime: 1000,
-      initializeServerLogging: !options.optOutOfWebrtcStatsTelemetry,
+      initializeServerLogging: !this.isGuest && !options.optOutOfWebrtcStatsTelemetry,
       /* streaming-client logging info */
       appVersion: Client.version,
       appName: 'streaming-client',
@@ -254,6 +265,16 @@ export class Client {
       this[extensionName] = extension.expose;
       this[`_${extensionName}`] = extension;
     });
+  }
+
+  private checkIsBackgroundAssistant (): boolean {
+    if (this.config.jwt) {
+      const jwt = parseJwt(this.config.jwt);
+
+      return jwt && jwt.iss === 'urn:purecloud:screenrecording';
+    }
+
+    return false;
   }
 
   cleanupLeakTimer () {

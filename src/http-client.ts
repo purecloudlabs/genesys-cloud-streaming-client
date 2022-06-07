@@ -54,9 +54,7 @@ export class HttpClient {
       url,
       data: opts.data,
       headers: {
-        'content-type': opts.contentType || 'application/json',
-        // we may not need this
-        'accept-encoding': 'gzip, deflate'
+        'content-type': opts.contentType || 'application/json'
       }
     };
 

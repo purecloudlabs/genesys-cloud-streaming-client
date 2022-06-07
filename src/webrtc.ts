@@ -217,7 +217,7 @@ export class WebrtcExtension extends EventEmitter {
       0
     );
 
-    if (!statsToSend.length || !this.client.config.authToken) {
+    if (!statsToSend.length || this.client.isGuest) {
       return;
     }
 
@@ -231,10 +231,18 @@ export class WebrtcExtension extends EventEmitter {
 
     // At least for now, we'll just fire and forget. Since this is non-critical, we'll not retry failures
     try {
-      await this.client.http.requestApi('diagnostics/newrelic/insights', {
+      let authToken = this.client.config.authToken;
+      let url = 'diagnostics/newrelic/insights';
+
+      if (this.client.backgroundAssistantMode) {
+        authToken = this.client.config.jwt;
+        url += '/backgroundassistant';
+      }
+
+      await this.client.http.requestApi(url, {
         method: 'post',
         host: this.client.config.apiHost,
-        authToken: this.client.config.authToken,
+        authToken,
         logger: this.client.logger,
         data
       });
