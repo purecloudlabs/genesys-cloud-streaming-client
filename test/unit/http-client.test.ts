@@ -59,7 +59,6 @@ describe('HttpRequestClient', () => {
 
       const api = nock(`https://api.${host}`, {
         reqheaders: {
-          'accept-encoding': 'gzip, deflate',
           'content-type': 'application/json',
           authorization: /Bearer/,
         }
@@ -80,7 +79,6 @@ describe('HttpRequestClient', () => {
 
       const api = nock(`https://api.${host}`, {
         reqheaders: {
-          'accept-encoding': 'gzip, deflate',
           'content-type': 'application/json'
         }
       });

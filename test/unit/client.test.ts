@@ -3,6 +3,8 @@ import { TokenBucket } from 'limiter';
 import nock from 'nock';
 
 import { Client } from '../../src/client';
+import { Logger } from 'genesys-cloud-client-logger';
+import * as utils from '../../src/utils';
 
 jest.mock('genesys-cloud-client-logger');
 
@@ -70,6 +72,34 @@ describe('Client', () => {
     expect(typeof client.on).toBe('function');
     expect(typeof client.connect).toBe('function');
     expect(client.notifications).toBeTruthy();
+  });
+
+  it('logger should get the backgroundassistant url', () => {
+    const loggerMock: jest.Mock<Logger> = Logger as any;
+    
+    loggerMock.mockClear();
+    const spy = jest.spyOn(utils, 'parseJwt').mockReturnValue({
+      iss: 'urn:purecloud:screenrecording'
+    });
+    
+    const opts = {...getDefaultOptions(), jwt: 'myjwt'};
+    delete (opts as any).authToken;
+
+    const client = new Client(opts);
+    spy.mockRestore();
+    expect(loggerMock).toHaveBeenCalledWith(expect.objectContaining({url: expect.stringContaining('backgroundassistant')}));
+  });
+
+  it('should default to isGuest', () => {
+    const loggerMock: jest.Mock<Logger> = Logger as any;
+    
+    loggerMock.mockClear();
+    
+    const opts = {...getDefaultOptions()};
+    delete (opts as any).authToken;
+
+    const client = new Client(opts);
+    expect(client.isGuest).toBeTruthy();
   });
 
   it('connect will reject if the session:started event is never emitted', () => {
