@@ -5,7 +5,7 @@ function logDebug () {
   console.log('___current subs:', {
     indiviualSubs: { ...client._notifications.subscriptions },
     bulkSubs: { ...client._notifications.bulkSubscriptions },
-  })
+  });
 }
 
 async function run () {
@@ -16,7 +16,7 @@ async function run () {
     host: client.config.apiHost,
     authToken: client.config.authToken,
     logger: client.logger
-  }).promise.then(res => res.body);
+  }).promise.then(res => res.data);
 
   console.clear();
 

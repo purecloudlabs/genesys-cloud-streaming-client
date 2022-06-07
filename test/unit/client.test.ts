@@ -460,8 +460,13 @@ describe('Client', () => {
     expect(_connected).not.toHaveBeenCalled();
   });
 
-  it('it will return the app version', () => {
+  it('it will return the static app version', () => {
     expect(Client.version).toBe('__STREAMING_CLIENT_VERSION__');
+  });
+
+  it('it will return the app version', () => {
+    const client = new Client(getDefaultOptions() as any);
+    expect(client.version).toBe('__STREAMING_CLIENT_VERSION__');
   });
 
   it('it will stop pinging and try to reconnect when it is no longer subscribed', () => {

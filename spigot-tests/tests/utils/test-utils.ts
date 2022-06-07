@@ -1,7 +1,6 @@
 import { Subject, Observable, throwError } from 'rxjs';
 import { v4 as uuid } from 'uuid';
-import { createLogger } from 'genesys-cloud-client-logger';
-import { Logger } from 'genesys-cloud-client-logger/dist/src/logger';
+import { Logger } from 'genesys-cloud-client-logger';
 import { assert } from 'chai';
 import { filter, first, timeoutWith } from 'rxjs/operators';
 
@@ -71,7 +70,7 @@ export const fetchJson = async function (url: string, options?: RequestInit) {
   if (!response.ok) {
     const correlationId = response.headers.get('inin-correlation-id');
     const err = `Response code ${response.status} making request to ${url}. inin-correlation-id: ${correlationId}`;
-    logger.error(err, 'For request payload', JSON.stringify(options));
+    logger.error(err, 'For request payload: \n' + JSON.stringify(options, null, 2));
     throw Error(err);
   }
   return response.json();
@@ -226,17 +225,20 @@ export function getRandomVideoRoomJid (myJid: string) {
 }
 
 // const logger: any = console;
-const logger = createLogger();
+let logger: Logger;
 
 function initializeLogging () {
-  const { appVersion, appName, envHost } = getConfig();
-  const { authToken } = getContext();
+  if (logger) {
+    return;
+  }
 
-  logger.initializeServerLogging({
-    accessToken: authToken,
-    environment: envHost,
+  const { appVersion, appName, apiUrl } = getConfig();
+
+  logger = new Logger({
+    accessToken: getAuthToken(),
+    url: `${apiUrl}/api/v2/diagnostics/trace`,
     appVersion,
-    logTopic: `spigot-${appName}`,
+    appName: `spigot-${appName}`,
     logLevel: 'debug',
     uploadDebounceTime: 1000
   });
@@ -527,7 +529,7 @@ export async function validateAudioStats (session: any) {
         assert.ok(localTrack.bytes, 'local track has bytes count');
         assert.ok(remoteTrack.bytes, 'remote track has bytes count');
         logger.info('validateAudioStats succeeded', { stats, sessionId: session.sid });
-      } catch (e) {
+      } catch (e: any) {
         logger.warn('audio stats validation failed', { message: e.message, stats });
         return;
       }
@@ -565,7 +567,7 @@ export async function validateVideoStats (session: GenesysCloudMediaSession) {
         // can't assert on packetloss because it might not have occurred
         session.off('stats', handleStats);
         logger.info('validateVideoStats succeeded', { stats, sessionId: session.sid });
-      } catch (e) {
+      } catch (e: any) {
         logger.warn('video stats validation failed', { message: e.message, stats });
         return;
       }
