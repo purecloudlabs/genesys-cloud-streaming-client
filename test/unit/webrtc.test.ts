@@ -1194,7 +1194,7 @@ describe('sendStats', () => {
     })
   });
 
-  it('should not send stats if theres no auth token', async () => {
+  it('should not send stats if isGuest', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
@@ -1202,8 +1202,25 @@ describe('sendStats', () => {
     webrtc['statsArr'].push({} as any);
     sendSpy.mockReset();
 
+    (client as any).isGuest = true;
     await webrtc.sendStats();
     expect(sendSpy).not.toHaveBeenCalled();
+    expect(webrtc['statsArr'].length).toBe(0);
+  });
+
+  it('should send stats if backgroundAssistant', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue(null);
+    webrtc['statsArr'].push({} as any);
+    sendSpy.mockReset();
+
+    (client as any).isGuest = false;
+    client.config.jwt = 'alsknfs';
+    (client as any).backgroundAssistantMode = true;
+    await webrtc.sendStats();
+    expect(sendSpy).toHaveBeenCalled();
     expect(webrtc['statsArr'].length).toBe(0);
   });
 
