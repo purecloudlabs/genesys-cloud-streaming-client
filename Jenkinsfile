@@ -1,8 +1,8 @@
 @Library('pipeline-library@COMUI-857') _
 
-def isBB = false
 def MAIN_BRANCH = 'master'
 def DEVELOP_BRANCH = 'develop'
+def isBitbucket = false
 
 def isMain = {
   env.BRANCH_NAME == MAIN_BRANCH
@@ -16,12 +16,15 @@ def isDevelop = {
   env.BRANCH_NAME == DEVELOP_BRANCH
 }
 
-def getBuildType = {
-  isMain()
-    ? 'MAINLINE'
-    : 'FEATURE'
+def isMainline = {
+  isMain() || isDevelop() || isRelease()
 }
 
+def getBranchType = {
+  isMainline() ? 'MAINLINE' : 'FEATURE'
+}
+
+def hasRunSpigotTests = false
 def testSpigotByEnv = { environment, version ->
    stage("Spigot test '${environment}'") {
         script {
@@ -37,15 +40,41 @@ def testSpigotByEnv = { environment, version ->
         }
     }
 }
-def hasRunSpigotTests = false
+
+def getDeployConfig = {
+  def deployConfig = [:]
+
+  if (isMainline()) {
+    deployConfig['dev'] = 'always'
+    deployConfig['test'] = 'always'
+  }
+
+  if (isMain()) {
+    deployConfig['prod'] = 'always'
+    deployConfig['fedramp-use2-core'] = 'always'
+  }
+
+  return deployConfig;
+}
+
+def npmFunctions = new com.genesys.jenkins.Npm()
+def gitFunctions = new com.genesys.jenkins.Git()
+def notifications = new com.genesys.jenkins.Notifications()
+
+// PCM – Just Send It
+def chatGroupId = 'adhoc-60e40c95-3d9c-458e-a48e-ca4b29cf486d'
 
 webappPipeline {
     nodeVersion = '14.x'
     projectName = 'developercenter-cdn/streaming-client'
     team = 'Genesys Client Media (WebRTC)'
-    mailer = 'genesyscloud-client-media@genesys.com'
 
-    buildType = getBuildType
+    mailer = 'genesyscloud-client-media@genesys.com'
+    chatGroupId = chatGroupId
+
+    nodeVersion = '14.x'
+    buildType = getBranchType
+
     manifest = customManifest('dist') {
         sh('node ./create-manifest.js')
         readJSON(file: 'dist/manifest.json')
@@ -61,12 +90,7 @@ webappPipeline {
 
     autoSubmitCm = true
 
-    deployConfig = [
-        dev : 'always',
-        test : 'always',
-        prod : 'always',
-        'fedramp-use2-core': 'always'
-    ]
+    deployConfig = getDeployConfig()
 
     ciTests = {
         println("""
@@ -154,34 +178,24 @@ VERSION      : ${env.VERSION}
           version = "${packageJson.version}-${featureBranch}.${env.BUILD_NUMBER}".toString()
         }
 
-        def npmFunctions = null
-        def gitFunctions = null
-        def pwd = pwd()
-
-        stage('Download npm & git utils') {
-            script {
-              // clone pipelines repo
-                dir('pipelines') {
-                    git branch: 'COMUI-857',
-                        url: 'git@bitbucket.org:inindca/pipeline-library.git',
-                        changelog: false
-
-                    npmFunctions = load 'src/com/genesys/jenkins/Npm.groovy'
-                    gitFunctions = load 'src/com/genesys/jenkins/Git.groovy'
-                }
-            }
-        } // end download pipeline utils
-
         stage('Publish to NPM') {
             script {
-                dir(pwd) {
+                dir(pwd()) {
                     npmFunctions.publishNpmPackage([
                         tag: tag, // optional
-                        useArtifactoryRepo: isBB, // optional, default `true`
+                        useArtifactoryRepo: isBitbucket, // optional, default `true`
                         version: version, // optional, default is version in package.json
                         dryRun: false // dry run the publish, default `false`
                     ])
                 }
+
+                def message = "**${env.APP_NAME}** ${version} (Build [#${env.BUILD_NUMBER}](${env.BUILD_URL})) has been published to **npm**"
+
+                if (!tag) {
+                  message = ":loudspeaker: ${message}"
+                }
+
+                notifications.requestToGenericWebhooksWithMessage(chatGroupId, message);
             }
         } // end publish to npm
 
@@ -191,14 +205,14 @@ VERSION      : ${env.VERSION}
                     gitFunctions.tagCommit(
                       "v${version}",
                       gitFunctions.getCurrentCommit(),
-                      isBB
+                      isBitbucket
                     )
 
                     gitFunctions.mergeBackAndPrep(
                       MAIN_BRANCH,
                       DEVELOP_BRANCH,
                       'patch',
-                      isBB
+                      isBitbucket
                     )
                 }
             } // end tag commit and merge back
