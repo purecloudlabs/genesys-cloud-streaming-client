@@ -1,5 +1,5 @@
 import * as utils from '../../src/utils';
-import { retryPromise, RetryPromise } from '../../src/utils';
+import { retryPromise } from '../../src/utils';
 
 describe('Utils', () => {
   describe('jid utils', () => {
@@ -74,16 +74,6 @@ describe('Utils', () => {
       await flush(DELAY);
       expect(retryFn).toHaveBeenCalledTimes(4);
       expect(retry.hasCompleted()).toBe(true);
-    });
-  });
-
-  describe('RetryPromise', () => {
-    it('should export RetryPromise',  () => {
-      const rPromise = new RetryPromise({
-        promiseFn: () => Promise.resolve()
-      });
-
-      return rPromise.promise;
     });
   });
 });
