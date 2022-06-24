@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.1.0...HEAD)
 
+### Fixed
+* [PCM-1943](https://inindca.atlassian.net/browse/PCM-1943) – Reverted faulty connect/retry logic introduced with [PCM-1908](https://inindca.atlassian.net/browse/PCM-1908) (v14.0.0)
+
 ### Added
 * [PCM-1935](https://inindca.atlassian.net/browse/PCM-1935) – added build, deploy, and publish notifications to the Jenkinsfile
 
