@@ -114,7 +114,7 @@ export class HttpClient {
     const value = this._httpRetryingRequests.get(retryId);
     if (value) {
       /* if the promise has already completed, this will do nothing. Still need to remove it from the map */
-      value.reject(new Error('Retry request cancelled'));
+      value.cancel(new Error('Retry request cancelled'));
       this._httpRetryingRequests.delete(retryId);
     }
     return true;

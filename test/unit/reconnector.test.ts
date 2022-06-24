@@ -391,34 +391,6 @@ describe('Reconnector', () => {
     });
   });
 
-  describe('_shouldRetryError()', () => {
-    let client: Client;
-    let reconnector: Reconnector;
-    let shouldRetryError: typeof Reconnector.prototype['_shouldRetryError'];
-    let error: Error;
-
-    beforeEach(() => {
-      client = new Client();
-      reconnector = new Reconnector(client);
-      shouldRetryError = reconnector['_shouldRetryError'].bind(reconnector);
-      error = new Error('never retry me');
-    });
-
-    it('should return true if maxattempt number has not been met', () => {
-      expect(shouldRetryError(error, 1, 2)).toBe(true);
-      expect(shouldRetryError(error, 2, 2)).toBe(true);
-    });
-
-    it('should return false if maxattempt or attemptnumber are not of type number', () => {
-      expect(shouldRetryError(error, undefined, 2)).toBe(false);
-      expect(shouldRetryError(error, 1, undefined)).toBe(false);
-    });
-
-    it('should return false if maxattempts have been reached', () => {
-      expect(shouldRetryError(error, 3, 2)).toBe(false);
-    });
-  });
-
   it('when an auth failure occurs it will cease the backoff', () => {
     const client = new Client();
     const reconnect = new Reconnector(client);
