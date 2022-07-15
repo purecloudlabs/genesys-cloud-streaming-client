@@ -146,6 +146,15 @@ describe('HttpRequestClient', () => {
         .catch(e => expect(e).toBe(error));
     });
 
+    it('should retry if there is a retriable status', async () => {
+      const error = new Error('bad');
+      (error as any).response = { status: 429 };
+      const spy = jest.spyOn(http, 'requestApi').mockRejectedValueOnce(error).mockResolvedValue(null);
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }, 0).promise;
+      expect(spy).toHaveBeenCalledTimes(2);
+    });
+
     it('should not retry if it is not a retriable status code', async () => {
       const error = new Error('bad http request');
       (error as any).status = 400;

@@ -27,7 +27,9 @@ export class HttpClient {
   requestApiWithRetry<T = any> (path: string, opts: RequestApiOptions, retryInterval?: number): RetryPromise<T> {
     const retry = retryPromise<T>(
       this.requestApi.bind(this, path, opts),
-      (error: any) => error && HttpClient.retryStatusCodes.has(error.status),
+      (error: any) => {
+        return error && error.response && HttpClient.retryStatusCodes.has(error.response.status);
+      },
       retryInterval,
       opts.logger
     );
