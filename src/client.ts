@@ -9,10 +9,11 @@ import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Reconnector } from './reconnector';
 import { Ping } from './ping';
-import { parseJwt, timeoutPromise } from './utils';
+import { parseJwt, timeoutPromise, wait } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
 import { RequestApiOptions, IClientOptions, IClientConfig } from './types/interfaces';
+import { AxiosError } from 'axios';
 
 let extensions = {
   ping: Ping,
@@ -330,9 +331,33 @@ export class Client {
     }, 10 * 1000, 'reconnecting streaming service');
   }
 
-  connect () {
+  async connect (connectOpts = { keepTryingOnFailure: false, retryDelay: 5000 }) {
+    try {
+      this.logger.info('streamingClient.connect was called');
+      await this._tryToConnect();
+    } catch (e) {
+      let retriable = true;
+
+      // if we get an error we *know* we cant retry, like a 401, don't retry
+      if (e instanceof AxiosError && [401, 403].includes(e.response?.status || 0)) {
+        retriable = false;
+      }
+
+      if (connectOpts.keepTryingOnFailure && this.autoReconnect) {
+        if (retriable) {
+          await wait(connectOpts.retryDelay);
+          return this.connect(connectOpts);
+        }
+
+        this.logger.error('Streaming client received and error that it can\'t recover from and will not attempt to reconnect', { error: e });
+      }
+
+      throw e;
+    }
+  }
+
+  _tryToConnect () {
     this.startServerLogging();
-    this.logger.info('streamingClient.connect was called');
     this.connecting = true;
 
     if (this.config.jwt) {
@@ -387,7 +412,6 @@ export class Client {
         this.connecting = false;
         return Promise.reject(err);
       });
-
   }
 
   stopServerLogging () {

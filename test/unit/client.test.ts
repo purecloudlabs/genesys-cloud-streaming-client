@@ -5,6 +5,8 @@ import nock from 'nock';
 import { Client } from '../../src/client';
 import { Logger } from 'genesys-cloud-client-logger';
 import * as utils from '../../src/utils';
+import { AxiosError } from 'axios';
+const flushPromises = () => new Promise(setImmediate);
 
 jest.mock('genesys-cloud-client-logger');
 
@@ -94,6 +96,59 @@ describe('Client', () => {
 
     const client = new Client(opts);
     expect(client.isGuest).toBeTruthy();
+  });
+
+  it('connect will retry if it receives an error', async () => {
+    jest.useFakeTimers();
+    const client = new Client(getDefaultOptions() as any);
+    const error = new AxiosError('whoops', undefined, undefined, {}, { status: 429 } as any);
+    client._tryToConnect = jest.fn().mockRejectedValueOnce(error).mockResolvedValue(null);
+    const connectSpy = jest.spyOn(client, 'connect');
+
+    const promise = client.connect({ keepTryingOnFailure: true, retryDelay: 1000 });
+    await flushPromises();
+
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1200);
+
+    await promise;
+    expect(connectSpy).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+
+  it('connect will retry if it receives an axios error without a status', async () => {
+    jest.useFakeTimers();
+    const client = new Client(getDefaultOptions() as any);
+    const error = new AxiosError('whoops', undefined, undefined, {}, undefined);
+    client._tryToConnect = jest.fn().mockRejectedValueOnce(error).mockResolvedValue(null);
+    const connectSpy = jest.spyOn(client, 'connect');
+
+    const promise = client.connect({ keepTryingOnFailure: true, retryDelay: 1000 });
+    await flushPromises();
+
+    expect(connectSpy).toHaveBeenCalledTimes(1);
+    jest.advanceTimersByTime(1200);
+
+    await promise;
+    expect(connectSpy).toHaveBeenCalledTimes(2);
+    jest.useRealTimers();
+  });
+  
+  it('connect will not retry if it receives an error it can\'t recover from', async () => {
+    jest.useFakeTimers();
+    const client = new Client(getDefaultOptions() as any);
+    const error = new AxiosError('whoops', undefined, undefined, {}, { status: 401 } as any);
+    client._tryToConnect = jest.fn().mockRejectedValueOnce(error).mockResolvedValue(null);
+    const connectSpy = jest.spyOn(client, 'connect');
+
+    try {
+      await client.connect({ keepTryingOnFailure: true, retryDelay: 1000 });
+      fail();
+    } catch (e) {
+      expect(connectSpy).toHaveBeenCalledTimes(1);
+    }
+    
+    jest.useRealTimers();
   });
 
   it('connect will reject if the session:started event is never emitted', () => {

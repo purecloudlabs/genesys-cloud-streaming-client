@@ -3,7 +3,11 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.1.2...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.0...HEAD)
+
+# [v14.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.1.2...v14.2.0)
+### Added
+* [PCM-1944](https://inindca.atlassian.net/browse/PCM-1944) – Added reconnect options to the `streamingClient.connect` so it will continue to try to connect at a given interval. This is separate from the reconnection logic in the case where the client connected but disconnected unexpectedly.
 
 # [v14.1.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.1.1...v14.1.2)
 ### Fixed
