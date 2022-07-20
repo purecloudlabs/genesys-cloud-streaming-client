@@ -130,6 +130,12 @@ export function calculatePayloadSize (trace: any): number {
   return str.length + (m ? m.length : 0);
 }
 
+export function wait (delayMs: number) {
+  return new Promise(resolve => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {
 //   for (var key in provided) {
