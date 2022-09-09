@@ -51,6 +51,7 @@ function stanzaOptionsJwt (config) {
   }
   let wsHost = config.host.replace(/\/$/, '');
   let stanzaOptions = {
+    resource: config.jidResource,
     transports: {
       websocket: `${wsHost}/stream/jwt/${config.jwt}`
     },
