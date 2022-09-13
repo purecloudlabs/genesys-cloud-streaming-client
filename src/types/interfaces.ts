@@ -1,5 +1,6 @@
 
 import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
+import { AxiosError } from 'axios';
 export { ILogger, LogLevel };
 export interface IClientOptions {
   host: string;
@@ -48,6 +49,10 @@ export type RequestApiOptions = {
   logger?: any;
   noAuthHeader?: boolean;
 };
+
+export interface IAxiosResponseError extends AxiosError {
+  text: string; // body of response as a string
+}
 export interface ISuperagentNetworkError extends Error {
   status: number | undefined; // will be `undefined` for network errors & timeouts
   method: string;
