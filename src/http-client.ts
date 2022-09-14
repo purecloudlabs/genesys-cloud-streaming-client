@@ -6,7 +6,8 @@ import {
   ISuperagentNetworkError,
   ISuperagentResponseError,
   INetworkError,
-  IResponseError
+  IResponseError,
+  IAxiosResponseError
 } from './types/interfaces';
 
 const correlationIdHeaderName = 'inin-correlation-id';
@@ -65,7 +66,7 @@ export class HttpClient {
       params.headers!['Authorization'] = `Bearer ${opts.authToken}`;
     }
 
-    const handleResponse = function (res: AxiosResponse): Promise<AxiosResponse> {
+    const handleResponse = (res: AxiosResponse): Promise<AxiosResponse> => {
       let now = new Date().getTime();
       let elapsed = (now - start) + 'ms';
 
@@ -75,6 +76,10 @@ export class HttpClient {
         let status = response.status;
         let correlationId = response.headers?.[correlationIdHeaderName];
         let body = response.data;
+        let error: IAxiosResponseError = {
+          ...res,
+          text: response.request.response
+        };
 
         logger.debug(`request error: ${params.url}`, {
           message: res.message,
@@ -85,7 +90,7 @@ export class HttpClient {
           body
         }, true);
 
-        return Promise.reject(res);
+        return Promise.reject(error);
       }
 
       let status = res.status;
