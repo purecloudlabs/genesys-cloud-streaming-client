@@ -194,6 +194,9 @@ describe('addEventListeners', () => {
 
     client._stanzaio.emit('message', { id: 'session123', to: 'sndlgkns@lskdn.com', accept: {} } as any)
     expect(spy).toHaveBeenCalled();
+
+    client._stanzaio.emit('message', { id: 'session124', to: 'sndlgkns@lskdn.com', reject: {} } as any)
+    expect(spy).toHaveBeenCalled();
   });
 
   it('should not call handle propose', () => {

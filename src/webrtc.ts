@@ -305,6 +305,8 @@ export class WebrtcExtension extends EventEmitter {
         this.handleRetract(msg.retract.sessionId);
       } else if (msg.accept) {
         this.handledIncomingRtcSession(msg.accept.sessionId);
+      } else if (msg.reject) {
+        this.handledIncomingRtcSession(msg.reject.sessionId);
       }
     });
   }
