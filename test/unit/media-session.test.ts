@@ -9,6 +9,9 @@ class FakePeerConnection extends EventTarget {
   getSenders = jest.fn();
   getTransceivers = jest.fn();
   close = jest.fn();
+  createDataChannel = () => ({
+    addEventListener: jest.fn()
+  });
 }
 
 class FakeParent extends EventEmitter {
@@ -124,6 +127,28 @@ describe('GenesysCloudMediaSession', () => {
       session.onIceStateChange();
 
       expect(spy).toHaveBeenCalledWith(JingleAction.SessionInfo, { info: { infoType: JINGLE_INFO_ACTIVE } });
+    });
+
+    it('should call setupDataChannel when connected', () => {
+      const parent = new FakeParent();
+
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
+
+      const spy = jest.spyOn(session, '_setupDataChannel');
+
+      (session.pc as any).iceConnectionState = 'connecting';
+      session.onIceStateChange();
+
+      expect(spy).not.toHaveBeenCalled();
+
+      (session.pc as any).iceConnectionState = 'connected';
+      session.onIceStateChange();
+
+      expect(spy).toHaveBeenCalled();
     });
 
     it('should not send session-info active if not connected', () => {
@@ -450,6 +475,143 @@ describe('GenesysCloudMediaSession', () => {
 
       session['_log']('info', 'Discovered new ICE candidate');
       expect(spy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('_setupDataChannel', () => {
+    let session: GenesysCloudMediaSession;
+
+    beforeEach(() => {
+      const parent = new FakeParent();
+      session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowIPv6: true
+      });
+    });
+
+    it('should do nothing if datachannel already exists', () => {
+      const spy = session.pc.createDataChannel = jest.fn();
+      session.dataChannel = {} as any;
+
+      session._setupDataChannel();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing if sdp didnt include data channel', () => {
+      const spy = session.pc.createDataChannel = jest.fn();
+      (session.pc as any).localDescription = { sdp: 'my sdp' };
+
+      session._setupDataChannel();
+
+      expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('should add event listeners', () => {
+      const spy = jest.fn();
+      session.pc.createDataChannel = () => ({ addEventListener: spy }) as any;
+      (session.pc as any).localDescription = { sdp: 'm=application webrtc-datachannel' };
+
+      session._setupDataChannel();
+
+      expect(spy).toHaveBeenCalled();
+      expect(session.dataChannel!.addEventListener).toHaveBeenCalledWith('open', expect.anything());
+      expect(session.dataChannel!.addEventListener).toHaveBeenCalledWith('message', expect.anything());
+      expect(session.dataChannel!.addEventListener).toHaveBeenCalledWith('close', expect.anything());
+      expect(session.dataChannel!.addEventListener).toHaveBeenCalledWith('error', expect.anything());
+    });
+
+    describe('dataChannel event listeners', () => {
+      beforeEach(() => {
+        session.pc.createDataChannel = () => new EventTarget() as any;
+        (session.pc as any).localDescription = { sdp: 'm=application webrtc-datachannel' };
+  
+        session._setupDataChannel();
+      });
+
+      it('open', () => {
+        const spy = jest.spyOn(session as any, '_log');
+
+        const event = new Event('open');
+        session.dataChannel!.dispatchEvent(event);
+
+        expect(spy).toHaveBeenCalledWith('info', 'data channel opened');
+      });
+  
+      it('close', () => {
+        const spy = jest.spyOn(session as any, '_log');
+
+        const event = new Event('close');
+        session.dataChannel!.dispatchEvent(event);
+
+        expect(spy).toHaveBeenCalledWith('info', 'closing data channel');
+      });
+      
+      it('error', () => {
+        const spy = jest.spyOn(session as any, '_log');
+
+        const event = new Event('error');
+        session.dataChannel!.dispatchEvent(event);
+
+        expect(spy).toHaveBeenCalledWith('error', 'Error occurred with the data channel', event);
+      });
+      
+      it('message', () => {
+        const spy = jest.spyOn(session as any, '_handleDataChannelMessage');
+        session.dataChannel = undefined;
+        session._setupDataChannel();
+
+        const event = new Event('message');
+        session.dataChannel!.dispatchEvent(event);
+
+        expect(spy).toHaveBeenCalledWith(event);
+      });
+    });
+
+    describe('_handleDataChannelMessage', () => {
+      it('should emit dataChannelMessage', () => {
+        const parent = new FakeParent();
+        const session = new GenesysCloudMediaSession({
+          options: { parent } as any,
+          sessionType: 'softphone',
+          allowIPv6: true
+        });
+
+        const data = {
+          jsonrpc: 'version2',
+          method: 'message.notifiy',
+          params: { speakers: [] }
+        }
+
+        session.on('dataChannelMessage', (msg) => {
+          expect(msg).toEqual(data);
+        });
+
+        const logSpy = jest.spyOn(session as any, '_log');
+        
+        const event = new MessageEvent('message', { data: JSON.stringify(data) });
+        session._handleDataChannelMessage(event);
+
+        expect(logSpy).not.toHaveBeenCalledWith('error', expect.anything(), expect.anything());
+        expect.assertions(2);
+      });
+
+      it('should handle json parse error', () => {
+        const parent = new FakeParent();
+        const session = new GenesysCloudMediaSession({
+          options: { parent } as any,
+          sessionType: 'softphone',
+          allowIPv6: true
+        });
+
+        const logSpy = jest.spyOn(session as any, '_log');
+        
+        const event = new MessageEvent('message', { data: '{sldkfj,}' });
+        session._handleDataChannelMessage(event);
+
+        expect(logSpy).toHaveBeenCalledWith('error', expect.anything(), expect.anything());
+      });
     });
   });
 });

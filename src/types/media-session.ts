@@ -5,7 +5,7 @@ import StrictEventEmitter from 'strict-event-emitter-types';
 import { EventEmitter } from 'events';
 import { JingleReason, JingleInfo, Jingle, JingleIce } from 'stanza/protocol';
 import { ActionCallback, SessionOpts } from 'stanza/jingle/Session';
-import { SessionTypes, SessionTypesAsStrings } from './interfaces';
+import { JsonRpcMessage, SessionTypes, SessionTypesAsStrings } from './interfaces';
 
 export interface IGenesysCloudMediaSessionParams {
   options: SessionOpts;
@@ -36,6 +36,7 @@ export class GenesysCloudMediaSession extends MediaSession {
   ignoreHostCandidatesFromRemote: boolean;
   allowIPv6: boolean;
   allowTCP: boolean;
+  dataChannel?: RTCDataChannel;
 
   constructor (params: IGenesysCloudMediaSessionParams) {
     super(params.options);
@@ -165,6 +166,7 @@ export class GenesysCloudMediaSession extends MediaSession {
           infoType: JINGLE_INFO_ACTIVE
         }
       });
+      this._setupDataChannel();
     } else if (iceState === 'failed') {
       this._log('info', 'ICE connection failed', {
         candidatesDiscovered: this.iceCandidatesDiscovered,
@@ -241,6 +243,42 @@ export class GenesysCloudMediaSession extends MediaSession {
       return;
     });
   }
+
+  _setupDataChannel () {
+    // this shouldn't happen, but we shouldn't set the datachannel up more than once
+    if (this.dataChannel) {
+      return;
+    }
+
+    // do nothing if a datachannel wasn't offered
+    if (this.pc.localDescription?.sdp.includes('webrtc-datachannel')) {
+      this._log('info', 'creating data channel');
+      this.dataChannel = this.pc.createDataChannel('videoConferenceControl');
+      this.dataChannel.addEventListener('open', () => {
+        this._log('info', 'data channel opened');
+      });
+
+      this.dataChannel.addEventListener('message', this._handleDataChannelMessage.bind(this));
+
+      this.dataChannel.addEventListener('close', () => {
+        this._log('info', 'closing data channel');
+      });
+
+      this.dataChannel.addEventListener('error', (error) => {
+        this._log('error', 'Error occurred with the data channel', error);
+      });
+    }
+  }
+
+  _handleDataChannelMessage (event: MessageEvent) {
+    this._log('debug', 'data channel message received', event);
+    try {
+      const message = JSON.parse(event.data);
+      this.emit('dataChannelMessage', message);
+    } catch (e) {
+      this._log('error', 'Failed to parse data channel message', { error: e });
+    }
+  }
 }
 
 export interface SessionEvents {
@@ -254,6 +292,7 @@ export interface SessionEvents {
   terminated: JingleReason;
   stats: StatsEvent;
   endOfCandidates: void;
+  dataChannelMessage: JsonRpcMessage;
 }
 
 export interface GenesysCloudMediaSession extends StrictEventEmitter<EventEmitter, SessionEvents> { }

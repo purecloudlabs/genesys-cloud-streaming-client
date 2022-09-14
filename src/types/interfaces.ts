@@ -125,3 +125,9 @@ export interface IPendingSession {
   accepted?: boolean;
   sessionType: SessionTypes | SessionTypesAsStrings;
 }
+
+export interface JsonRpcMessage {
+  jsonrpc: string;
+  method: string;
+  params?: any;
+}
