@@ -412,6 +412,9 @@ export class WebrtcExtension extends EventEmitter {
     return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
   }
 
+  /**
+   * Inform the client that another client has already taken care of the pendingSession
+   */
   private handledIncomingRtcSession (sessionId: string) {
     this.logger.info('accept received', this.getLogDetailsForPendingSessionId(sessionId));
     return this.emit(events.HANDLED_INCOMING_RTCSESSION, sessionId);
