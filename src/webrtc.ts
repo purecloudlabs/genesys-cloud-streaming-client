@@ -304,9 +304,9 @@ export class WebrtcExtension extends EventEmitter {
       } else if (msg.retract) {
         this.handleRetract(msg.retract.sessionId);
       } else if (msg.accept) {
-        this.handledIncomingRtcSession(msg.accept.sessionId);
+        this.handledIncomingRtcSession(msg.accept.sessionId, msg);
       } else if (msg.reject) {
-        this.handledIncomingRtcSession(msg.reject.sessionId);
+        this.handledIncomingRtcSession(msg.reject.sessionId, msg);
       }
     });
   }
@@ -415,8 +415,9 @@ export class WebrtcExtension extends EventEmitter {
   /**
    * Inform the client that another client has already taken care of the pendingSession
    */
-  private handledIncomingRtcSession (sessionId: string) {
-    this.logger.info('accept received', this.getLogDetailsForPendingSessionId(sessionId));
+  private handledIncomingRtcSession (sessionId: string, msg: any) {
+    let acceptedOrRejected = msg.accept ? 'accept' : 'reject';
+    this.logger.info(`${acceptedOrRejected} received`, this.getLogDetailsForPendingSessionId(sessionId));
     return this.emit(events.HANDLED_INCOMING_RTCSESSION, sessionId);
   }
 
