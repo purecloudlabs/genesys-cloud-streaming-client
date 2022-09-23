@@ -266,7 +266,7 @@ export class WebrtcExtension extends EventEmitter {
         this.logger.error('Failed to send stats', {
           err,
           numberOfFailedStats: statsToSend.length
-        });
+        }, { skipServer: !navigator.onLine });
       }
     }
   }

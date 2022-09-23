@@ -51,6 +51,7 @@ function stanzaOptionsJwt (config) {
   }
   let wsHost = config.host.replace(/\/$/, '');
   let stanzaOptions = {
+    resource: config.jidResource,
     transports: {
       websocket: `${wsHost}/stream/jwt/${config.jwt}`
     },
@@ -145,19 +146,25 @@ export class Client {
     });
 
     this.on('disconnected', () => {
+      const wasConnected = this.connected;
       if (this._stanzaio.transport || this.connecting) {
-        this.logger.info('disconnected event received, but reconnection is in progress');
+        this.logger.info('disconnected event received, but reconnection is in progress', undefined, { skipServer: !wasConnected });
         return;
       }
 
       this.connected = false;
       this._ping.stop();
 
-      this.logger.info('Streaming client disconnected.');
+      // since it's possible to continually get diconnected events,
+      // we only want to log this if we were just connected
+      this.logger.info('Streaming client disconnected.', undefined, { skipServer: !wasConnected });
 
       const channelId = this.config.channelId;
       if (this.autoReconnect && !this.deadChannels.includes(channelId)) {
-        this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect', { channelId });
+        // since it's possible to continually get diconnected events,
+        // we only want to log this if we were just connected
+        this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect', { channelId }, { skipServer: !wasConnected });
+
         this._reconnector.start();
       }
     });
