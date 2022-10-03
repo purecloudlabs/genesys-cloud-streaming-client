@@ -194,6 +194,9 @@ describe('addEventListeners', () => {
 
     client._stanzaio.emit('message', { id: 'session123', to: 'sndlgkns@lskdn.com', accept: {} } as any)
     expect(spy).toHaveBeenCalled();
+
+    client._stanzaio.emit('message', { id: 'session124', to: 'sndlgkns@lskdn.com', reject: {} } as any)
+    expect(spy).toHaveBeenCalled();
   });
 
   it('should not call handle propose', () => {
@@ -307,7 +310,7 @@ describe('handlePropose', () => {
     expect(webrtc.emit).not.toHaveBeenCalled();
   });
 
-  it('should emit propose event with pending session', () => {
+  it('should emit requestIncomingRtcSession event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     client._stanzaio.jid = 'myJid';
@@ -366,7 +369,7 @@ describe('handlePropose', () => {
 });
 
 describe('handleRetract', () => {
-  it('should emit propose event with pending session', () => {
+  it('should emit cancelIncomingRtcSession event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     client._stanzaio.jid = 'myJid';
@@ -382,18 +385,24 @@ describe('handleRetract', () => {
 });
 
 describe('handledIncomingRtcSession', () => {
-  it('should emit propose event with pending session', () => {
+  it('should emit handledIncomingRtcSession event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     client._stanzaio.jid = 'myJid';
 
     jest.spyOn(webrtc, 'emit');
 
-    const sessionId = '123sessionid'
+    const acceptSessionId = '123sessionid'
+    const accept = { id: acceptSessionId, to: 'sndlgkns@lskdn.com', accept: {} };
 
-    webrtc['handledIncomingRtcSession'](sessionId);
+    webrtc['handledIncomingRtcSession'](acceptSessionId, accept);
+    expect(webrtc.emit).toHaveBeenCalledWith('handledIncomingRtcSession', acceptSessionId);
 
-    expect(webrtc.emit).toHaveBeenCalledWith('handledIncomingRtcSession', sessionId);
+    const rejectSessionId = '124sessionid'
+    const reject = { id: rejectSessionId, to: 'sndlgkns@lskdn.com', reject: {} };
+
+    webrtc['handledIncomingRtcSession'](rejectSessionId, reject);
+    expect(webrtc.emit).toHaveBeenCalledWith('handledIncomingRtcSession', rejectSessionId);
   });
 });
 
