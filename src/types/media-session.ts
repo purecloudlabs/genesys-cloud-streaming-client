@@ -27,6 +27,7 @@ export class GenesysCloudMediaSession extends MediaSession {
   private statsGatherer?: StatsGatherer;
   private iceCandidatesDiscovered = 0;
   private iceCandidatesReceivedFromPeer = 0;
+  private interruptionStart?: Date;
 
   conversationId?: string;
   id?: string;
@@ -156,10 +157,17 @@ export class GenesysCloudMediaSession extends MediaSession {
     const iceState = this.pc.iceConnectionState;
     const sessionId = this.id;
     const conversationId = this.conversationId;
+    const sessionType = this.sessionType;
 
     this._log('info', 'ICE state changed: ', { iceState, sessionId, conversationId });
 
-    if (iceState === 'connected') {
+    if (iceState === 'disconnected') {
+      // this means we actually connected at one point
+      if (this.pc.signalingState === 'stable') {
+        this.interruptionStart = new Date();
+        this._log('info', 'Connection state is interrupted', { sessionId, conversationId, sessionType });
+      }
+    } else if (iceState === 'connected') {
       this._log('info', 'sending session-info: active');
       this.send(JingleAction.SessionInfo, {
         info: {
@@ -178,7 +186,21 @@ export class GenesysCloudMediaSession extends MediaSession {
   }
 
   onConnectionStateChange () {
-    this._log('info', 'Connection state changed: ', { connectionState: this.pc.connectionState });
+    const connectionState = this.pc.connectionState;
+    const sessionId = this.id;
+    const conversationId = this.conversationId;
+    const sessionType = this.sessionType;
+
+    this._log('info', 'Connection state changed: ', { connectionState, sessionId, conversationId, sessionType });
+    if (this.interruptionStart) {
+      if (connectionState === 'connected') {
+        const diff = new Date().getTime() - this.interruptionStart.getTime();
+        this._log('info', 'Connection was interrupted but was successfully recovered/connected', { sessionId, conversationId, sessionType, timeToRecover: diff });
+        this.interruptionStart = undefined;
+      } else if (connectionState === 'failed') {
+        this._log('info', 'Connection was interrupted and failed to recover', { sessionId, conversationId, sessionType });
+      }
+    }
   }
 
   onIceCandidateError (event: RTCPeerConnectionIceErrorEvent) {

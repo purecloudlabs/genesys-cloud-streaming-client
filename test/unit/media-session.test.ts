@@ -185,6 +185,67 @@ describe('GenesysCloudMediaSession', () => {
         candidatesReceivedFromPeer: 5
       }));
     });
+
+    it('should set interruption start', () => {
+      const parent = new FakeParent();
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
+
+      const spy = session['_log'] = jest.fn();
+      session['pc'] = { 
+        iceConnectionState: 'disconnected',
+        signalingState: 'stable'
+      } as any;
+
+      expect(session['interruptionStart']).toBeFalsy();
+
+      session.onIceStateChange();
+
+      expect(session['interruptionStart']).toBeTruthy();
+    });
+  });
+
+  describe('onConnectionStateChange', () => {
+    it('should log an interruption recovery message', () => {
+      const parent = new FakeParent();
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
+
+      session['interruptionStart'] = new Date();
+
+      const spy = session['_log'] = jest.fn();
+      session['pc'] = { 
+        connectionState: 'connected',
+      } as any;
+
+      session.onConnectionStateChange();
+      expect(spy).toHaveBeenCalledWith('info', expect.stringContaining('Connection was interrupted but was successfully reco'), expect.anything());
+    });
+
+    it('should log an interruption failure message', () => {
+      const parent = new FakeParent();
+      const session = new GenesysCloudMediaSession({
+        options: { parent } as any,
+        sessionType: 'softphone',
+        allowIPv6: false
+      });
+
+      session['interruptionStart'] = new Date();
+
+      const spy = session['_log'] = jest.fn();
+      session['pc'] = { 
+        connectionState: 'failed',
+      } as any;
+
+      session.onConnectionStateChange();
+      expect(spy).toHaveBeenCalledWith('info', expect.stringContaining('Connection was interrupted and failed to recover'), expect.anything());
+    });
   });
 
   describe('onIceCandidate', () => {
