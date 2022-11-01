@@ -38,7 +38,6 @@ export class GenesysCloudMediaSession extends MediaSession {
   allowIPv6: boolean;
   allowTCP: boolean;
   dataChannel?: RTCDataChannel;
-  lastDataChannelMessage?: MessageEvent;
 
   constructor (params: IGenesysCloudMediaSessionParams) {
     super(params.options);
@@ -294,10 +293,6 @@ export class GenesysCloudMediaSession extends MediaSession {
   }
 
   _handleDataChannelMessage (event: MessageEvent) {
-    if (event.data !== this.lastDataChannelMessage?.data) {
-      this._log('debug', 'data channel message received', event);
-      this.lastDataChannelMessage = event;
-    }
     try {
       const message = JSON.parse(event.data);
       this.emit('dataChannelMessage', message);
