@@ -16,6 +16,7 @@ e.g. `streamingClient._stanzaio`, then you'll likely have issues.
   of stanza. The reason for this is now we can guarantee we are not confusing events from old stanza sessions with new stanza sessions. The
   major driver of this methodology change is because stanza's `connect()` function is not atomic and it is possible to receive a mismatched
   number of `connected` and `disconnected` events from stanza.
+* [PCM-2020](https://inindca.atlassian.net/browse/PCM-2020) - Remove data-channel logs to reduce console clutter.
 
 # [v14.2.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.2...v14.2.3)
 * [PCM-1968](https://inindca.atlassian.net/browse/PCM-1968) - More verbose logging around interruption states
