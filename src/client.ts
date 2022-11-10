@@ -1,108 +1,59 @@
 'use strict';
 
 import { TokenBucket } from 'limiter';
-import { createClient as createStanzaClient, Agent, AgentConfig } from 'stanza';
 import { Logger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
-import { Reconnector } from './reconnector';
 import { Ping } from './ping';
-import { parseJwt, timeoutPromise, wait } from './utils';
+import { parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
-import { RequestApiOptions, IClientOptions, IClientConfig } from './types/interfaces';
+import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions } from './types/interfaces';
 import { AxiosError } from 'axios';
+import { NamedAgent } from './types/named-agent';
+import EventEmitter from 'events';
+import { ConnectionManager } from './connection-manager';
+import { backOff } from 'exponential-backoff';
+import OfflineError from './types/offline-error';
+import SaslError from './types/sasl-error';
+import { TimeoutError } from './types/timeout-error';
 
 let extensions = {
-  ping: Ping,
-  reconnector: Reconnector,
   notifications: Notifications,
   webrtcSessions: WebrtcExtension
 };
 
-function stanzaioOptions (config: IClientOptions & { channelId: string }): AgentConfig {
-  let wsHost = config.host.replace(/\/$/, '');
-  let stanzaOptions: AgentConfig = {
-    jid: config.jid,
-    resource: config.jidResource,
-    credentials: {
-      username: config.jid,
-      password: `authKey:${config.authToken}`
-    },
-    transports: {
-      websocket: `${wsHost}/stream/channels/${config.channelId}`
-    }
-  };
+const STANZA_DISCONNECTED = 'stanzaDisconnected';
+const NO_LONGER_SUBSCRIBED = 'notify:no_longer_subscribed';
 
-  return stanzaOptions;
-}
-
-const HARD_RECONNECT_THRESHOLD = 2;
-
-function stanzaOptionsJwt (config) {
-  const jwt = parseJwt(config.jwt);
-  let jidDomain;
-  try {
-    jidDomain = jwt.data.jid.split('@')[1].replace('conference.', '');
-  } catch (e) {
-    throw new Error('failed to parse jid');
-  }
-  let wsHost = config.host.replace(/\/$/, '');
-  let stanzaOptions = {
-    resource: config.jidResource,
-    transports: {
-      websocket: `${wsHost}/stream/jwt/${config.jwt}`
-    },
-    server: jidDomain,
-    sasl: ['anonymous']
-  };
-
-  return stanzaOptions;
-}
-
-const REMAPPED_EVENTS = {
-  'connected': 'session:started',
-  '_connected': 'connected'
-};
-
-export class Client {
-  _stanzaio: Agent;
+export class Client extends EventEmitter {
+  activeStanzaInstance?: NamedAgent;
   connected = false;
   connecting = false;
-  autoReconnect = true;
+  hardReconnectRequired = true;
   reconnectOnNoLongerSubscribed: boolean;
   logger: Logger;
-  leakyReconnectTimer: any;
-  hardReconnectCount = 0;
-  reconnectLeakTime = 1000 * 60 * 10; // 10 minutes
-  deadChannels: string[] = [];
   config: IClientConfig;
-  streamId: any;
-  backgroundAssistantMode = false;
   isGuest = false;
+  backgroundAssistantMode = false;
+
+  private autoReconnect = true;
+  private extensions: StreamingClientExtension[] = [];
+  private connectionManager: ConnectionManager;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
   _notifications!: Notifications;
-  reconnector!: Reconnector;
   webrtcSessions!: WebrtcExtensionAPI;
   _webrtcSessions!: WebrtcExtension;
 
   _ping!: Ping;
-  _reconnector!: Reconnector;
 
   constructor (options: IClientOptions) {
+    super();
     this.http = new HttpClient();
-
-    const stanzaio = createStanzaClient({});
-
-    // TODO: remove this hack when we can. basically stanza messes up the auth mechanism priority.
-    (stanzaio.sasl as any).mechanisms.find(mech => mech.name === 'ANONYMOUS').priority = 0;
-    (stanzaio.sasl as any).mechanisms = (stanzaio.sasl as any).mechanisms.sort((a, b) => b.priority - a.priority);
-
-    this._stanzaio = stanzaio;
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
 
@@ -145,107 +96,11 @@ export class Client {
       originAppId: options.appId
     });
 
-    this.on('disconnected', () => {
-      const wasConnected = this.connected;
-      if (this._stanzaio.transport || this.connecting) {
-        this.logger.info('disconnected event received, but reconnection is in progress', undefined, { skipServer: !wasConnected });
-        return;
-      }
-
-      this.connected = false;
-      this._ping.stop();
-
-      // since it's possible to continually get diconnected events,
-      // we only want to log this if we were just connected
-      this.logger.info('Streaming client disconnected.', undefined, { skipServer: !wasConnected });
-
-      const channelId = this.config.channelId;
-      if (this.autoReconnect && !this.deadChannels.includes(channelId)) {
-        // since it's possible to continually get diconnected events,
-        // we only want to log this if we were just connected
-        this.logger.info('Streaming client disconnected unexpectedly. Attempting to auto reconnect', { channelId }, { skipServer: !wasConnected });
-
-        this._reconnector.start();
-      }
-    });
-
-    // remapped session:started
-    this.on('connected', async (event) => {
-      this.streamId = event.resource;
-      this._ping.start();
-      this.connected = true;
-      this._reconnector.stop();
-      this.connecting = false;
-    });
-
-    // remapped session:end
-    this.on('session:end', () => {
-      this._ping.stop();
-    });
-
-    this._stanzaio.on('sasl', (sasl) => {
-      if (sasl.type === 'failure') {
-        this.logger.error('Authentication failed connecting to streaming service', { ...sasl, channelId: this.config.channelId });
-        if (sasl.condition !== 'temporary-auth-failure') {
-          this._ping.stop();
-          this.autoReconnect = false;
-          return this.disconnect();
-        } else {
-          this.logger.info('Temporary auth failure, continuing reconnect attempts');
-        }
-      }
-    });
-
-    this.on('notify:no_longer_subscribed', (data) => {
-      this._ping.stop();
-
-      const channelId = data.eventBody.channelId;
-      this.deadChannels.push(channelId);
-
-      if (channelId !== this.config.channelId) {
-        this.logger.warn('received no_longer_subscribed event for a non active channelId');
-        return;
-      }
-
-      if (this.hardReconnectCount >= HARD_RECONNECT_THRESHOLD) {
-        this.logger.error(`no_longer_subscribed has been called ${this.hardReconnectCount} times and the threshold is ${HARD_RECONNECT_THRESHOLD}, not attempting to reconnect
-          channelId: ${this.config.channelId}`);
-        this.cleanupLeakTimer();
-        return;
-      }
-
-      this.logger.info('no_longer_subscribed received');
-
-      if (!this.reconnectOnNoLongerSubscribed) {
-        this.logger.info('`reconnectOnNoLongerSubscribed` is false, not attempting to reconnect streaming client');
-        return;
-      }
-
-      this.logger.info('streaming client attempting to reconnect on a new channel');
-      this.hardReconnectCount++;
-
-      if (!this.leakyReconnectTimer) {
-        this.leakyReconnectTimer = setInterval(() => {
-          if (this.hardReconnectCount > 0) {
-            this.hardReconnectCount--;
-          } else {
-            this.cleanupLeakTimer();
-          }
-        }, this.reconnectLeakTime);
-      }
-
-      return this._reconnector.hardReconnect();
-    });
+    this.connectionManager = new ConnectionManager(this.logger, this.config);
 
     Object.keys(extensions).forEach((extensionName) => {
       const extension: StreamingClientExtension = new extensions[extensionName](this, options);
-
-      if (typeof extension.handleIq === 'function') {
-        stanzaio.on('iq', extension.handleIq.bind(extension));
-      }
-      if (typeof extension.handleMessage === 'function') {
-        stanzaio.on('message', extension.handleMessage.bind(extension));
-      }
+      this.extensions.push(extension);
 
       if (!extension.tokenBucket) {
         // default rate limit
@@ -259,18 +114,26 @@ export class Client {
       }
 
       if (typeof extension.on === 'function') {
-        extension.on('send', function (data, message = false) {
-          return extension.tokenBucket!.removeTokens(1, () => {
-            if (message === true) {
-              return stanzaio.sendMessage(data);
-            }
-            return stanzaio.sendIQ(data);
-          });
-        });
+        extension.on('send', this.handleSendEventFromExtension.bind(this, extension));
       }
 
       this[extensionName] = extension.expose;
       this[`_${extensionName}`] = extension;
+    });
+  }
+
+  private handleSendEventFromExtension (extension: StreamingClientExtension, data: any, message = false) {
+    return extension.tokenBucket!.removeTokens(1, () => {
+      const stanza = this.activeStanzaInstance;
+
+      if (!stanza) {
+        return this.logger.warn('cannot send message, no active stanza client', { data, message }, { skipServer: true });
+      }
+
+      if (message === true) {
+        return stanza.sendMessage(data);
+      }
+      return stanza.sendIQ(data);
     });
   }
 
@@ -284,148 +147,250 @@ export class Client {
     return false;
   }
 
-  cleanupLeakTimer () {
-    clearInterval(this.leakyReconnectTimer);
-    this.leakyReconnectTimer = null;
+  private addInateEventHandlers (stanza: NamedAgent) {
+    this.on(STANZA_DISCONNECTED, this.handleStanzaDisconnectedEvent.bind(this, stanza));
+    this.on(NO_LONGER_SUBSCRIBED, this.handleNoLongerSubscribed.bind(this, stanza));
+
+    this.extensions.forEach(extension => {
+      if (typeof extension.handleIq === 'function') {
+        stanza.on('iq', extension.handleIq.bind(extension));
+      }
+      if (typeof extension.handleMessage === 'function') {
+        stanza.on('message', extension.handleMessage.bind(extension));
+      }
+    });
   }
 
-  on (eventName, ...args) {
-    if (REMAPPED_EVENTS[eventName]) {
-      (this._stanzaio.on as any)(REMAPPED_EVENTS[eventName], ...args);
-    } else {
-      (this._stanzaio.on as any)(eventName, ...args);
+  private proxyStanzaEvents (stanza: NamedAgent) {
+    stanza.originalEmitter = stanza.emit;
+    (stanza as unknown as Client).emit = (eventName: string, ...args: any[]): boolean => {
+      const hasListeners = stanza.originalEmitter!(eventName, ...args);
+
+      // there are a few events that need to be handled specially. stanza emits a `connected` event
+      // which means the web socket connected but that doesn't mean it's not going to immediately close.
+      // For this reason, we are going to equate the `session:started` event as "connected" which
+      // essentially means the websocket connection is stable.
+      //
+      // we are also going to let streaming client control its own connected and disconnected state so
+      // we will emit those events separately "when we are ready".
+
+      // as per block comment, we'll ignore the connected event
+      if (eventName === 'connected') {
+        return hasListeners;
+      } else if (eventName === 'disconnected') {
+        eventName = STANZA_DISCONNECTED;
+      }
+
+      return this.emit(eventName, ...args);
+    };
+  }
+
+  private async handleStanzaDisconnectedEvent (disconnectedInstance: NamedAgent): Promise<any> {
+    this.logger.info('stanzaDisconnected event received', { stanzaInstanceId: disconnectedInstance.id, channelId: disconnectedInstance.channelId });
+    this.connected = false;
+    this.connecting = false;
+    disconnectedInstance.pinger!.stop();
+
+    this.removeAllListeners(STANZA_DISCONNECTED);
+    this.removeAllListeners(NO_LONGER_SUBSCRIBED);
+
+    // unproxy events
+    if (disconnectedInstance.originalEmitter) {
+      disconnectedInstance.emit = disconnectedInstance.originalEmitter as any;
     }
-    return this;
-  }
 
-  once (eventName, ...args) {
-    if (REMAPPED_EVENTS[eventName]) {
-      (this._stanzaio.once as any)(REMAPPED_EVENTS[eventName], ...args);
-    } else {
-      (this._stanzaio.once as any)(eventName, ...args);
+    this.activeStanzaInstance = undefined;
+
+    this.emit('disconnected', { reconnecting: this.autoReconnect });
+
+    if (this.autoReconnect) {
+      return this.connect({ keepTryingOnFailure: true });
     }
-    return this;
   }
 
-  off (eventName, ...args) {
-    if (REMAPPED_EVENTS[eventName]) {
-      (this._stanzaio.off as any)(REMAPPED_EVENTS[eventName], ...args);
-    } else {
-      (this._stanzaio.off as any)(eventName, ...args);
-    }
-    return this;
-  }
+  private handleNoLongerSubscribed (stanzaInstance: NamedAgent) {
+    this.logger.warn('noLongerSubscribed event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+    stanzaInstance.pinger!.stop();
 
-  disconnect () {
-    this.logger.info('streamingClient.disconnect was called');
-    this.stopServerLogging();
-    return timeoutPromise(resolve => {
-      this._stanzaio.once('disconnected', resolve);
+    this.hardReconnectRequired = true;
+
+    if (!this.reconnectOnNoLongerSubscribed) {
       this.autoReconnect = false;
-      this._reconnector.stop(new Error('Cancelling reconnect')); // just in case there is already an active reconnect trying
+    }
+  }
+
+  async disconnect () {
+    this.logger.info('streamingClient.disconnect was called');
+
+    if (!this.activeStanzaInstance) {
+      return;
+    }
+
+    return timeoutPromise(resolve => {
+      this.activeStanzaInstance!.once('disconnected', resolve);
+      this.autoReconnect = false;
       this.http.stopAllRetries();
-      this._stanzaio.disconnect();
+      this.activeStanzaInstance!.disconnect();
     }, 1000, 'disconnecting streaming service');
   }
 
-  reconnect () {
-    this.logger.info('streamingClient.reconnect was called');
-    return timeoutPromise(resolve => {
-      this._stanzaio.once('session:started', resolve);
-      // trigger a stop on the underlying connection, but allow reconnect
-      this.autoReconnect = true;
-      this._stanzaio.disconnect();
-    }, 10 * 1000, 'reconnecting streaming service');
-  }
+  async connect (connectOpts: StreamingClientConnectOptions = { keepTryingOnFailure: false }) {
+    if (this.connecting) {
+      const error = new Error('Already trying to connect streaming client');
+      return this.logger.warn(error);
+    }
 
-  async connect (connectOpts = { keepTryingOnFailure: false, retryDelay: 5000 }) {
     try {
-      this.logger.info('streamingClient.connect was called');
-      await this._tryToConnect();
-    } catch (e) {
-      let retriable = true;
+      await backOff(() => this.makeConnectionAttempt(), {
+        jitter: 'full',
+        maxDelay: 10000,
+        numOfAttempts: connectOpts.keepTryingOnFailure ? Infinity : 1,
+        startingDelay: 2000,
+        retry: this.backoffConnectRetryHandler.bind(this, connectOpts)
+      });
+    } catch (err: any) {
+      let error = err;
+      if (err.name === 'AxiosError') {
+        const axiosError = err as AxiosError;
+        const config = axiosError.config;
 
-      // if we get an error we *know* we cant retry, like a 401, don't retry
-      if (e instanceof AxiosError && [401, 403].includes(e.response?.status || 0)) {
-        retriable = false;
+        // sanitized error for logging
+        error = {
+          config: {
+            url: config.url,
+            method: config.method
+          },
+          status: axiosError.response?.status,
+          code: axiosError.code,
+          name: axiosError.name,
+          message: axiosError.message
+        };
       }
 
-      if (connectOpts.keepTryingOnFailure && this.autoReconnect) {
-        if (retriable) {
-          await wait(connectOpts.retryDelay);
-          return this.connect(connectOpts);
-        }
-
-        this.logger.error('Streaming client received and error that it can\'t recover from and will not attempt to reconnect', { error: e });
-      }
-
-      throw e;
+      this.logger.error('Failed to connect streaming client', { error });
+      throw err;
     }
   }
 
-  _tryToConnect () {
-    this.startServerLogging();
-    this.connecting = true;
-
-    if (this.config.jwt) {
-      return timeoutPromise(resolve => {
-        this.once('connected', resolve);
-        const options = stanzaOptionsJwt(this.config);
-        this._stanzaio.updateConfig(options);
-        this._stanzaio.connect();
-      }, 10 * 1000, 'connecting to streaming service with jwt')
-        .catch((err) => {
-          this.connecting = false;
-          return Promise.reject(err);
-        });
+  private backoffConnectRetryHandler (connectOpts: StreamingClientConnectOptions, err: any, connectionAttempt: number): boolean {
+    // if we exceed the `numOfAttempts` in the backoff config it still calls this retry fn and just ignores the result
+    // if that's the case, we just want to bail out and ignore all the extra logging here.
+    if (!connectOpts.keepTryingOnFailure) {
+      return false;
     }
 
-    let jidPromise: Promise<any>;
-    if (this.config.jid) {
-      jidPromise = Promise.resolve(this.config.jid);
-    } else {
-      const opts: RequestApiOptions = {
-        method: 'get',
+    const additionalErrorDetails: any = { connectionAttempt, error: err };
+
+    if (err.name === 'AxiosError') {
+      const axiosError = err as AxiosError;
+      const config = axiosError.config;
+      let sanitizedError = {
+        config: {
+          url: config.url,
+          method: config.method
+        },
+        status: axiosError.response?.status,
+        code: axiosError.code,
+        name: axiosError.name,
+        message: axiosError.message
+      };
+
+      additionalErrorDetails.error = sanitizedError;
+
+      if ([401, 403].includes(err.response?.status || 0)) {
+        this.logger.error('Streaming client received an error that it can\'t recover from and will not attempt to reconnect', additionalErrorDetails);
+        return false;
+      }
+    }
+
+    // if we get a sasl error, that means we made it all the way to the point of trying to open a websocket and
+    // it was rejected for some reason. At this point we should do a hard reconnect then try again.
+    if (err instanceof SaslError) {
+      this.logger.info('hardReconnectRequired set to true due to sasl error');
+      this.hardReconnectRequired = true;
+      Object.assign(additionalErrorDetails, { channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
+    }
+
+    // we don't need to log the stack for a timeout message
+    if (err instanceof TimeoutError) {
+      additionalErrorDetails.error = err.message;
+
+      const details = (err as any).details;
+      if (details) {
+        additionalErrorDetails.details = details;
+      }
+    }
+
+    this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+    return true;
+  }
+
+  private async makeConnectionAttempt () {
+    if (!navigator.onLine) {
+      throw new OfflineError('Browser if offline, skipping connection attempt');
+    }
+
+    await this.prepareForConnect();
+    const stanzaInstance = await this.connectionManager.getNewStanzaConnection();
+    this.connected = true;
+    this.connecting = false;
+    this.addInateEventHandlers(stanzaInstance);
+    this.proxyStanzaEvents(stanzaInstance);
+    stanzaInstance.pinger = new Ping(this, stanzaInstance);
+    this.extensions.forEach(extension => extension.handleStanzaInstanceChange(stanzaInstance));
+    this.activeStanzaInstance = stanzaInstance;
+    this.emit('connected');
+  }
+
+  private async prepareForConnect () {
+    if (this.config.jwt) {
+      this.hardReconnectRequired = false;
+      return this.connectionManager.setConfig(this.config);
+    }
+
+    if (this.hardReconnectRequired) {
+      let jidPromise: Promise<any>;
+      if (this.config.jid) {
+        jidPromise = Promise.resolve(this.config.jid);
+      } else {
+        const jidRequestOpts: RequestApiOptions = {
+          method: 'get',
+          host: this.config.apiHost,
+          authToken: this.config.authToken,
+          logger: this.logger
+        };
+        jidPromise = this.http.requestApiWithRetry('users/me', jidRequestOpts).promise
+          .then(res => {
+            // TODO: remove
+            (this as any).me = res.data;
+            return res.data.chat.jabberId;
+          });
+      }
+
+      const channelRequestOpts: RequestApiOptions = {
+        method: 'post',
         host: this.config.apiHost,
         authToken: this.config.authToken,
         logger: this.logger
       };
-      jidPromise = this.http.requestApiWithRetry('users/me', opts).promise
-        .then(res => res.data.chat.jabberId);
+      const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', channelRequestOpts).promise
+        .then(res => res.data.id);
+
+      const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);
+      this.config.jid = jid;
+      this.config.channelId = channelId;
+      this.autoReconnect = true;
+      this.logger.info('attempting to connect streaming client on channel', { channelId });
+      this.connectionManager.setConfig(this.config);
+      this.hardReconnectRequired = false;
     }
-
-    const opts: RequestApiOptions = {
-      method: 'post',
-      host: this.config.apiHost,
-      authToken: this.config.authToken,
-      logger: this.logger
-    };
-    const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', opts).promise
-      .then(res => res.data.id);
-
-    return Promise.all([jidPromise, channelPromise])
-      .then(([jid, channelId]) => {
-        this.config.jid = jid;
-        this.config.channelId = channelId;
-        this.autoReconnect = true;
-        return timeoutPromise(resolve => {
-          this.once('connected', resolve);
-          const options = stanzaioOptions(this.config);
-          this._stanzaio.updateConfig(options);
-          this._stanzaio.connect();
-        }, 10 * 1000, 'connecting to streaming service', { jid, channelId });
-      })
-      .catch((err) => {
-        this.connecting = false;
-        return Promise.reject(err);
-      });
   }
 
   stopServerLogging () {
     /* flush all pending logs and webrtc stats – then turn off the logger */
     this.logger.sendAllLogsInstantly();
-    this.logger.stopServerLogging();
     this._webrtcSessions.flushStats();
+    this.logger.stopServerLogging();
   }
 
   startServerLogging () {

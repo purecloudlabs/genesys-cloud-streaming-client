@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.3...HEAD)
+### Breaking Changes
+* There should not be any unless you are doing things you shouldn't. If you are interacting with the stanza instance itself,
+e.g. `streamingClient._stanzaio`, then you'll likely have issues.
+
+### Fixed
+* [PCM-2024](https://inindca.atlassian.net/browse/PCM-2024) - Redo connection and reconnection logic
+  * This shouldn't have any blatantly breaking changes unless you are reaching through the streaming-client to get a hold of the stanza/jingle
+  instance. Essentially we've changed the connection logic in a way that *every single connection attempt* is made using a brand new instance
+  of stanza. The reason for this is now we can guarantee we are not confusing events from old stanza sessions with new stanza sessions. The
+  major driver of this methodology change is because stanza's `connect()` function is not atomic and it is possible to receive a mismatched
+  number of `connected` and `disconnected` events from stanza.
 
 # [v14.2.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.2...v14.2.3)
 * [PCM-1968](https://inindca.atlassian.net/browse/PCM-1968) - More verbose logging around interruption states

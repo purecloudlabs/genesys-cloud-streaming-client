@@ -4,7 +4,7 @@ import { HttpClient } from '../../src/http-client';
 import { wait } from '../helpers/testing-utils';
 import { ILogger } from '../../src/types/interfaces';
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 
 describe('HttpRequestClient', () => {
   let http: HttpClient;
@@ -314,6 +314,30 @@ describe('HttpRequestClient', () => {
       error.response.req = {};
 
       expect(isSuperagentResponseErrorFn(error)).toBe(true);
+    });
+  });
+
+  describe('handleResponse', () => {
+    it('should sanitize and reject timeout error', async () => {
+      const error = new AxiosError('fake error', 'ECONNABORTED');
+
+      const spy = jest.fn();
+      const logger = {
+        debug: spy
+      };
+
+      await expect(http['handleResponse'](logger as any, new Date().getTime(), { url: 'http://test.com' }, error as any)).rejects.toThrow(error);
+
+      expect(spy).toHaveBeenCalledWith('request error: http://test.com', expect.objectContaining({
+        message: 'fake error',
+        elapsed: expect.anything()
+      }), { skipServer: true });
+    });
+  });
+
+  describe('_buildUri', () => {
+    it('should return url with http', () => {
+      expect(http['_buildUri']('http://unsecure.com', 'test')).toEqual('http://unsecure.com/api/v2/test');
     });
   });
 });

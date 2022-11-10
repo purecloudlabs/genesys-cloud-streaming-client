@@ -16,7 +16,8 @@ import { GenesysCloudMediaSession, IGenesysCloudMediaSessionParams, SessionEvent
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import Client from '.';
 import { formatStatsEvent } from './stats-formatter';
-import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession } from './types/interfaces';
+import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension } from './types/interfaces';
+import { NamedAgent } from './types/named-agent';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -58,10 +59,9 @@ export interface InitRtcSessionOptions {
   sourceCommunicationId?: string;
 }
 
-export class WebrtcExtension extends EventEmitter {
+export class WebrtcExtension extends EventEmitter implements StreamingClientExtension {
   client: Client;
   ignoredSessions = new LRU({ max: 10, maxAge: 10 * 60 * 60 * 6 });
-  jingleJs: Jingle.SessionManager;
 
   logger: any;
   pendingSessions: { [sessionId: string]: IPendingSession } = {};
@@ -78,9 +78,10 @@ export class WebrtcExtension extends EventEmitter {
   private discoRetries = 0;
   private refreshIceServersRetryPromise: RetryPromise<ExtendedRTCIceServer[]> | undefined;
   private refreshIceServersTimer: any;
+  private stanzaInstance?: NamedAgent;
 
-  get jid (): string {
-    return this.client._stanzaio.jid;
+  get jid (): string | undefined {
+    return this.client.config.jid;
   }
 
   constructor (client: Client, clientOptions: IClientOptions) {
@@ -92,31 +93,101 @@ export class WebrtcExtension extends EventEmitter {
     };
 
     this.logger = client.logger;
-    client._stanzaio.stanzas.define(definitions);
-    client._stanzaio.jingle.prepareSession = this.prepareSession.bind(this);
-    this.jingleJs = client._stanzaio.jingle;
     this.addEventListeners();
-    this.proxyEvents();
-    this.configureStanzaJingle();
     this.throttledSendStats = throttle(
       this.sendStats.bind(this),
       this.throttleSendStatsInterval,
       { leading: false, trailing: true }
     );
+
+    this.client.on('jingle:outgoing', (session: JingleSession) => {
+      return this.emit(events.OUTGOING_RTCSESSION, session);
+    });
+
+    this.client.on('jingle:incoming', (session: JingleSession) => {
+      return this.emit(events.INCOMING_RTCSESSION, session);
+    });
   }
 
-  configureStanzaJingle () {
-    Object.assign(this.client._stanzaio.jingle.config.peerConnectionConfig, {
+  async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
+    this.stanzaInstance = stanzaInstance;
+    await this.configureStanzaJingle(stanzaInstance);
+
+    this.client.emit('sessionManagerChange', stanzaInstance);
+  }
+
+  async configureStanzaJingle (stanzaInstance: NamedAgent) {
+    Object.assign(stanzaInstance.jingle.config.peerConnectionConfig!, {
       sdpSemantics: 'unified-plan'
     });
 
+    await this.configureStanzaIceServers();
+
+    stanzaInstance.stanzas.define(definitions);
+    stanzaInstance.jingle.prepareSession = this.prepareSession.bind(this);
+
+    stanzaInstance.jingle.on('log', (level, message, data?) => {
+      this.logger[level](message, data);
+    });
+
+    const eventsToProxy: Array<keyof SessionEvents> = [
+      'iceConnectionType',
+      'peerTrackAdded',
+      'peerTrackRemoved',
+      'mute',
+      'unmute',
+      'sessionState',
+      'connectionState',
+      'terminated',
+      'stats',
+      'endOfCandidates'
+    ];
+    for (const e of eventsToProxy) {
+      stanzaInstance.jingle.on(
+        e,
+        (session: GenesysCloudMediaSession, ...data: any) => {
+          session.emit(e as any, ...data);
+        }
+      );
+    }
+  }
+
+  private configureStanzaIceServers () {
     /* clear out stanzas default use of google's stun server */
-    this.client._stanzaio.jingle.config.iceServers = [];
+    this.stanzaInstance!.jingle.config.iceServers = [];
+
     /**
      * NOTE: calling this here should not interfere with the `webrtc.ts` extension
      *  refreshingIceServers since that is async and this constructor is sync
      */
     this.setIceServers([]);
+
+    if (this.refreshIceServersTimer) {
+      clearInterval(this.refreshIceServersTimer);
+      this.refreshIceServersTimer = null;
+    }
+
+    this.refreshIceServersTimer = setInterval(this.refreshIceServers.bind(this), ICE_SERVER_REFRESH_PERIOD);
+
+    return this.refreshIceServers()
+      .catch((error) =>
+        this.logger.error('Error fetching ice servers after streaming-client connected', {
+          error,
+          channelId: this.client.config.channelId
+        })
+      );
+  }
+
+  async handleMessage (msg) {
+    if (msg.propose) {
+      await this.handlePropose(msg);
+    } else if (msg.retract) {
+      this.handleRetract(msg.retract.sessionId);
+    } else if (msg.accept) {
+      this.handledIncomingRtcSession(msg.accept.sessionId, msg);
+    } else if (msg.reject) {
+      this.handledIncomingRtcSession(msg.reject.sessionId, msg);
+    }
   }
 
   prepareSession (options: SessionOpts) {
@@ -293,69 +364,6 @@ export class WebrtcExtension extends EventEmitter {
       clearInterval(this.refreshIceServersTimer);
       this.refreshIceServersTimer = null;
     });
-
-    this.client._stanzaio.jingle.on('log', (level, message, data?) => {
-      this.logger[level](message, data);
-    });
-
-    this.client._stanzaio.on('message', async (msg: any) => {
-      if (msg.propose) {
-        await this.handlePropose(msg);
-      } else if (msg.retract) {
-        this.handleRetract(msg.retract.sessionId);
-      } else if (msg.accept) {
-        this.handledIncomingRtcSession(msg.accept.sessionId, msg);
-      } else if (msg.reject) {
-        this.handledIncomingRtcSession(msg.reject.sessionId, msg);
-      }
-    });
-  }
-
-  proxyEvents () {
-    // this.jingleJs.on('send', data => {
-    //   if (data.jingle && data.jingle.sid && this.ignoredSessions.get(data.jingle.sid)) {
-    //     this.logger.debug('Ignoring outbound stanza for ignored session', data.jingle.sid);
-    //     return;
-    //   }
-    //   this.emit('send', data);
-    // });
-
-    this.client._stanzaio.on('jingle:outgoing', (session: JingleSession) => {
-      return this.emit(events.OUTGOING_RTCSESSION, session);
-    });
-
-    this.client._stanzaio.on('jingle:incoming', (session: JingleSession) => {
-      return this.emit(events.INCOMING_RTCSESSION, session);
-    });
-
-    const eventsToProxy: Array<keyof SessionEvents> = [
-      'iceConnectionType',
-      'peerTrackAdded',
-      'peerTrackRemoved',
-      'mute',
-      'unmute',
-      'sessionState',
-      'connectionState',
-      'terminated',
-      'stats',
-      'endOfCandidates'
-    ];
-    for (const e of eventsToProxy) {
-      this.client._stanzaio.jingle.on(
-        e,
-        (session: GenesysCloudMediaSession, ...data: any) => {
-          session.emit(e as any, ...data);
-        }
-      );
-    }
-
-    // this.client._stanzaio.on('jingle:log:*', (level, msg, details) => {
-    //   return this.emit(events.TRACE_RTCSESSION, level.split(':')[1], msg, details);
-    // });
-
-    // this.client._stanzaio.on('jingle:error', req => {
-    //   return this.emit(events.RTCSESSION_ERROR, req.error, req);
-    // });
   }
 
   /**
@@ -487,9 +495,9 @@ export class WebrtcExtension extends EventEmitter {
         mediaPresence.media[mediaDescription.media] = true;
       }
 
-      await this.client._stanzaio.send('presence', mediaPresence);
+      await this.stanzaInstance!.send('presence', mediaPresence);
     } else {
-      await this.client._stanzaio.send('message', session); // send as Message
+      await this.stanzaInstance!.send('message', session); // send as Message
       this.pendingSessions[session.propose.id] = session;
     }
 
@@ -518,7 +526,7 @@ export class WebrtcExtension extends EventEmitter {
 
     const details = this.getLogDetailsForPendingSessionId(sessionId);
     this.logger.info('sending jingle proceed', details);
-    await this.client._stanzaio.send('message', proceed); // send as Message
+    await this.stanzaInstance!.send('message', proceed); // send as Message
     this.logger.info('sent jingle proceed', details);
   }
 
@@ -544,14 +552,14 @@ export class WebrtcExtension extends EventEmitter {
           sessionId
         }
       };
-      const firstMessage = this.client._stanzaio.send('message', reject1); // send as Message
+      const firstMessage = this.stanzaInstance!.send('message', reject1); // send as Message
       const reject2 = {
         to: session.fromJid,
         reject: {
           sessionId
         }
       };
-      const secondMessage = this.client._stanzaio.send('message', reject2); // send as Message
+      const secondMessage = this.stanzaInstance!.send('message', reject2); // send as Message
 
       this.logger.info('sending jingle reject', logDetails);
       await Promise.all([firstMessage, secondMessage]);
@@ -571,12 +579,12 @@ export class WebrtcExtension extends EventEmitter {
     };
 
     this.logger.info('sending session-info:accept', logDetails);
-    await this.client._stanzaio.send('message', accept); // send as Message
+    await this.stanzaInstance!.send('message', accept); // send as Message
     this.logger.info('sent session-info:accept', logDetails);
   }
 
-  notifyScreenShareStart (session: GenesysCloudMediaSession): Promise<void> {
-    return this.client._stanzaio.send('iq', {
+  async notifyScreenShareStart (session: GenesysCloudMediaSession): Promise<void> {
+    return this.stanzaInstance!.send('iq', {
       to: `${session.peerID}`,
       from: this.jid,
       type: 'set',
@@ -588,8 +596,8 @@ export class WebrtcExtension extends EventEmitter {
     });
   }
 
-  notifyScreenShareStop (session: GenesysCloudMediaSession): Promise<void> {
-    return this.client._stanzaio.send('iq', {
+  async notifyScreenShareStop (session: GenesysCloudMediaSession): Promise<void> {
+    return this.stanzaInstance!.send('iq', {
       to: `${session.peerID}`,
       from: this.jid,
       type: 'set',
@@ -621,7 +629,7 @@ export class WebrtcExtension extends EventEmitter {
     };
     delete this.pendingSessions[sessionId];
     this.logger.info('sending jingle retract', logDetails);
-    await this.client._stanzaio.send('message', retract); // send as Message
+    await this.stanzaInstance!.send('message', retract); // send as Message
     this.logger.info('sent jingle retract', logDetails);
   }
 
@@ -660,13 +668,17 @@ export class WebrtcExtension extends EventEmitter {
   }
 
   async _refreshIceServers (): Promise<ExtendedRTCIceServer[]> {
-    const server = this.client._stanzaio.config.server;
-    const turnServersPromise = this.client._stanzaio.getServices(
+    if (!this.stanzaInstance) {
+      throw new Error('No stanza instance to refresh ice servers');
+    }
+
+    const server = this.stanzaInstance.config.server;
+    const turnServersPromise = this.stanzaInstance.getServices(
       server as string,
       'turn',
       '1'
     );
-    const stunServersPromise = this.client._stanzaio.getServices(
+    const stunServersPromise = this.stanzaInstance.getServices(
       server as string,
       'stun',
       '1'
@@ -730,15 +742,19 @@ export class WebrtcExtension extends EventEmitter {
   }
 
   setIceServers (iceServers: any[]) {
-    this.client._stanzaio.jingle.iceServers = iceServers;
+    if (this.stanzaInstance) {
+      this.stanzaInstance.jingle.iceServers = iceServers;
+    }
   }
 
   getIceTransportPolicy () {
-    return this.client._stanzaio.jingle.config.peerConnectionConfig!.iceTransportPolicy;
+    return this.stanzaInstance?.jingle.config.peerConnectionConfig!.iceTransportPolicy;
   }
 
   setIceTransportPolicy (policy: 'relay' | 'all') {
-    this.client._stanzaio.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
+    if (this.stanzaInstance) {
+      this.stanzaInstance.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
+    }
   }
 
   getSessionTypeByJid (jid: string): SessionTypes {
@@ -753,6 +769,10 @@ export class WebrtcExtension extends EventEmitter {
     } else {
       return SessionTypes.unknown;
     }
+  }
+
+  getSessionManager (): SessionManager | undefined {
+    return this.stanzaInstance?.jingle;
   }
 
   get expose (): WebrtcExtensionAPI {
@@ -771,7 +791,7 @@ export class WebrtcExtension extends EventEmitter {
       rtcSessionAccepted: this.rtcSessionAccepted.bind(this),
       initiateRtcSession: this.initiateRtcSession.bind(this),
       getSessionTypeByJid: this.getSessionTypeByJid.bind(this),
-      jingle: this.client._stanzaio.jingle
+      getSessionManager: this.getSessionManager.bind(this)
     };
   }
 }
@@ -791,5 +811,5 @@ export interface WebrtcExtensionAPI {
   notifyScreenShareStart (session: GenesysCloudMediaSession): void;
   notifyScreenShareStop (session: GenesysCloudMediaSession): void;
   getSessionTypeByJid (jid: string): SessionTypes;
-  jingle: SessionManager;
+  getSessionManager: () => SessionManager | undefined;
 }
