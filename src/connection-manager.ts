@@ -1,10 +1,11 @@
 // so the idea here is any time stanza gets disconnected, we are effectively going to kill that instance of
-// stanza and never reuse it. We may reuse the config for a give stanza client, but every connection attempt
+// stanza and never reuse it. We may reuse the config for a given stanza client, but every connection attempt
 // will merit its own brand new client. The purpose of this is because the stanza.connect() is not transactional
 // and failed connection attempts trigger `disconnect` events either by timeout or some actual error. This is
 // a problem because it effectively means we can get multiple disconnect events for a single connection attempt
 // which makes trying to reconnect a stanza instance an tricky endeavor because we don't know if a disconnect
 // event applies to a past connection attempt or if it applies to the most recent connection attempt. For this
+// reason, we want a vanilla instance of stanza every time we call `connect` so wires don't get crossed.
 
 import Logger from 'genesys-cloud-client-logger';
 import { AgentConfig, createClient } from 'stanza';
@@ -15,7 +16,6 @@ import { NamedAgent } from './types/named-agent';
 import SaslError from './types/sasl-error';
 import { parseJwt, timeoutPromise } from './utils';
 
-// reason, we want a vanilla instance of stanza every time we call `connect` so wires don't get crossed.
 export class ConnectionManager {
   constructor (private logger: Logger, private config: IClientConfig) {}
 

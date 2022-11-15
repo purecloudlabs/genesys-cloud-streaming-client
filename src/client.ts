@@ -360,11 +360,7 @@ export class Client extends EventEmitter {
           logger: this.logger
         };
         jidPromise = this.http.requestApiWithRetry('users/me', jidRequestOpts).promise
-          .then(res => {
-            // TODO: remove
-            (this as any).me = res.data;
-            return res.data.chat.jabberId;
-          });
+          .then(res => res.data.chat.jabberId);
       }
 
       const channelRequestOpts: RequestApiOptions = {
