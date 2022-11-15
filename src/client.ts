@@ -240,6 +240,8 @@ export class Client extends EventEmitter {
       return this.logger.warn(error);
     }
 
+    this.connecting = true;
+
     try {
       await backOff(() => this.makeConnectionAttempt(), {
         jitter: 'full',
@@ -327,7 +329,7 @@ export class Client extends EventEmitter {
 
   private async makeConnectionAttempt () {
     if (!navigator.onLine) {
-      throw new OfflineError('Browser if offline, skipping connection attempt');
+      throw new OfflineError('Browser is offline, skipping connection attempt');
     }
 
     await this.prepareForConnect();
@@ -360,11 +362,7 @@ export class Client extends EventEmitter {
           logger: this.logger
         };
         jidPromise = this.http.requestApiWithRetry('users/me', jidRequestOpts).promise
-          .then(res => {
-            // TODO: remove
-            (this as any).me = res.data;
-            return res.data.chat.jabberId;
-          });
+          .then(res => res.data.chat.jabberId);
       }
 
       const channelRequestOpts: RequestApiOptions = {
