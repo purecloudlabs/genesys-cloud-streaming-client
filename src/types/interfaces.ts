@@ -1,6 +1,6 @@
 
 import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
-import { AxiosError } from 'axios';
+import { AxiosError, ResponseType } from 'axios';
 import { NamedAgent } from './named-agent';
 export { ILogger, LogLevel };
 export interface IClientOptions {
@@ -45,6 +45,7 @@ export type RequestApiOptions = {
   host: string;
   data?: any;
   version?: string;
+  responseType?: ResponseType;
   contentType?: string;
   authToken?: string;
   logger?: any;
