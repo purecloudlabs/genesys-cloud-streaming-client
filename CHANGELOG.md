@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 e.g. `streamingClient._stanzaio`, then you'll likely have issues.
 
 ### Fixed
+* [PCM-2031](https://inindca.atlassian.net/browse/PCM-2031) - Allow specifying response type to fix the "No root element" error when firefox tries to parse empty XHR responses.
 * [PCM-2024](https://inindca.atlassian.net/browse/PCM-2024) - Redo connection and reconnection logic
   * This shouldn't have any blatantly breaking changes unless you are reaching through the streaming-client to get a hold of the stanza/jingle
   instance. Essentially we've changed the connection logic in a way that *every single connection attempt* is made using a brand new instance

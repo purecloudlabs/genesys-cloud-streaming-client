@@ -45,7 +45,7 @@ describe('HttpRequestClient', () => {
         const path = 'users/me';
 
         try {
-          const response = await http.requestApi(path, { host, method: 'get' });
+          const response = await http.requestApi(path, { host, method: 'get', requestTimeout: 1000 });
           fail('should have thrown');
         } catch (e) {
           expect(e).toBeTruthy();

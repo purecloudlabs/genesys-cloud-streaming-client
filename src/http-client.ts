@@ -57,6 +57,7 @@ export class HttpClient {
       method: opts.method,
       url,
       data: opts.data,
+      responseType: opts.responseType,
       timeout: opts.requestTimeout || 30000,
       headers: {
         'content-type': opts.contentType || 'application/json'

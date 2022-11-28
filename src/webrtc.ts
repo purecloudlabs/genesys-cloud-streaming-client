@@ -312,6 +312,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
       await this.client.http.requestApi(url, {
         method: 'post',
+        responseType: 'text',
         host: this.client.config.apiHost,
         authToken,
         logger: this.client.logger,
