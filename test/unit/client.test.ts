@@ -131,6 +131,13 @@ describe('connect', () => {
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('should handle undefined error', async () => {
+    connectionAttemptSpy.mockRejectedValue(undefined);
+
+    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow('Streaming client connection attempted received and undefined error');
+    expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('should throw if connection attempt fails and retry handler returns false', async () => {
     const error = new Error('fake error');
     connectionAttemptSpy.mockRejectedValue(error);
@@ -306,6 +313,13 @@ describe('backoffConnectRetryHandler', () => {
     expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message
+    }), { skipServer: false });
+  });
+  
+  it('should handle undefined error', () => {
+    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, undefined, 1)).toBeTruthy();
+    expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
+      error: expect.objectContaining({ message: 'streaming client backoff handler received undefined error' })
     }), { skipServer: false });
   });
 

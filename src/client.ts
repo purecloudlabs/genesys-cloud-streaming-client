@@ -252,7 +252,9 @@ export class Client extends EventEmitter {
       });
     } catch (err: any) {
       let error = err;
-      if (err.name === 'AxiosError') {
+      if (!err) {
+        error = new Error('Streaming client connection attempted received and undefined error');
+      } else if (err.name === 'AxiosError') {
         const axiosError = err as AxiosError;
         const config = axiosError.config;
 
@@ -270,6 +272,9 @@ export class Client extends EventEmitter {
       }
 
       this.logger.error('Failed to connect streaming client', { error });
+      if (!err) {
+        throw error;
+      }
       throw err;
     }
   }
@@ -283,7 +288,9 @@ export class Client extends EventEmitter {
 
     const additionalErrorDetails: any = { connectionAttempt, error: err };
 
-    if (err.name === 'AxiosError') {
+    if (!err) {
+      additionalErrorDetails.error = new Error('streaming client backoff handler received undefined error');
+    } else if (err.name === 'AxiosError') {
       const axiosError = err as AxiosError;
       const config = axiosError.config;
       let sanitizedError = {
