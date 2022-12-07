@@ -1,8 +1,9 @@
 'use strict';
 
 import { Client } from './client';
+import { NamedAgent } from './types/named-agent';
 
-const DEFAULT_PING_INTERVAL = 15 * 1000; // same default as stanza message timeouts
+const DEFAULT_PING_INTERVAL = 14 * 1000;
 const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 1;
 
 export interface PingOptions {
@@ -17,11 +18,13 @@ export class Ping {
   private numberOfFailedPings: number;
   private nextPingTimeoutId: any;
 
-  constructor (private client: Client, private options: PingOptions = {}) {
+  constructor (private client: Client, private stanzaInstance: NamedAgent, private options: PingOptions = {}) {
     this.pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
     this.failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
     this.numberOfFailedPings = 0;
     this.nextPingTimeoutId = null;
+
+    this.start();
   }
 
   start () {
@@ -38,21 +41,21 @@ export class Ping {
 
   private async performPing (): Promise<void> {
     try {
-      await this.client._stanzaio.ping(this.options.jid);
+      await this.stanzaInstance.ping(this.options.jid);
       this.numberOfFailedPings = 0;
       this.queueNextPing();
     } catch (err) {
       const info = {
         channelId: this.client.config.channelId,
-        jid: this.client._stanzaio.jid
+        jid: this.stanzaInstance.jid
       };
       this.client.logger.warn('Missed a ping.', Object.assign({ error: err }, info));
 
       /* if we have reached max number of missed pings, disconnect */
       if (++this.numberOfFailedPings > this.failedPingsBeforeDisconnect) {
-        this.stop();
         this.client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings: this.numberOfFailedPings }, info));
-        this.client._stanzaio.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
+        this.stanzaInstance.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
+        this.stop();
       } else {
         this.queueNextPing();
       }

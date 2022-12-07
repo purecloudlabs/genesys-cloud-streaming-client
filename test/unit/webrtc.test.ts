@@ -13,9 +13,31 @@ import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
 import { ISessionInfo, SessionTypes } from '../../src/types/interfaces';
+import { NamedAgent } from '../../src/types/named-agent';
 
 jest.mock('../../src/types/media-session');
 GenesysCloudMediaSession.prototype.on = jest.fn();
+
+function getFakeStanzaClient (): NamedAgent {
+  const instance = new EventEmitter();
+  return Object.assign(
+    instance,
+    {
+      config: {},
+      id: v4(),
+      getServices: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      },
+      jingle: {
+        config: {
+          peerConnectionConfig: {}
+        }
+      },
+      send: jest.fn().mockResolvedValue(null)
+    }
+  ) as unknown as NamedAgent;
+}
 
 class Client extends WildEmitter {
   connected = false;
@@ -41,24 +63,31 @@ class FakePeerConnection extends EventTarget {
   oniceconnectionstatechange = jest.fn();
 }
 
-function shimCreatePeerConnection (client) {
-  client._stanzaio.jingle.createPeerConnection = () => {
-    return new FakePeerConnection();
-  };
-}
-
 function flush () {
   return new Promise(res => setImmediate(res));
 }
 
-describe('constructor', () => {
-  it('should override prepareSession', () => {
+describe('getIceTransportPolicy', () => {
+  it('should not blow up if no stanzaInstance', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    shimCreatePeerConnection(client);
-    webrtc.proxyStatsForSession = jest.fn();
 
-    expect(client._stanzaio.jingle.prepareSession({ parent: client._stanzaio.jingle, peerID: 'something', sid: 'something', config: {} }) instanceof GenesysCloudMediaSession).toBeTruthy();
+    expect(webrtc.getIceTransportPolicy()).toBeUndefined();
+  });
+  
+  it('should return iceConfig', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    fakeStanza.jingle = {
+      config: {
+        peerConnectionConfig: {
+          iceTransportPolicy: 'relay'
+        }
+      }
+    } as any;
+
+    expect(webrtc.getIceTransportPolicy()).toEqual('relay');
   });
 });
 
@@ -130,6 +159,44 @@ describe('prepareSession', () => {
   });
 });
 
+describe('handleMessage', () => {
+  it('should call handlePropose', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    // @ts-ignore
+    const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
+
+    webrtc.handleMessage({ id: 'lskdjf', to: 'sndlgkns@lskdn.com', propose: {} } as any);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call handleRetract', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    //@ts-ignore
+    const spy = jest.spyOn(webrtc, 'handleRetract').mockImplementation();
+
+    webrtc.handleMessage({ id: 'session123', to: 'sndlgkns@lskdn.com', retract: {} } as any);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call handledIncomingRtcSession', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    //@ts-ignore
+    const spy = jest.spyOn(webrtc, 'handledIncomingRtcSession').mockImplementation();
+
+    webrtc.handleMessage({ id: 'session124', to: 'sndlgkns@lskdn.com', reject: {} } as any);
+    expect(spy).toHaveBeenCalled();
+
+    webrtc.handleMessage({ id: 'session123', to: 'sndlgkns@lskdn.com', accept: {} } as any);
+    expect(spy).toHaveBeenCalled();
+  });
+});
+
 describe('addEventListeners', () => {
   it('should refresh ice servers on "connected"', async () => {
     const client = new Client({});
@@ -150,64 +217,28 @@ describe('addEventListeners', () => {
     });
   });
 
-  it('should listen for jingle log messages', () => {
+  it('should clear existing iceServers interval on connected', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const error = new Error('Bad timing');
 
-    const spy = jest.spyOn(webrtc.logger, 'info');
+    const spy = jest.spyOn(webrtc.logger, 'error');
+    jest.spyOn(webrtc, 'refreshIceServers').mockRejectedValue(error);
+    client.config.channelId = 'my-ws-channel';
 
-    const fakeData = { fake: true };
+    const clearSpy = jest.spyOn(window, 'clearInterval');
+    webrtc['refreshIceServersTimer'] = 123;
 
-    client._stanzaio.jingle.emit('log', 'info', 'test message', fakeData);
+    client.emit('connected');
 
-    expect(spy).toHaveBeenCalledWith('test message', fakeData);
-  });
+    await flush();
 
-  it('should call handlePropose', () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any, {} as any);
-
-    // @ts-ignore
-    const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
-
-    client._stanzaio.emit('message', { id: 'lskdjf', to: 'sndlgkns@lskdn.com', propose: {} } as any);
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it('should call handleRetract', () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any, {} as any);
-
-    //@ts-ignore
-    const spy = jest.spyOn(webrtc, 'handleRetract').mockImplementation();
-
-    client._stanzaio.emit('message', { id: 'session123', to: 'sndlgkns@lskdn.com', retract: {} } as any)
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it('should call handledIncomingRtcSession', () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any, {} as any);
-
-    //@ts-ignore
-    const spy = jest.spyOn(webrtc, 'handledIncomingRtcSession').mockImplementation();
-
-    client._stanzaio.emit('message', { id: 'session123', to: 'sndlgkns@lskdn.com', accept: {} } as any)
-    expect(spy).toHaveBeenCalled();
-
-    client._stanzaio.emit('message', { id: 'session124', to: 'sndlgkns@lskdn.com', reject: {} } as any)
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it('should not call handle propose', () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any, {} as any);
-
-    // @ts-ignore
-    const spy = jest.spyOn(webrtc, 'handlePropose').mockImplementation();
-
-    client._stanzaio.emit('message', { id: 'lskdjf', to: 'sndlgkns@lskdn.com', proceed: {} } as any);
-    expect(spy).not.toHaveBeenCalled();
+    expect(clearSpy).toHaveBeenCalledWith(123);
+    clearSpy.mockRestore();
+    expect(spy).toHaveBeenCalledWith('Error fetching ice servers after streaming-client connected', {
+      error,
+      channelId: client.config.channelId
+    });
   });
 });
 
@@ -216,6 +247,7 @@ describe('proxyEvents', () => {
     expect.assertions(1);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const fakeSession = {};
 
@@ -223,13 +255,14 @@ describe('proxyEvents', () => {
       expect(session).toBe(fakeSession);
     });
 
-    client._stanzaio.emit('jingle:outgoing', fakeSession as any);
+    client.emit('jingle:outgoing', fakeSession as any);
   });
 
   it('should emit incomingRtcSession - pendingSession', () => {
     expect.assertions(1);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
     const sessionId = 'session123';
 
     const fakeSession = {
@@ -240,13 +273,14 @@ describe('proxyEvents', () => {
       expect(session.sid).toEqual(sessionId);
     });
 
-    client._stanzaio.emit('jingle:incoming', fakeSession as any);
+    client.emit('jingle:incoming', fakeSession as any);
   });
 
   it('should emit incomingRtcSession', () => {
     expect.assertions(1);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const fakeSession = {};
 
@@ -254,12 +288,25 @@ describe('proxyEvents', () => {
       expect(session).toEqual(fakeSession);
     });
 
-    client._stanzaio.emit('jingle:incoming', fakeSession as any);
+    client.emit('jingle:incoming', fakeSession as any);
   });
 
-  it('should emit sessionEvents', () => {
+  
+});
+
+describe('configureStanzaJingle', () => {
+  it('should emit sessionEvents', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    jest.spyOn(webrtc as any, 'configureStanzaIceServers').mockResolvedValue(null);
+
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    (fakeStanza as any).jingle = new EventEmitter();
+    (fakeStanza as any).jingle.config = {
+      peerConnectionConfig: {}
+    };
+    await webrtc.configureStanzaJingle(fakeStanza);
 
     const fakeSession = {
       emit: jest.fn()
@@ -280,12 +327,30 @@ describe('proxyEvents', () => {
 
     for (const e of events) {
       const fakeData = { str: v4() };
-      client._stanzaio.jingle.emit(e, fakeSession, fakeData);
+      fakeStanza.jingle.emit(e, fakeSession, fakeData);
       expect(fakeSession.emit).toHaveBeenCalledWith(e, fakeData);
       fakeSession.emit.mockReset();
     }
 
     expect.assertions(events.length);
+  });
+
+  it('should log messages from jingle', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    jest.spyOn(webrtc as any, 'configureStanzaIceServers').mockResolvedValue(null);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    (fakeStanza as any).jingle = new EventEmitter();
+    (fakeStanza as any).jingle.config = {
+      peerConnectionConfig: {}
+    };
+    const spy = jest.spyOn((webrtc as any).logger, 'warn');
+
+    await webrtc.configureStanzaJingle(fakeStanza);
+
+    fakeStanza.jingle.emit('log', 'warn', 'test', { ping: true });
+    expect(spy).toHaveBeenCalledWith('test', { ping: true });
   });
 });
 
@@ -293,7 +358,7 @@ describe('handlePropose', () => {
   it('should do nothing if from self', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    client._stanzaio.jid = 'myJid';
+    client.config.jid = 'myJid';
 
     const spy = jest.spyOn(webrtc, 'emit');
 
@@ -313,7 +378,8 @@ describe('handlePropose', () => {
   it('should emit requestIncomingRtcSession event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    client._stanzaio.jid = 'myJid';
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    client.config.jid = 'myJid';
 
     const spy = jest.spyOn(webrtc, 'emit');
 
@@ -345,7 +411,8 @@ describe('handlePropose', () => {
   it('should call acceptRtcSession for accepted pending sessions on propose', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    client._stanzaio.jid = 'myJid';
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    client.config.jid = 'myJid';
 
     const spy = jest.spyOn(webrtc, 'acceptRtcSession');
     const sessionId = v4();
@@ -372,7 +439,8 @@ describe('handleRetract', () => {
   it('should emit cancelIncomingRtcSession event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    client._stanzaio.jid = 'myJid';
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    fakeStanza.jid = 'myJid';
 
     jest.spyOn(webrtc, 'emit');
 
@@ -388,7 +456,8 @@ describe('handledIncomingRtcSession', () => {
   it('should emit handledIncomingRtcSession event with pending session', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    client._stanzaio.jid = 'myJid';
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    fakeStanza.jid = 'myJid';
 
     jest.spyOn(webrtc, 'emit');
 
@@ -410,6 +479,7 @@ describe('initiateRtcSession', () => {
   it('should add medias based on provided stream', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
@@ -420,8 +490,8 @@ describe('initiateRtcSession', () => {
       }
     };
 
-    client._stanzaio.jid = fromJid;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send').mockResolvedValue(undefined);
+    fakeStanza.jid = fromJid;
+    const sendSpy = jest.spyOn(fakeStanza, 'send').mockResolvedValue(undefined);
 
     const id = await webrtc.initiateRtcSession({
       stream: fakestream as any,
@@ -446,12 +516,13 @@ describe('initiateRtcSession', () => {
   it('should add medias based on params', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
 
-    client._stanzaio.jid = fromJid;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send').mockResolvedValue(undefined);
+    fakeStanza.jid = fromJid;
+    const sendSpy = jest.spyOn(fakeStanza, 'send').mockResolvedValue(undefined);
 
     const id = await webrtc.initiateRtcSession({
       provideAudio: true,
@@ -477,12 +548,13 @@ describe('initiateRtcSession', () => {
   it('should add media based on mediaPurpose', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
 
-    client._stanzaio.jid = fromJid;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send').mockResolvedValue(undefined);
+    fakeStanza.jid = fromJid;
+    const sendSpy = jest.spyOn(fakeStanza, 'send').mockResolvedValue(undefined);
 
     const id = await webrtc.initiateRtcSession({
       provideAudio: true,
@@ -510,6 +582,7 @@ describe('initiateRtcSession', () => {
   it('should handle when stream and params are provided', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = '21l1kn12l1k2n@test.com';
     const fromJid = 'myjid@test.com';
@@ -519,8 +592,8 @@ describe('initiateRtcSession', () => {
         return [{ kind: 'video' }, { kind: 'audio' }];
       }
     };
-    client._stanzaio.jid = fromJid;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send').mockResolvedValue(undefined);
+    fakeStanza.jid = fromJid;
+    const sendSpy = jest.spyOn(fakeStanza, 'send').mockResolvedValue(undefined);
 
     const id = await webrtc.initiateRtcSession({
       provideAudio: true,
@@ -547,12 +620,13 @@ describe('initiateRtcSession', () => {
   it('should add listener media', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = '21l1kn12l1k2n@conference.test.com';
     const fromJid = 'myjid@test.com';
 
-    client._stanzaio.jid = fromJid;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send').mockResolvedValue(undefined);
+    client.config.jid = fromJid;
+    const sendSpy = jest.spyOn(fakeStanza, 'send').mockResolvedValue(undefined);
 
     const id = await webrtc.initiateRtcSession({
       jid: toJid
@@ -577,6 +651,7 @@ describe('initiateRtcSession', () => {
   it('should send as presence', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = '21l1kn12l1k2n@conference.test.com';
     const fromJid = 'myjid@test.com';
@@ -587,8 +662,8 @@ describe('initiateRtcSession', () => {
       }
     };
 
-    client._stanzaio.jid = fromJid;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send').mockResolvedValue(undefined);
+    client.config.jid = fromJid;
+    const sendSpy = jest.spyOn(fakeStanza, 'send').mockResolvedValue(undefined);
 
     const id = await webrtc.initiateRtcSession({
       stream: fakestream as any,
@@ -618,12 +693,13 @@ describe('acceptRtcSession', () => {
     expect.assertions(2);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.acceptRtcSession('sldkf');
     expect(sendSpy).not.toHaveBeenCalled();
@@ -633,6 +709,7 @@ describe('acceptRtcSession', () => {
     expect.assertions(1);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const sessionId = 'session123';
 
@@ -642,7 +719,7 @@ describe('acceptRtcSession', () => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.acceptRtcSession(sessionId);
     expect(sendSpy).toHaveBeenCalled();
@@ -655,12 +732,13 @@ describe('rejectRtcSession', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     const sessionId = 'session123555';
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot reject session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.rejectRtcSession(sessionId);
     expect(sendSpy).not.toHaveBeenCalled();
@@ -670,6 +748,7 @@ describe('rejectRtcSession', () => {
     expect.assertions(2);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const sessionId = 'session12355524';
     webrtc.pendingSessions[sessionId] = { from: 'abcjid@test.com' } as any;
@@ -678,7 +757,7 @@ describe('rejectRtcSession', () => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.rejectRtcSession(sessionId, true);
     expect(webrtc.ignoredSessions.has(sessionId)).toBeTruthy();
@@ -689,9 +768,10 @@ describe('rejectRtcSession', () => {
     expect.assertions(2);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const bareJid = 'user@test.com';
-    client._stanzaio.jid = `${bareJid}/442k2k2k-dkk`;
+    client.config.jid = `${bareJid}/442k2k2k-dkk`;
 
     const fromJid = 'lskn@test.com';
 
@@ -702,7 +782,7 @@ describe('rejectRtcSession', () => {
       expect(msg).toEqual('Cannot accept session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     const reject1 = {
       to: bareJid,
@@ -728,12 +808,13 @@ describe('rtcSessionAccepted', () => {
   it('should send event', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const sessionId = 'session8581';
 
     const bareJid = 'user@test.com';
-    client._stanzaio.jid = `${bareJid}/442k2k2k-dkk`;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    client.config.jid = `${bareJid}/442k2k2k-dkk`;
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.rtcSessionAccepted(sessionId);
 
@@ -750,6 +831,7 @@ describe('notifyScreenShareStart', () => {
   it('should send event', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = 'room@conference.com';
     const sessionId = 'session66231';
@@ -760,14 +842,14 @@ describe('notifyScreenShareStart', () => {
     } as any;
 
     const bareJid = 'user@test.com';
-    client._stanzaio.jid = `${bareJid}/442k2k2k-dkk`;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    client.config.jid = `${bareJid}/442k2k2k-dkk`;
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.notifyScreenShareStart(session);
 
     expect(sendSpy).toHaveBeenCalledWith('iq', {
       to: toJid,
-      from: client._stanzaio.jid,
+      from: client.config.jid,
       type: 'set',
       jingle: {
         action: JingleAction.SessionInfo,
@@ -782,6 +864,7 @@ describe('notifyScreenShareStop', () => {
   it('should send event', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const toJid = 'room@conference.com';
     const sessionId = 'session66231';
@@ -792,14 +875,14 @@ describe('notifyScreenShareStop', () => {
     } as any;
 
     const bareJid = 'user@test.com';
-    client._stanzaio.jid = `${bareJid}/442k2k2k-dkk`;
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    client.config.jid = `${bareJid}/442k2k2k-dkk`;
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.notifyScreenShareStop(session);
 
     expect(sendSpy).toHaveBeenCalledWith('iq', {
       to: toJid,
-      from: client._stanzaio.jid,
+      from: client.config.jid,
       type: 'set',
       jingle: {
         action: JingleAction.SessionInfo,
@@ -815,12 +898,13 @@ describe('cancelRtcSession', () => {
     expect.assertions(2);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     webrtc.on('rtcSessionError', (msg) => {
       expect(msg).toEqual('Cannot cancel session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.cancelRtcSession('sldkf');
     expect(sendSpy).not.toHaveBeenCalled();
@@ -830,6 +914,7 @@ describe('cancelRtcSession', () => {
     expect.assertions(1);
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const sessionId = 'session12243';
     const toJid = 'room@conference.com';
@@ -840,7 +925,7 @@ describe('cancelRtcSession', () => {
       expect(msg).toEqual('Cannot cancel session because it is not pending or does not exist');
     });
 
-    const sendSpy = jest.spyOn(client._stanzaio, 'send');
+    const sendSpy = jest.spyOn(fakeStanza, 'send');
 
     await webrtc.cancelRtcSession(sessionId);
     expect(sendSpy).toHaveBeenCalledWith('message', {
@@ -856,17 +941,19 @@ describe('refreshIceServers', () => {
   it('should set jingle iceServers', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
-    jest.spyOn(client._stanzaio, 'getServices')
-      .mockReturnValueOnce({
+    jest.spyOn(fakeStanza, 'getServices')
+      .mockResolvedValueOnce({
         services: [
           { type: 'turn', host: 'turn.server.com' },
           { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
           { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' }
         ]
       } as any)
-      .mockReturnValueOnce({
+      .mockResolvedValueOnce({
         services: [
           { port: 234, type: 'stun', host: 'turn.server.com' }
         ]
@@ -875,7 +962,7 @@ describe('refreshIceServers', () => {
     await webrtc.refreshIceServers();
     expect(spy).toHaveBeenCalledWith('all');
 
-    expect(client._stanzaio.jingle.iceServers).toEqual([
+    expect(fakeStanza.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
       { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
       { type: 'turn', urls: 'turn:turn.server.com:456?transport=tcp', username: 'user2', credential: 'pass2' },
@@ -887,8 +974,9 @@ describe('refreshIceServers', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
-    jest.spyOn(client._stanzaio, 'getServices')
+    jest.spyOn(fakeStanza, 'getServices')
       .mockReturnValueOnce({
         services: [
           { type: 'turn', host: 'turn.server.com' },
@@ -903,7 +991,7 @@ describe('refreshIceServers', () => {
     await webrtc.refreshIceServers();
 
     expect(spy).toHaveBeenCalledWith('relay');
-    expect(client._stanzaio.jingle.iceServers).toEqual([
+    expect(fakeStanza.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
       { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
       { type: 'turn', urls: 'turn:turn.server.com:456?transport=tcp', username: 'user2', credential: 'pass2' },
@@ -913,9 +1001,10 @@ describe('refreshIceServers', () => {
   it('should retry if getting the servers fails', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const spy = jest.spyOn(webrtc, 'setIceServers');
-    jest.spyOn(client._stanzaio, 'getServices')
+    jest.spyOn(fakeStanza, 'getServices')
       /* signifies the first call */
       .mockRejectedValueOnce(new Error('Failed to fetch servers'))
       .mockRejectedValueOnce(new Error('Failed to fetch servers'))
@@ -946,8 +1035,9 @@ describe('refreshIceServers', () => {
   it('should try 3 times and then fail', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
-    const spy = jest.spyOn(client._stanzaio, 'getServices')
+    const spy = jest.spyOn(fakeStanza, 'getServices')
       /* signifies all calls fail */
       .mockRejectedValue(new Error('Failed to fetch servers'));
 
@@ -967,8 +1057,9 @@ describe('refreshIceServers', () => {
 
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
-    const spy = jest.spyOn(client._stanzaio, 'getServices')
+    const spy = jest.spyOn(fakeStanza, 'getServices')
       /* have the call to fetch services "hang" */
       .mockImplementation(() => new Promise(res => setTimeout(res, 100 * 1000)));
 
@@ -1296,5 +1387,85 @@ describe('sendStats', () => {
       expect(utils.calculatePayloadSize('a')).toBe(3);
       expect(utils.calculatePayloadSize('¢')).toBe(4);
     });
+  });
+});
+
+describe('getSessionManager', () => {
+  it('should return the jingle instance', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+
+    expect(webrtc.getSessionManager()).toBe(stanza.jingle);
+  });
+
+  it('should not blow up if no stanza instance', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    expect(webrtc.getSessionManager()).toBeUndefined();
+  });
+});
+
+describe('configureStanzaIceServers', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+  let stanza: NamedAgent;
+  let refreshSpy: jest.Mock;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+    stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    refreshSpy = webrtc.refreshIceServers = jest.fn();
+  });
+
+  it('should set the timer and immediately fetch the ice servers', async () => {
+    refreshSpy.mockResolvedValue(null);
+    webrtc['configureStanzaIceServers']();
+    expect(refreshSpy).toHaveBeenCalled();
+    expect(webrtc['refreshIceServersTimer']).toBeDefined();
+  });
+  
+  it('should clear the existing timer', async () => {
+    webrtc['refreshIceServersTimer'] = 123;
+    const clearSpy = jest.spyOn(window, 'clearInterval');
+    refreshSpy.mockResolvedValue(null);
+    webrtc['configureStanzaIceServers']();
+    expect(refreshSpy).toHaveBeenCalled();
+    expect(clearSpy).toHaveBeenCalledWith(123);
+    expect(webrtc['refreshIceServersTimer']).toBeDefined();
+    clearSpy.mockRestore();
+  });
+
+  it('should log error', async () => {
+    refreshSpy.mockRejectedValueOnce(new Error('whoops'));
+    webrtc['configureStanzaIceServers']();
+    expect(refreshSpy).toHaveBeenCalled();
+    expect(webrtc['refreshIceServersTimer']).toBeDefined();
+  });
+});
+
+describe('handleStanzaInstanceChange', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+  let stanza: NamedAgent;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+    stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+  });
+
+  it('should set and configure new stanza instance', async () => {
+    webrtc['stanzaInstance'] = undefined;
+    const spy = jest.spyOn((webrtc as any), 'configureStanzaJingle').mockResolvedValue(null);
+
+    const changeSpy = jest.fn();
+    client.on('sessionManagerChange', changeSpy);
+
+    await webrtc.handleStanzaInstanceChange(stanza);
+    expect(spy).toHaveBeenCalled();
+    expect(changeSpy).toHaveBeenCalledWith(stanza);
   });
 });

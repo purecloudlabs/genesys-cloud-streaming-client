@@ -1,15 +1,17 @@
 import { v4 } from 'uuid';
+import { TimeoutError } from './types/timeout-error';
 
+/* istanbul ignore next */
 export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, details?: any) {
-  return new Promise<void>(function (resolve, reject) {
+  return new Promise<any>(function (resolve, reject) {
     const timeout = setTimeout(function () {
-      const err = new Error(`Timeout: ${msg}`);
+      const err = new TimeoutError(`Timeout: ${msg}`);
       (err as any).details = details;
       reject(err);
     }, timeoutMs);
-    const done = function () {
+    const done = function (resolvedValue?: any) {
       clearTimeout(timeout);
-      resolve();
+      resolve(resolvedValue);
     };
     fn(done, reject);
   });
@@ -128,12 +130,6 @@ export function calculatePayloadSize (trace: any): number {
   // Matches only the 10.. bytes that are non-initial characters in a multi-byte sequence.
   const m = encodeURIComponent(str).match(/%[89ABab]/g);
   return str.length + (m ? m.length : 0);
-}
-
-export function wait (delayMs: number) {
-  return new Promise(resolve => {
-    setTimeout(resolve, delayMs);
-  });
 }
 
 // unsed, but handy. no test coverage until used

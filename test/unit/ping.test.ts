@@ -2,11 +2,12 @@
 
 import { Ping } from '../../src/ping';
 
-const DEFAULT_PING_INTERVAL = 15 * 1000 + 10;
+const DEFAULT_PING_INTERVAL = 14 * 1000 + 10;
 const PING_INTERVAL_WITH_BUFFER = DEFAULT_PING_INTERVAL + 100;
 
 let standardOptions;
 let client;
+let fakeStanzaInstance;
 let pingCallCount = 0;
 let count = 0;
 
@@ -21,17 +22,17 @@ describe('Ping', () => {
 
     jest.useFakeTimers();
 
+    fakeStanzaInstance = {
+      ping: async (jid) => {
+        pingCallCount++;
+      },
+      sendStreamError: jest.fn()
+    };
+
     client = {
       logger: { warn () { }, error () { } },
       count: count++,
-      config: {},
-      _stanzaio: {
-        ping: (jid, cb) => {
-          pingCallCount++;
-          return cb(null, { to: 'you' });
-        },
-        sendStreamError: jest.fn()
-      }
+      config: {}
     };
   });
 
@@ -43,32 +44,36 @@ describe('Ping', () => {
 
   describe('constructor()', () => {
     it('accepts null options', () => {
-      const ping = new Ping({} as any);
+      const ping = new Ping({} as any, fakeStanzaInstance);
       expect(ping).toBeTruthy();
     });
   });
 
   describe('start()', () => {
-    it('when started it sends a ping on an interval', () => {
-      let ping = new Ping(client, standardOptions);
+    it('when started it sends a ping on an interval', async () => {
+      let ping = new Ping(client, fakeStanzaInstance, standardOptions);
 
       ping.start();
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+      await flushPromises();
       expect(pingCallCount).toBe(1);
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+      await flushPromises();
       expect(pingCallCount).toBe(2);
     });
 
-    it('when started multiple times it sends a ping on a single interval', () => {
-      let ping = new Ping(client, standardOptions);
+    it('when started multiple times it sends a ping on a single interval', async () => {
+      let ping = new Ping(client, fakeStanzaInstance, standardOptions);
 
       ping.start();
       ping.start();
       ping.start();
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+      await flushPromises();
       expect(pingCallCount).toBe(1);
       ping.start();
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
+      await flushPromises();
       expect(pingCallCount).toBe(2);
     });
 
@@ -80,13 +85,11 @@ describe('Ping', () => {
           channelId
         },
         logger: { warn: jest.fn(), error: jest.fn() },
-        _stanzaio: {
-          ping: jest.fn().mockRejectedValue(new Error('Missed pong')),
-          jid,
-          sendStreamError: jest.fn()
-        }
       };
-      let ping = new Ping(client as any, standardOptions);
+      fakeStanzaInstance.ping = jest.fn().mockRejectedValue(new Error('missed ping'));
+      fakeStanzaInstance.jid = jid;
+
+      let ping = new Ping(client as any, fakeStanzaInstance, standardOptions);
       ping.start();
 
       // move forward in time to one ping
@@ -98,9 +101,9 @@ describe('Ping', () => {
       await flushPromises();
 
       // verify it sends a stream error
-      expect(client._stanzaio.sendStreamError).toHaveBeenCalled();
-      expect(client._stanzaio.sendStreamError.mock.calls[0][0].condition).toBe('connection-timeout');
-      expect(client._stanzaio.sendStreamError.mock.calls[0][0].text).toBe('too many missed pongs');
+      expect(fakeStanzaInstance.sendStreamError).toHaveBeenCalled();
+      expect(fakeStanzaInstance.sendStreamError.mock.calls[0][0].condition).toBe('connection-timeout');
+      expect(fakeStanzaInstance.sendStreamError.mock.calls[0][0].text).toBe('too many missed pongs');
 
       const last = client.logger.warn.mock.calls.length - 1;
       const infoChannelId = client.logger.warn.mock.calls[last][1].channelId;
@@ -129,7 +132,7 @@ describe('Ping', () => {
           sendStreamError: jest.fn()
         }
       };
-      let ping = new Ping(client as any, standardOptions);
+      let ping = new Ping(client as any, fakeStanzaInstance, standardOptions);
       ping.start();
 
       // move forward in time to one missed
@@ -145,7 +148,7 @@ describe('Ping', () => {
         jid: 'anon@example.mypurecloud.com',
         pingInterval: 60000
       };
-      let ping = new Ping(client, options);
+      let ping = new Ping(client, fakeStanzaInstance, options);
       ping.start();
 
       // move forward in time to the standard ping interval
@@ -156,8 +159,7 @@ describe('Ping', () => {
 
       // now move out further
       jest.advanceTimersByTime(40000);
-
-      client._stanzaio.ping(standardOptions, val => val);
+      expect(pingCallCount).toBe(1);
     });
 
     it('allows failure number override', async () => {
@@ -167,14 +169,10 @@ describe('Ping', () => {
         logger: { warn: jest.fn(), error: jest.fn() },
         config: {
           channelId
-        },
-        _stanzaio: {
-          jid,
-          ping: jest.fn().mockRejectedValue(new Error('missed pong')),
-          sendStreamError: jest.fn()
         }
       };
-      let ping = new Ping(client as any, {
+      fakeStanzaInstance.ping = jest.fn().mockRejectedValue(new Error('missed pong'));
+      let ping = new Ping(client as any, fakeStanzaInstance, {
         jid: 'aonon@example.mypurecloud.com',
         failedPingsBeforeDisconnect: 4
       });
@@ -183,27 +181,27 @@ describe('Ping', () => {
       // move forward in time to one ping
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
       await flushPromises();
-      expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
+      expect(fakeStanzaInstance.sendStreamError).not.toHaveBeenCalled();
       // move forward again
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
       await flushPromises();
-      expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
+      expect(fakeStanzaInstance.sendStreamError).not.toHaveBeenCalled();
       // move forward again
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
       await flushPromises();
-      expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
+      expect(fakeStanzaInstance.sendStreamError).not.toHaveBeenCalled();
       // move forward again
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
       await flushPromises();
-      expect(client._stanzaio.sendStreamError).not.toHaveBeenCalled();
+      expect(fakeStanzaInstance.sendStreamError).not.toHaveBeenCalled();
       // move forward again
       jest.advanceTimersByTime(PING_INTERVAL_WITH_BUFFER);
       await flushPromises();
-      expect(client._stanzaio.sendStreamError).toHaveBeenCalled();
+      expect(fakeStanzaInstance.sendStreamError).toHaveBeenCalled();
     });
 
     it('more than one start is okay', () => {
-      let ping = new Ping(client, standardOptions);
+      let ping = new Ping(client, fakeStanzaInstance, standardOptions);
       ping.start();
       jest.advanceTimersByTime(16000);
       ping.start();
@@ -215,7 +213,7 @@ describe('Ping', () => {
 
   describe('stop()', () => {
     it('stop should cause no more pings', () => {
-      let ping = new Ping(client, standardOptions);
+      let ping = new Ping(client, fakeStanzaInstance, standardOptions);
       ping.start();
 
       // move forward in time to one ping
@@ -230,7 +228,7 @@ describe('Ping', () => {
     });
 
     it('more than one stop is okay', () => {
-      let ping = new Ping(client, standardOptions);
+      let ping = new Ping(client, fakeStanzaInstance, standardOptions);
       ping.start();
 
       ping.stop();
