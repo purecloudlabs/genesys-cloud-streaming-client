@@ -1,6 +1,7 @@
 
 import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
-import { AxiosError } from 'axios';
+import { AxiosError, ResponseType } from 'axios';
+import { NamedAgent } from './named-agent';
 export { ILogger, LogLevel };
 export interface IClientOptions {
   host: string;
@@ -44,10 +45,12 @@ export type RequestApiOptions = {
   host: string;
   data?: any;
   version?: string;
+  responseType?: ResponseType;
   contentType?: string;
   authToken?: string;
   logger?: any;
   noAuthHeader?: boolean;
+  requestTimeout?: number;
 };
 
 export interface IAxiosResponseError extends AxiosError {
@@ -130,4 +133,15 @@ export interface JsonRpcMessage {
   jsonrpc: string;
   method: string;
   params?: any;
+}
+
+export interface StreamingClientExtension {
+  handleIq?: Function;
+  handleMessage?: Function;
+  handleStanzaInstanceChange: (stanzaInstance: NamedAgent) => void;
+  expose: any;
+}
+
+export interface StreamingClientConnectOptions {
+  keepTryingOnFailure: boolean;
 }

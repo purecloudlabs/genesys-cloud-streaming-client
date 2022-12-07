@@ -1,5 +1,6 @@
 import { TokenBucket } from 'limiter';
 import { IQ, Message } from 'stanza/protocol';
+import { NamedAgent } from './named-agent';
 
 export interface StreamingClientExtension {
   handleIq?: (iq: IQ) => void;
@@ -7,4 +8,5 @@ export interface StreamingClientExtension {
   tokenBucket?: TokenBucket;
   on?: (eventName: string, ...args: any[]) => void;
   expose?: {[fnName: string]: any};
+  handleStanzaInstanceChange: (stanzaInstance: NamedAgent) => void;
 }

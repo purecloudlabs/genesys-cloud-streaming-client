@@ -1,8 +1,10 @@
+import { Agent } from 'stanza';
 import { PubsubEvent, PubsubSubscription, PubsubSubscriptionWithOptions } from 'stanza/protocol';
 const debounce = require('debounce-promise');
 
 import { Client } from './client';
-import { RequestApiOptions } from './types/interfaces';
+import { RequestApiOptions, StreamingClientExtension } from './types/interfaces';
+import { NamedAgent } from './types/named-agent';
 import { splitIntoIndividualTopics } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
@@ -14,8 +16,9 @@ function mergeAndDedup (arr1, arr2) {
   return [...arr1, ...arr2].filter((t, i, arr) => arr.indexOf(t) === i);
 }
 
-export class Notifications {
+export class Notifications implements StreamingClientExtension {
   client: Client;
+  stanzaInstance?: NamedAgent;
   subscriptions: any;
   bulkSubscriptions: any;
   topicPriorities: any;
@@ -42,6 +45,19 @@ export class Notifications {
     }
   }
 
+  handleStanzaInstanceChange (stanza: NamedAgent): void {
+    // we need to resub if we go through a hard reconnect
+    const needsToResub = this.stanzaInstance &&
+      this.stanzaInstance.id !== stanza.id &&
+      this.stanzaInstance.channelId !== stanza.channelId;
+    this.stanzaInstance = stanza;
+
+    if (needsToResub) {
+      this.client.logger.info('resubscribing due to hard reconnect');
+      this.debouncedResubscribe();
+    }
+  }
+
   topicHandlers (topic: string): Array<(obj?: any) => void> {
     if (!this.subscriptions[topic]) {
       this.subscriptions[topic] = [];
@@ -58,8 +74,8 @@ export class Notifications {
     const payload = (pubsub.items!.published![0].content as any).json;
     const handlers = this.topicHandlers(topic);
 
-    this.client._stanzaio.emit('notify' as any, { topic: topic, data: payload });
-    this.client._stanzaio.emit(`notify:${topic}` as any, payload);
+    this.client.emit('notify' as any, { topic: topic, data: payload });
+    this.client.emit(`notify:${topic}` as any, payload);
     handlers.forEach((handler) => {
       handler(payload);
     });
@@ -69,7 +85,7 @@ export class Notifications {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
       return Promise.resolve();
     }
-    const subscribe = () => this.client._stanzaio.subscribeToNode(this.pubsubHost, topic);
+    const subscribe = () => this.stanzaInstance!.subscribeToNode(this.pubsubHost, topic);
     if (this.client.connected) {
       return subscribe();
     } else {
@@ -85,7 +101,7 @@ export class Notifications {
     if (this.topicHandlers(topic).length !== 0 || this.bulkSubscriptions[topic]) {
       return Promise.resolve();
     }
-    const unsubscribe = () => this.client._stanzaio.unsubscribeFromNode(this.pubsubHost, topic);
+    const unsubscribe = () => (this.stanzaInstance as unknown as Agent).unsubscribeFromNode(this.pubsubHost, topic);
     if (this.client.connected) {
       return unsubscribe();
     } else {
@@ -186,7 +202,7 @@ export class Notifications {
       data: JSON.stringify(this.mapCombineTopics(topics)),
       logger: this.client.logger
     };
-    const channelId = this.client.config.channelId;
+    const channelId = this.stanzaInstance!.channelId;
     return this.client.http.requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
   }
 
@@ -264,10 +280,10 @@ export class Notifications {
     if (this.topicHandlers(topic).length === 0) {
       this.createSubscription(topic, () => {
         this.client.logger.info(`${topic} - Triggering resubscribe.`, { channelId: this.client.config.channelId });
-        this.resubscribe().catch((err) => {
+        this.debouncedResubscribe().catch((err) => {
           const msg = 'Error resubscribing to topics';
           this.client.logger.error(msg, err);
-          this.client._stanzaio.emit('pubsub:error' as any, { msg, err });
+          this.client.emit('pubsub:error' as any, { msg, err });
         });
       });
     }

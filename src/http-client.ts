@@ -9,6 +9,7 @@ import {
   IResponseError,
   IAxiosResponseError
 } from './types/interfaces';
+import Logger from 'genesys-cloud-client-logger';
 
 const correlationIdHeaderName = 'inin-correlation-id';
 
@@ -56,6 +57,8 @@ export class HttpClient {
       method: opts.method,
       url,
       data: opts.data,
+      responseType: opts.responseType,
+      timeout: opts.requestTimeout || 30000,
       headers: {
         'content-type': opts.contentType || 'application/json'
       }
@@ -66,50 +69,63 @@ export class HttpClient {
       params.headers!['Authorization'] = `Bearer ${opts.authToken}`;
     }
 
-    const handleResponse = (res: AxiosResponse): Promise<AxiosResponse> => {
-      let now = new Date().getTime();
-      let elapsed = (now - start) + 'ms';
+    const boundHandler = this.handleResponse.bind(this, logger, start, params);
 
-      if (res instanceof AxiosError) {
-        /* istanbul ignore next */
-        const response = res.response || {} as any;
-        let status = response.status;
-        let correlationId = response.headers?.[correlationIdHeaderName];
-        let body = response.data;
-        let error: IAxiosResponseError = {
-          ...res,
-          text: response.request.response
-        };
+    return axios(params)
+      .then(boundHandler, boundHandler);
+  }
 
+  private handleResponse (logger: Logger, start: number, params: AxiosRequestConfig, res: AxiosResponse): Promise<AxiosResponse> {
+    let now = new Date().getTime();
+    let elapsed = (now - start) + 'ms';
+
+    if (res instanceof AxiosError) {
+      // handles request timeout
+      if (res.code === 'ECONNABORTED') {
         logger.debug(`request error: ${params.url}`, {
           message: res.message,
           now,
-          elapsed,
-          status,
-          correlationId,
-          body
-        }, true);
+          elapsed
+        }, { skipServer: true });
 
-        return Promise.reject(error);
+        return Promise.reject(res);
       }
 
-      let status = res.status;
-      let correlationId = res.headers[correlationIdHeaderName];
-      let body = JSON.stringify(res.data);
+      /* istanbul ignore next */
+      const response = res.response || {} as any;
+      let status = response.status;
+      let correlationId = response.headers && response.headers[correlationIdHeaderName];
+      let body = response.data;
+      let error: IAxiosResponseError = {
+        ...res,
+        text: response.request.response
+      };
 
-      logger.debug(`response: ${opts.method.toUpperCase()} ${params.url}`, {
+      logger.debug(`request error: ${params.url}`, {
+        message: res.message,
         now,
-        status,
         elapsed,
+        status,
         correlationId,
         body
-      }, true);
+      }, { skipServer: true });
 
-      return Promise.resolve(res);
-    };
+      return Promise.reject(error);
+    }
 
-    return axios(params)
-      .then(handleResponse.bind(this), handleResponse.bind(this));
+    let status = res.status;
+    let correlationId = res.headers[correlationIdHeaderName];
+    let body = JSON.stringify(res.data);
+
+    logger.debug(`response: ${params.method!.toUpperCase()} ${params.url}`, {
+      now,
+      status,
+      elapsed,
+      correlationId,
+      body
+    }, { skipServer: true });
+
+    return Promise.resolve(res);
   }
 
   stopAllRetries (): void {

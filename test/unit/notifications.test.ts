@@ -6,8 +6,26 @@ import nock from 'nock';
 import { Notifications } from '../../src/notifications';
 import { Agent } from 'stanza';
 import { HttpClient } from '../../src/http-client';
+import { EventEmitter } from 'stream';
+import { NamedAgent } from '../../src/types/named-agent';
+import { v4 } from 'uuid';
 
 const exampleTopics = require('../helpers/example-topics.json');
+
+const channelId = 'notification-test-channel';
+
+function getFakeStanzaClient (): NamedAgent {
+  const instance = new EventEmitter();
+  return Object.assign(
+    instance,
+    {
+      id: v4(),
+      subscribeToNode: jest.fn(),
+      unsubscribeFromNode: jest.fn(),
+      channelId
+    }
+  ) as unknown as NamedAgent;
+}
 
 class Client extends WildEmitter {
   connected = false;
@@ -19,15 +37,15 @@ class Client extends WildEmitter {
     error () { }
   };
 
-  _stanzaio: WildEmitter & Agent = new WildEmitter() as any;
+  activeStanzaInstance: WildEmitter & Agent = new WildEmitter() as any;
   http: HttpClient;
 
   constructor (public config: any) {
     super();
 
     this.http = new HttpClient();
-    this._stanzaio.subscribeToNode = jest.fn();
-    this._stanzaio.unsubscribeFromNode = jest.fn();
+    this.activeStanzaInstance!.subscribeToNode = jest.fn();
+    this.activeStanzaInstance!.unsubscribeFromNode = jest.fn();
   }
 }
 
@@ -49,11 +67,53 @@ function timeout (t) {
 }
 
 describe('Notifications', () => {
+  describe('handleStanzaInstanceChange', () => {
+    let client: Client;
+    let notification: Notifications;
+    let stanzaInstance: NamedAgent;
+
+    let resubSpy: jest.Mock;
+
+    beforeEach(() => {
+      client = new Client({
+        apiHost: 'example.com',
+        channelId: 'notification-test-channel'
+      });
+      notification = new Notifications(client);
+      stanzaInstance = notification.stanzaInstance = getFakeStanzaClient();
+      resubSpy = notification.debouncedResubscribe = jest.fn();
+    });
+
+    it('should not resub if same channelId', () => {
+      notification.handleStanzaInstanceChange(stanzaInstance);
+      expect(resubSpy).not.toHaveBeenCalled();
+    });
+
+    it('should resub if new channel', () => {
+      const newInstance = getFakeStanzaClient();
+      newInstance.channelId = 'newChannel';
+
+      notification.handleStanzaInstanceChange(newInstance);
+      expect(resubSpy).toHaveBeenCalled();
+    });
+
+    it('should not resub if new channel but no existing stanzaInstance', () => {
+      const newInstance = getFakeStanzaClient();
+      newInstance.channelId = 'newChannel';
+
+      notification.stanzaInstance = undefined;
+      notification.handleStanzaInstanceChange(newInstance);
+      expect(resubSpy).not.toHaveBeenCalled();
+    });
+  });
+
   test('pubsubHost', () => {
     const client = new Client({
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
     expect(notification.pubsubHost).toBe('notifications.inindca.com');
     client.config.apiHost = 'https://localhost:3000';
     expect(notification.pubsubHost).toBe('notifications.localhost:3000');
@@ -83,18 +143,19 @@ describe('Notifications', () => {
       channelId: 'notification-test-channel'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
     const handler = jest.fn();
     const firstSubscription = notification.expose.subscribe('topic.test', handler, true);
 
     // not subscribed yet, client is not connected
-    expect(notification.client._stanzaio.subscribeToNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.subscribeToNode).not.toHaveBeenCalled();
 
     client.emit('connected');
     client.connected = true;
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(1);
     await firstSubscription;
     expect(notification.subscriptions['topic.test'].length).toBe(1);
     expect(notification.subscriptions['topic.test'][0]).toBe(handler);
@@ -106,7 +167,7 @@ describe('Notifications', () => {
     const handler2 = jest.fn();
     await notification.expose.subscribe('topic.test', handler2, true);
     // don't resubscribe on the server
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(1);
     expect(notification.subscriptions['topic.test'][1]).toBe(handler2);
 
     // eventing
@@ -122,11 +183,12 @@ describe('Notifications', () => {
         }
       }
     };
-    jest.spyOn(notification.client._stanzaio, 'emit').mockReturnValue(undefined);
+    jest.spyOn(notification.stanzaInstance!, 'emit').mockReturnValue(undefined);
+    const clientEmitSpy = jest.spyOn(client, 'emit');
     client.emit('pubsub:event', pubsubMessage);
-    expect(notification.client._stanzaio.emit).toHaveBeenCalledTimes(2);
-    expect(notification.client._stanzaio.emit).toHaveBeenCalledWith('notify', { topic: 'topic.test', data: { the: 'payload' } });
-    expect(notification.client._stanzaio.emit).toHaveBeenCalledWith('notify:topic.test', { the: 'payload' });
+    expect(clientEmitSpy).toHaveBeenCalledTimes(3);
+    expect(clientEmitSpy).toHaveBeenCalledWith('notify', { topic: 'topic.test', data: { the: 'payload' } });
+    expect(clientEmitSpy).toHaveBeenCalledWith('notify:topic.test', { the: 'payload' });
 
     expect(handler).toHaveBeenCalledTimes(1);
     expect(handler).toHaveBeenCalledWith({ the: 'payload' });
@@ -134,60 +196,61 @@ describe('Notifications', () => {
     expect(handler2).toHaveBeenCalledWith({ the: 'payload' });
 
     const apiRequest = nock('https://api.example.com')
-      .post('/api/v2/notifications/channels/notification-test-channel/subscriptions', () => true)
+      .post(`/api/v2/notifications/channels/${channelId}/subscriptions`, () => true)
       .reply(200, { id: 'streaming-someid' });
     await notification.expose.bulkSubscribe(['topic.test', 'topic.one', 'topic.two', 'topic.three']);
     // didn't subscribe via xmpp any more (was once previously)
     console.warn('subscribeToNode 4');
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(1);
     apiRequest.done();
     expect(notification.bulkSubscriptions['topic.three']).toBe(true);
 
     const apiRequest2 = nock('https://api.example.com')
-      .put('/api/v2/notifications/channels/notification-test-channel/subscriptions', () => true)
+      .put(`/api/v2/notifications/channels/${channelId}/subscriptions`, () => true)
       .reply(200, { id: 'streaming-someid' });
     await notification.expose.bulkSubscribe(['topic.test', 'topic.one', 'topic.two'], { replace: true });
     // didn't subscribe via xmpp any more (was once previously)
     console.warn('subscribeToNode 5');
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(1);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(1);
     apiRequest2.done();
     expect(notification.bulkSubscriptions['topic.three']).toBe(undefined);
 
     // unsubscribing
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     await notification.expose.unsubscribe('topic.test', handler2, true);
     // there are still more subscriptions
-    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.unsubscribeFromNode).not.toHaveBeenCalled();
 
     await notification.expose.unsubscribe('topic.test', () => { }, true);
     // unsubscribing with an unused handler won't trigger any unsubscribe
-    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.unsubscribeFromNode).not.toHaveBeenCalled();
 
     await notification.expose.unsubscribe('topic.test', handler, true);
     // unsubscribing when there's record of a bulk subscription won't trigger any unsubscribe
-    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.unsubscribeFromNode).not.toHaveBeenCalled();
 
     client.connected = false;
     // unsubscribing without a handler removes the bulkScubscription handler
     const unsubscribe = notification.expose.unsubscribe('topic.test', undefined, true);
     // well, not until we reconnect
-    expect(notification.client._stanzaio.unsubscribeFromNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.unsubscribeFromNode).not.toHaveBeenCalled();
 
     client.emit('connected');
     await unsubscribe;
-    expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledTimes(1);
-    expect(notification.client._stanzaio.unsubscribeFromNode).toHaveBeenCalledWith('notifications.example.com', 'topic.test');
+    expect(notification.stanzaInstance!.unsubscribeFromNode).toHaveBeenCalledTimes(1);
+    expect(notification.stanzaInstance!.unsubscribeFromNode).toHaveBeenCalledWith('notifications.example.com', 'topic.test');
   });
 
-  test('subscribe and unsubscribe work when debounced', async () => {
+  it('subscribe and unsubscribe work when debounced', async () => {
     const client = new Client({
       apiHost: 'example.com',
       channelId: 'notification-test-channel'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
     jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
     const handler = jest.fn();
     const firstSubscription = notification.expose.subscribe('topic.test', handler);
@@ -220,8 +283,10 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
     jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
 
     const topic1 = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'
@@ -259,9 +324,11 @@ describe('Notifications', () => {
       channelId: 'notification-test-channel'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
     jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
     await Promise.all([
       notification.expose.subscribe('topic.test', jest.fn()),
@@ -289,10 +356,12 @@ describe('Notifications', () => {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     client.connected = true;
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockRejectedValue(new Error('test'));
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockRejectedValue(new Error('test'));
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockRejectedValue(new Error('test'));
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockRejectedValue(new Error('test'));
     const handler = jest.fn();
     expect.assertions(2);
     await notification.expose.subscribe('test', handler, true).catch(() => expect(true).toBe(true));
@@ -300,21 +369,23 @@ describe('Notifications', () => {
   });
 
   it('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event', async () => {
+    jest.useFakeTimers();
     const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
     jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
     expect(notification.bulkSubscribe).not.toHaveBeenCalled();
-    expect(notification.client._stanzaio.subscribeToNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.subscribeToNode).not.toHaveBeenCalled();
     const handler = jest.fn();
     const handler2 = jest.fn();
     const handler3 = jest.fn();
@@ -323,29 +394,32 @@ describe('Notifications', () => {
     await notification.expose.subscribe('test2', handler3, true);
     await notification.expose.subscribe('test3', undefined, true);
     notification.bulkSubscriptions.test3 = true;
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(3);
     await notification.expose.unsubscribe('test2', handler3, true);
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
+    jest.advanceTimersByTime(500);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(3);
     expect(notification.bulkSubscribe).toHaveBeenCalledTimes(1);
   });
 
   it('notifications should resubscribe (bulk subscribe) to existing topics after streaming-subscriptions-expiring event and emit an error on failure', async () => {
+    jest.useFakeTimers();
     const client = new Client({});
     client.config = {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
     // subscribing
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
     jest.spyOn(notification, 'makeBulkSubscribeRequest').mockRejectedValue(new Error('intentional test error'));
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
     expect(notification.makeBulkSubscribeRequest).not.toHaveBeenCalled();
-    expect(notification.client._stanzaio.subscribeToNode).not.toHaveBeenCalled();
+    expect(notification.stanzaInstance!.subscribeToNode).not.toHaveBeenCalled();
     const handler = jest.fn();
     const handler2 = jest.fn();
     const handler3 = jest.fn();
@@ -355,16 +429,17 @@ describe('Notifications', () => {
     await notification.expose.subscribe('test2', handler3, true);
     await notification.expose.subscribe('test3', handler4, true);
     notification.bulkSubscriptions.test3 = true;
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(3);
     await notification.expose.unsubscribe('test2', handler3, true);
     const errorEvent = new Promise<void>((resolve) => {
-      client._stanzaio.on('pubsub:error', err => {
+      client.on('pubsub:error', err => {
         expect(err.err.message).toBe('intentional test error');
         resolve();
       });
     });
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
-    expect(notification.client._stanzaio.subscribeToNode).toHaveBeenCalledTimes(3);
+    jest.advanceTimersByTime(500);
+    expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(3);
     expect(notification.makeBulkSubscribeRequest).toHaveBeenCalledTimes(1);
     await errorEvent;
   });
@@ -375,8 +450,10 @@ describe('Notifications', () => {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+    notification.stanzaInstance = getFakeStanzaClient();
+
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
     jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
@@ -397,9 +474,11 @@ describe('Notifications', () => {
       wsURL: 'ws://streaming.inindca.com/something-else'
     };
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
-    jest.spyOn(notification.client._stanzaio, 'subscribeToNode').mockResolvedValue({});
-    jest.spyOn(notification.client._stanzaio, 'unsubscribeFromNode').mockResolvedValue({});
+
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
+    (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
     jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
@@ -418,6 +497,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const reducedTopics = notification.mapCombineTopics(exampleTopics);
     expect(reducedTopics.length).toBe(exampleTopics.length / 5);
@@ -428,6 +509,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topics = [
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
@@ -453,6 +536,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topics = [
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
@@ -476,6 +561,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
     const singleTopic = 'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7.presence';
@@ -500,6 +587,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
     const handler = jest.fn();
@@ -532,6 +621,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topicList: string[] = [];
     for (let i = 0; i < 1030; i++) {
@@ -555,6 +646,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topicList: string[] = [];
     for (let i = 0; i < 1030; i++) {
@@ -574,6 +667,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     const topics = [
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
@@ -620,6 +715,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     notification.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 1, 'test.topic3': 5, 'test.topic4': -1 });
     expect(notification.getTopicPriority('test.topic')).toBe(2);
@@ -637,6 +734,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     notification.setTopicPriorities({ 'test.topic': 2 });
     expect(notification.topicPriorities.test.topic).toBe(2);
@@ -661,6 +760,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
 
     notification.setTopicPriorities();
     notification.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 5 });
@@ -676,6 +777,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
     jest.spyOn(notification, 'xmppSubscribe').mockResolvedValue(undefined);
 
     const handler = jest.fn();
@@ -690,6 +793,8 @@ describe('Notifications', () => {
       apiHost: 'inindca.com'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
     jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
 
     const priorities = {
@@ -723,8 +828,10 @@ describe('Notifications', () => {
       channelId: 'notification-test-channel'
     });
     const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
 
-    const spy = jest.spyOn(client._stanzaio, 'emit');
+
+    const spy = jest.spyOn(client, 'emit');
     (client as any).emit('pubsub:event', noLongerSubscribed);
 
     expect(spy).toHaveBeenCalledWith('notify', { topic: 'no_longer_subscribed', data: payload });
