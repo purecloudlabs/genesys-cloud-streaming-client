@@ -4,10 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.3...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.0...HEAD)
+# [v15.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.3...v15.0.0)
 ### Breaking Changes
-* There should not be any unless you are doing things you shouldn't. If you are interacting with the stanza instance itself,
-e.g. `streamingClient._stanzaio`, then you'll likely have issues.
+* There should not be any breaking changes unless you are doing things you shouldn't. If you are interacting with the stanza instance
+itself, e.g. `streamingClient._stanzaio`, then you'll likely have issues. We made this a major version release because of the scale of
+the changes to the connection logic.
 
 ### Fixed
 * [PCM-2031](https://inindca.atlassian.net/browse/PCM-2031) - Allow specifying response type to fix the "No root element" error when firefox tries to parse empty XHR responses.
