@@ -227,7 +227,7 @@ export class Client extends EventEmitter {
     }
 
     return timeoutPromise(resolve => {
-      this.activeStanzaInstance!.once('disconnected', resolve);
+      this.once('disconnected', resolve);
       this.autoReconnect = false;
       this.http.stopAllRetries();
       this.activeStanzaInstance!.disconnect();
@@ -346,6 +346,14 @@ export class Client extends EventEmitter {
     this.addInateEventHandlers(stanzaInstance);
     this.proxyStanzaEvents(stanzaInstance);
     stanzaInstance.pinger = new Ping(this, stanzaInstance);
+
+    // handle any extension configuration
+    for (const extension of this.extensions) {
+      if (extension.configureNewStanzaInstance) {
+        await extension.configureNewStanzaInstance(stanzaInstance);
+      }
+    }
+
     this.extensions.forEach(extension => extension.handleStanzaInstanceChange(stanzaInstance));
     this.activeStanzaInstance = stanzaInstance;
     this.emit('connected');
