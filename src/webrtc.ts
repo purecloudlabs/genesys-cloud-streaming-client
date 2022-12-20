@@ -14,7 +14,7 @@ import { isFirefox } from 'browserama';
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { GenesysCloudMediaSession, IGenesysCloudMediaSessionParams, SessionEvents } from './types/media-session';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
-import Client from '.';
+import { Client } from './client';
 import { formatStatsEvent } from './stats-formatter';
 import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
@@ -81,7 +81,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private stanzaInstance?: NamedAgent;
 
   get jid (): string | undefined {
-    return this.client.config.jid;
+    return this.stanzaInstance?.jid;
   }
 
   constructor (client: Client, clientOptions: IClientOptions) {
@@ -111,17 +111,23 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
     this.stanzaInstance = stanzaInstance;
-    await this.configureStanzaJingle(stanzaInstance);
+
+    if (this.refreshIceServersTimer) {
+      clearInterval(this.refreshIceServersTimer);
+      this.refreshIceServersTimer = null;
+    }
+
+    this.refreshIceServersTimer = setInterval(this.refreshIceServers.bind(this), ICE_SERVER_REFRESH_PERIOD);
 
     this.client.emit('sessionManagerChange', stanzaInstance);
   }
 
-  async configureStanzaJingle (stanzaInstance: NamedAgent) {
+  async configureNewStanzaInstance (stanzaInstance: NamedAgent) {
     Object.assign(stanzaInstance.jingle.config.peerConnectionConfig!, {
       sdpSemantics: 'unified-plan'
     });
 
-    await this.configureStanzaIceServers();
+    await this.configureStanzaIceServers(stanzaInstance);
 
     stanzaInstance.stanzas.define(definitions);
     stanzaInstance.jingle.prepareSession = this.prepareSession.bind(this);
@@ -152,30 +158,17 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     }
   }
 
-  private configureStanzaIceServers () {
+  private configureStanzaIceServers (stanzaInstance: NamedAgent) {
     /* clear out stanzas default use of google's stun server */
-    this.stanzaInstance!.jingle.config.iceServers = [];
+    stanzaInstance.jingle.config.iceServers = [];
 
     /**
      * NOTE: calling this here should not interfere with the `webrtc.ts` extension
      *  refreshingIceServers since that is async and this constructor is sync
      */
-    this.setIceServers([]);
+    this.setIceServers([], stanzaInstance);
 
-    if (this.refreshIceServersTimer) {
-      clearInterval(this.refreshIceServersTimer);
-      this.refreshIceServersTimer = null;
-    }
-
-    this.refreshIceServersTimer = setInterval(this.refreshIceServers.bind(this), ICE_SERVER_REFRESH_PERIOD);
-
-    return this.refreshIceServers()
-      .catch((error) =>
-        this.logger.error('Error fetching ice servers after streaming-client connected', {
-          error,
-          channelId: this.client.config.channelId
-        })
-      );
+    return this._refreshIceServers(stanzaInstance);
   }
 
   async handleMessage (msg) {
@@ -637,7 +630,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   async refreshIceServers (): Promise<ExtendedRTCIceServer[]> {
     if (!this.refreshIceServersRetryPromise) {
       this.refreshIceServersRetryPromise = retryPromise<ExtendedRTCIceServer[]>(
-        this._refreshIceServers.bind(this),
+        this._refreshIceServers.bind(this, this.stanzaInstance),
         (error): boolean => {
           if (++this.discoRetries > MAX_DISCO_RETRIES) {
             this.logger.warn('fetching ice servers failed. max retries reached.', {
@@ -668,18 +661,18 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       });
   }
 
-  async _refreshIceServers (): Promise<ExtendedRTCIceServer[]> {
-    if (!this.stanzaInstance) {
+  async _refreshIceServers (stanzaInstance?: NamedAgent): Promise<ExtendedRTCIceServer[]> {
+    if (!stanzaInstance) {
       throw new Error('No stanza instance to refresh ice servers');
     }
 
-    const server = this.stanzaInstance.config.server;
-    const turnServersPromise = this.stanzaInstance.getServices(
+    const server = stanzaInstance.config.server;
+    const turnServersPromise = stanzaInstance.getServices(
       server as string,
       'turn',
       '1'
     );
-    const stunServersPromise = this.stanzaInstance.getServices(
+    const stunServersPromise = stanzaInstance.getServices(
       server as string,
       'stun',
       '1'
@@ -731,31 +724,27 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       return ice;
     });
 
-    this.setIceServers(iceServers);
+    this.setIceServers(iceServers, stanzaInstance);
     if (!stunServers.services.length) {
       this.logger.info('No stun servers received, setting iceTransportPolicy to "relay"');
-      this.setIceTransportPolicy('relay');
+      this.setIceTransportPolicy('relay', stanzaInstance);
     } else {
-      this.setIceTransportPolicy('all');
+      this.setIceTransportPolicy('all', stanzaInstance);
     }
 
     return iceServers;
   }
 
-  setIceServers (iceServers: any[]) {
-    if (this.stanzaInstance) {
-      this.stanzaInstance.jingle.iceServers = iceServers;
-    }
+  setIceServers (iceServers: any[], stanzaInstance: NamedAgent) {
+    stanzaInstance.jingle.iceServers = iceServers;
   }
 
   getIceTransportPolicy () {
     return this.stanzaInstance?.jingle.config.peerConnectionConfig!.iceTransportPolicy;
   }
 
-  setIceTransportPolicy (policy: 'relay' | 'all') {
-    if (this.stanzaInstance) {
-      this.stanzaInstance.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
-    }
+  setIceTransportPolicy (policy: 'relay' | 'all', stanzaInstance: NamedAgent) {
+    stanzaInstance.jingle.config.peerConnectionConfig!.iceTransportPolicy = policy;
   }
 
   getSessionTypeByJid (jid: string): SessionTypes {
