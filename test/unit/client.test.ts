@@ -219,7 +219,7 @@ describe('disconnect', () => {
     expect(spy).not.toHaveBeenCalled();
   });
 
-  it('should resolve when a disconencted event is received', async () => {
+  it('should resolve when a disconnected event is received', async () => {
     let isResolved = false;
 
     const stanza = client.activeStanzaInstance = new EventEmitter() as any;
@@ -233,7 +233,7 @@ describe('disconnect', () => {
     expect(stanza.disconnect).toHaveBeenCalled();
     expect(isResolved).toBeFalsy();
 
-    stanza.emit('disconnected');
+    client.emit('disconnected');
     await flushPromises();
 
     expect(isResolved).toBeTruthy();
@@ -366,7 +366,7 @@ describe('makeConnectionAttempt', () => {
   });
 
   it('should set up stanzaInstance and emit connected event', async () => {
-    expect.assertions(7);
+    expect.assertions(8);
     const fakeInstance = {};
     getConnectionSpy.mockResolvedValue(fakeInstance);
     prepareSpy.mockResolvedValue(null);
@@ -375,6 +375,7 @@ describe('makeConnectionAttempt', () => {
     const proxyEventsSpy = client['proxyStanzaEvents'] = jest.fn();
 
     const fakeExtension = {
+      configureNewStanzaInstance: jest.fn().mockResolvedValue(null),
       handleStanzaInstanceChange: jest.fn()
     }
 
@@ -388,6 +389,7 @@ describe('makeConnectionAttempt', () => {
     expect(client.activeStanzaInstance).toBe(fakeInstance);
     expect(addHandlersSpy).toHaveBeenCalled();
     expect(proxyEventsSpy).toHaveBeenCalled();
+    expect(fakeExtension.configureNewStanzaInstance).toHaveBeenCalled();
     expect(fakeExtension.handleStanzaInstanceChange).toHaveBeenCalled();
     expect(client.connected).toBeTruthy();
     expect(client.connecting).toBeFalsy();

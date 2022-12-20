@@ -8,5 +8,6 @@ export interface StreamingClientExtension {
   tokenBucket?: TokenBucket;
   on?: (eventName: string, ...args: any[]) => void;
   expose?: {[fnName: string]: any};
+  configureNewStanzaInstance?: (stanzaInstance: NamedAgent) => Promise<any>;
   handleStanzaInstanceChange: (stanzaInstance: NamedAgent) => void;
 }
