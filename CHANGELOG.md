@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.1...HEAD)
+### Fixed
+* [PCM-2045](https://inindca.atlassian.net/browse/PCM-2045) - increased timeout for disconnecting
+
 # [v15.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.0...v15.0.1)
 ### Fixed
 * [PCM-2045](https://inindca.atlassian.net/browse/PCM-2045) - fixed various issues with the latest release. 1) error in the streaming-client bundle when sending stats. This was due to a bad import syntax in webrtc.ts. 2) race condition for setting up spigot tests. This is happening because spigot is trying to setup a session before the ice servers have come back during bootstrap. 3) jid issues in webrtc.ts. We used to rely on the client.config.jid for the jid, but now we will pull it directly from the stanzaInstance, or it will be null.
