@@ -231,7 +231,7 @@ export class Client extends EventEmitter {
       this.autoReconnect = false;
       this.http.stopAllRetries();
       this.activeStanzaInstance!.disconnect();
-    }, 1000, 'disconnecting streaming service');
+    }, 5000, 'disconnecting streaming service');
   }
 
   async connect (connectOpts: StreamingClientConnectOptions = { keepTryingOnFailure: false }) {
