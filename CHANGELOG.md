@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.2...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.3...HEAD)
+# [v15.0.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.2...v15.0.3)
+### Changed
+* [no-jira] bump stats gatherer
+
 # [v15.0.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.1...v15.0.2)
 ### Fixed
 * [PCM-2045](https://inindca.atlassian.net/browse/PCM-2045) - increased timeout for disconnecting
@@ -15,9 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [v15.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v14.2.4...v15.0.0)
 ### Breaking Changes
-* There should not be any breaking changes unless you are doing things you shouldn't. If you are interacting with the stanza instance
-itself, e.g. `streamingClient._stanzaio`, then you'll likely have issues. We made this a major version release because of the scale of
-the changes to the connection logic.
+* `client.reconnect()` no longer exists because it doesn't really make sense. If you need the reconnect functionality
+for some reason, you'll have to manually call `disconnect()` and `connect()`.
+* If you are interacting with the stanza instance itself, e.g. `streamingClient._stanzaio`, then you will have issues.
 
 ### Fixed
 * [PCM-2031](https://inindca.atlassian.net/browse/PCM-2031) - Allow specifying response type to fix the "No root element" error when firefox tries to parse empty XHR responses.
