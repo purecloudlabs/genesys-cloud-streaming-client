@@ -65,7 +65,7 @@
     "strict-event-emitter-types": "^2.0.0",
     "unorm": "^1.6.0",
     "uuid": "^8.3.0",
-    "webrtc-stats-gatherer": "^9.0.3",
+    "webrtc-stats-gatherer": "^9.0.5",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
