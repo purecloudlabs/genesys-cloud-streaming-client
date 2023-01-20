@@ -1,6 +1,6 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "15.0.3",
+  "version": "15.0.4",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
@@ -65,7 +65,7 @@
     "strict-event-emitter-types": "^2.0.0",
     "unorm": "^1.6.0",
     "uuid": "^8.3.0",
-    "webrtc-stats-gatherer": "^9.0.5",
+    "webrtc-stats-gatherer": "^9.0.6",
     "whatwg-fetch": "^3.0.0",
     "wildemitter": "^1.2.1"
   },
