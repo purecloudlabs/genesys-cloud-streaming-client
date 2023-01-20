@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.3...HEAD)
+### Changed
+* [PCM-2058](https://inindca.atlassian.net/browse/PCM-2058) - bump stats gatherer
+
 # [v15.0.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.2...v15.0.3)
 ### Changed
 * [no-jira] bump stats gatherer
