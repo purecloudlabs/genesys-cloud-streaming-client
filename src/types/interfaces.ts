@@ -2,6 +2,7 @@
 import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
 import { AxiosError, ResponseType } from 'axios';
 import { NamedAgent } from './named-agent';
+import { JingleReasonCondition } from 'stanza/Constants';
 export { ILogger, LogLevel };
 export interface IClientOptions {
   host: string;
@@ -123,6 +124,7 @@ export interface IPendingSession {
   fromJid: string;
   conversationId: string;
   originalRoomJid?: string;
+  sdpOverXmpp?: boolean;
   fromUserId?: string;
   roomJid?: string;
   accepted?: boolean;
@@ -130,9 +132,10 @@ export interface IPendingSession {
 }
 
 export interface JsonRpcMessage {
-  jsonrpc: string;
+  jsonrpc?: string;
   method: string;
-  params?: any;
+  id?: string; // this would be the correlationId
+  params?: { [key: string]: any };
 }
 
 export interface StreamingClientExtension {
@@ -144,4 +147,33 @@ export interface StreamingClientExtension {
 
 export interface StreamingClientConnectOptions {
   keepTryingOnFailure: boolean;
+}
+
+export interface GenesysWebrtcJsonRpcMessage extends JsonRpcMessage {
+  id?: string;
+  method: 'offer' | 'answer' | 'info' | 'iceCandidate' | 'terminate' | 'mute' | 'unmute';
+}
+
+export interface GenesysWebrtcBaseParams {
+  sessionId: string;
+}
+
+export interface GenesysWebrtcSdpParams extends GenesysWebrtcBaseParams {
+  sdp: string;
+}
+
+export interface GenesysWebrtcOfferParams extends GenesysWebrtcSdpParams {
+  conversationId: string;
+}
+
+export interface GenesysInfoActiveParams extends GenesysWebrtcBaseParams {
+  status: 'active';
+}
+
+export interface GenesysSessionTerminateParams extends GenesysWebrtcBaseParams {
+  reason?: JingleReasonCondition;
+}
+
+export interface GenesysWebrtcMuteParams extends GenesysWebrtcBaseParams {
+  type: 'audio' | 'video';
 }

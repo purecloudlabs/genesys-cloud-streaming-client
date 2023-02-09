@@ -1,5 +1,7 @@
-import { DefinitionOptions, attribute, booleanAttribute, childAttribute } from 'stanza/jxt';
-import { NS_JINGLE_RTP_INFO_1 } from 'stanza/Namespaces';
+import { DefinitionOptions, attribute, booleanAttribute, childAttribute, childJSON } from 'stanza/jxt';
+import { NS_CLIENT, NS_JINGLE_RTP_INFO_1 } from 'stanza/Namespaces';
+import { GenesysWebrtcJsonRpcMessage } from '../types/interfaces';
+import { Stanzas } from 'stanza';
 
 const NS_JINGLE_SIGNALING = 'urn:xmpp:jingle-message:0';
 
@@ -10,6 +12,7 @@ export interface Propose {
   persistentConversationId?: string;
   originalRoomJid?: string;
   fromUserId?: string;
+  sdpOverXmpp?: boolean;
 }
 
 const proposeDefinition: DefinitionOptions = {
@@ -18,6 +21,7 @@ const proposeDefinition: DefinitionOptions = {
   fields: {
     conversationId: attribute('inin-cid'),
     persistentConversationId: attribute('inin-persistent-cid'),
+    sdpOverXmpp: booleanAttribute('inin-sdp-over-xmpp'),
     originalRoomJid: attribute('inin-ofrom'),
     autoAnswer: booleanAttribute('inin-autoanswer'),
     fromUserId: attribute('inin-user-id'),
@@ -74,6 +78,39 @@ const screenStopDefinition: DefinitionOptions = {
   namespace: NS_JINGLE_RTP_INFO_1
 };
 
+// this allows you to declare IQ types like this:
+/*
+  const iq: IQ = {
+    type: 'set',
+    genesysWebrtc: {...}
+  }
+*/
+declare module 'stanza/protocol' {
+  export interface IQPayload {
+    genesysWebrtc?: GenesysWebrtcJsonRpcMessage;
+  }
+
+  export interface AgentEvents {
+    /* tslint:disable-next-line no-unnecessary-qualifier */
+    'iq:set:genesysWebrtc': Stanzas.ReceivedIQ & { genesysWebrtc: GenesysWebrtcJsonRpcMessage };
+  }
+}
+
+// this allows parsing xml that looks something like this:
+/*
+  <iq xmlns="jabber:client" [other stuff]>
+    <genesys-webrtc xmlns="genesys">{ "id": "whatver", "anyOtherFieldICareAbout": true }</genesys-webrtc>
+  </iq>
+*/
+const genesysWebrtc: DefinitionOptions = {
+  path: 'iq',
+  namespace: NS_CLIENT,
+  element: 'iq',
+  fields: {
+    genesysWebrtc: childJSON('genesys', 'genesys-webrtc')
+  }
+};
+
 const upgradeMediaPresenceDefinition: DefinitionOptions = {
   aliases: ['presence.media'],
   element: 'x',
@@ -97,5 +134,6 @@ export const definitions = [
   sessionRetractedDefinition,
   screenStartDefinition,
   screenStopDefinition,
-  upgradeMediaPresenceDefinition
+  upgradeMediaPresenceDefinition,
+  genesysWebrtc
 ];
