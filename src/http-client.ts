@@ -30,7 +30,19 @@ export class HttpClient {
     const retry = retryPromise<T>(
       this.requestApi.bind(this, path, opts),
       (error: any) => {
-        return error && error.response && HttpClient.retryStatusCodes.has(error.response.status);
+        let retryValue: boolean | number = false;
+
+        if (error?.response) {
+          retryValue = HttpClient.retryStatusCodes.has(error.response.status || 0);
+
+          const retryAfter = error.response.headers?.['retry-after'];
+          if (retryAfter) {
+            // retry after comes in seconds, we need to return milliseconds
+            retryValue = parseInt(retryAfter, 10) * 1000;
+          }
+        }
+
+        return retryValue;
       },
       retryInterval,
       opts.logger

@@ -1,5 +1,6 @@
 import * as utils from '../../src/utils';
 import { retryPromise } from '../../src/utils';
+import { flushPromises } from '../helpers/testing-utils';
 
 describe('Utils', () => {
   describe('jid utils', () => {
@@ -74,6 +75,30 @@ describe('Utils', () => {
       await flush(DELAY);
       expect(retryFn).toHaveBeenCalledTimes(4);
       expect(retry.hasCompleted()).toBe(true);
+    });
+
+    it('should wait the amount of time returned from the retry handler', async () => {
+      jest.useFakeTimers();
+
+      const fn = jest.fn().mockRejectedValueOnce({}).mockResolvedValue(null);
+      const retry = retryPromise(
+        fn,
+        () => 2000
+      );
+
+      await flushPromises();
+      expect(fn).toHaveBeenCalledTimes(1);
+      fn.mockReset();
+
+      jest.advanceTimersByTime(1000);
+      await flushPromises();
+
+      expect(fn).not.toHaveBeenCalled();
+
+      jest.advanceTimersByTime(1100);
+      await flushPromises();
+
+      expect(fn).toHaveBeenCalled();
     });
   });
 });
