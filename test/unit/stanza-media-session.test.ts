@@ -1,4 +1,4 @@
-import { GenesysCloudMediaSession } from '../../src/types/media-session';
+import { StanzaMediaSession } from '../../src/types/stanza-media-session';
 import { JingleAction, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import { EventEmitter } from 'events';
 import { ICESession } from 'stanza/jingle';
@@ -22,17 +22,18 @@ class FakeParent extends EventEmitter {
   forgetSession = jest.fn();
 }
 
-describe('GenesysCloudMediaSession', () => {
+describe('StanzaMediaSession', () => {
   describe('constructor', () => {
     it('should not setupStatsGatherer', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
         optOutOfWebrtcStatsTelemetry: true,
         sessionType: 'softphone',
-        allowIPv6: false
-      });
+        allowIPv6: false,
+        logger: console
+      } as any);
 
       expect(session['statsGatherer']).toBeFalsy();
     });
@@ -46,11 +47,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should end the session and call pc.close() because connection state is connecting', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
         sessionType: 'collaborateVideo',
+        logger: console,
         allowIPv6: false
-      });
+      } as any);
       const reason = {
         "reason": {
           "condition": "success"
@@ -69,11 +71,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should end the session - not call pc.close() because connection state is connected', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
         sessionType: 'collaborateVideo',
+        logger: console,
         allowIPv6: false
-      });
+      } as any);
       const reason = {
         "reason": {
           "condition": "success"
@@ -92,11 +95,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should end the session - not call pc.close() because connection state is closed', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'collaborateVideo',
         allowIPv6: false
-      });
+      } as any);
       const reason = {
         "reason": {
           "condition": "success"
@@ -117,11 +121,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should send session-info active stanza on connected', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
       (session.pc as any).iceConnectionState = 'connected';
       const spy = jest.spyOn(session, 'send').mockImplementation();
       session.onIceStateChange();
@@ -132,11 +137,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should call setupDataChannel when connected', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
         sessionType: 'softphone',
+        logger: console,
         allowIPv6: false
-      });
+      } as any);
 
       const spy = jest.spyOn(session, '_setupDataChannel');
 
@@ -154,11 +160,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should not send session-info active if not connected', () => {
       const parent = new FakeParent();
 
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
       const spy = jest.spyOn(session, 'send').mockImplementation();
       session.onIceStateChange();
 
@@ -167,11 +174,12 @@ describe('GenesysCloudMediaSession', () => {
 
     it('should log ICE connection failed along with the number of candidates exchanged', () => {
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
 
       session['iceCandidatesDiscovered'] = 3;
       session['iceCandidatesReceivedFromPeer'] = 5;
@@ -188,11 +196,12 @@ describe('GenesysCloudMediaSession', () => {
 
     it('should set interruption start', () => {
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
 
       const spy = session['_log'] = jest.fn();
       session['pc'] = { 
@@ -211,11 +220,12 @@ describe('GenesysCloudMediaSession', () => {
   describe('onConnectionStateChange', () => {
     it('should log an interruption recovery message', () => {
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
 
       session['interruptionStart'] = new Date();
 
@@ -230,11 +240,12 @@ describe('GenesysCloudMediaSession', () => {
 
     it('should log an interruption failure message', () => {
       const parent = new FakeParent();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
 
       session['interruptionStart'] = new Date();
 
@@ -257,11 +268,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent, allowIPv6: false } as any,
         sessionType: 'softphone',
+        logger: console,
         allowIPv6: false
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: ipv6Candidate }
@@ -274,11 +286,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowTCP: false
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: tcpCandidate, protocol: "tcp" }
@@ -292,11 +305,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent, allowIPv6: false } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: false
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: ipv4Candidate }
@@ -309,11 +323,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent, allowIPv6: true } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: true
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: ipv4Candidate }
@@ -326,11 +341,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
         sessionType: 'softphone',
+        logger: console,
         allowIPv6: true
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: ipv4Candidate }
@@ -343,11 +359,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowTCP: true
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: tcpCandidate, protocol: "tcp" }
@@ -360,11 +377,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowTCP: true
-      });
+      } as any);
 
       const event = {
         candidate: { candidate: ipv4Candidate, protocol: "udp"}
@@ -377,11 +395,12 @@ describe('GenesysCloudMediaSession', () => {
       const parent = new FakeParent();
       // @ts-ignore
       const spy = jest.spyOn(ICESession.prototype, 'onIceCandidate').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: true
-      });
+      } as any);
 
       const event = {
         candidate: null
@@ -395,11 +414,12 @@ describe('GenesysCloudMediaSession', () => {
     it('should emit event', () => {
       const parent = new FakeParent();
       jest.spyOn(ICESession.prototype as any, 'onIceEndOfCandidates').mockImplementation();
-      const session = new GenesysCloudMediaSession({
+      const session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: true
-      });
+      } as any);
 
       const spy = jest.spyOn(session, 'emit');
       session.onIceEndOfCandidates();
@@ -408,15 +428,16 @@ describe('GenesysCloudMediaSession', () => {
   });
 
   describe('addTrack', () => {
-    let session: GenesysCloudMediaSession;
+    let session: StanzaMediaSession;
 
     beforeEach(() => {
       const parent = new FakeParent();
-      session = new GenesysCloudMediaSession({
+      session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: true
-      });
+      } as any);
     });
 
     it('should call replace track if there is a transceiver with an empty sender', async () => {
@@ -515,40 +536,51 @@ describe('GenesysCloudMediaSession', () => {
   });
 
   describe('_log', () => {
-    let session: GenesysCloudMediaSession;
+    let session: StanzaMediaSession;
+    let infoSpy: jest.Mock;
+    let errorSpy: jest.Mock;
 
     beforeEach(() => {
+      infoSpy = jest.fn();
+      errorSpy = jest.fn();
+
       const parent = new FakeParent();
-      session = new GenesysCloudMediaSession({
+      session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: {
+          info: infoSpy,
+          error: errorSpy
+        },
         sessionType: 'softphone',
         allowIPv6: true
-      });
+      } as any);
     });
 
-    it('should not log if there is a log override', () => {
-      const spy = jest.spyOn(session.parent, 'emit');
-
+    it('should proxy to logger', () => {
       session['_log']('info', 'should work');
+      expect(infoSpy).toHaveBeenCalled();
 
-      expect(spy).toHaveBeenCalled();
-      spy.mockReset();
+      session['_log']('error', 'should work error');
+      expect(errorSpy).toHaveBeenCalled();
+    });
 
-      session['_log']('info', 'Discovered new ICE candidate');
-      expect(spy).not.toHaveBeenCalled();
+    it('should not log if overridden', () => {
+      session['_log']('error', 'Discovered new ICE candidate');
+      expect(errorSpy).not.toHaveBeenCalled();
     });
   });
 
   describe('_setupDataChannel', () => {
-    let session: GenesysCloudMediaSession;
+    let session: StanzaMediaSession;
 
     beforeEach(() => {
       const parent = new FakeParent();
-      session = new GenesysCloudMediaSession({
+      session = new StanzaMediaSession({
         options: { parent } as any,
+        logger: console,
         sessionType: 'softphone',
         allowIPv6: true
-      });
+      } as any);
     });
 
     it('should do nothing if datachannel already exists', () => {
@@ -633,11 +665,12 @@ describe('GenesysCloudMediaSession', () => {
     describe('_handleDataChannelMessage', () => {
       it('should emit dataChannelMessage', () => {
         const parent = new FakeParent();
-        const session = new GenesysCloudMediaSession({
+        const session = new StanzaMediaSession({
           options: { parent } as any,
+          logger: console,
           sessionType: 'softphone',
           allowIPv6: true
-        });
+        } as any);
 
         const data = {
           jsonrpc: 'version2',
@@ -660,11 +693,12 @@ describe('GenesysCloudMediaSession', () => {
 
       it('should handle json parse error', () => {
         const parent = new FakeParent();
-        const session = new GenesysCloudMediaSession({
+        const session = new StanzaMediaSession({
           options: { parent } as any,
+          logger: console,
           sessionType: 'softphone',
           allowIPv6: true
-        });
+        } as any);
 
         const logSpy = jest.spyOn(session as any, '_log');
         

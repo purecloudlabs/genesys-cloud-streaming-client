@@ -1,23 +1,24 @@
 import { EventEmitter } from 'events';
-import { ExternalService, ExternalServiceList, ReceivedMessage } from 'stanza/protocol';
+import { ExternalService, ExternalServiceList, IQ, ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
 import LRU from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
-import { Jingle } from 'stanza';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import JingleSession, { SessionOpts } from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { GenesysCloudMediaSession, IGenesysCloudMediaSessionParams, SessionEvents } from './types/media-session';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import { Client } from './client';
 import { formatStatsEvent } from './stats-formatter';
-import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension } from './types/interfaces';
+import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
+import { StanzaMediaSession } from './types/stanza-media-session';
+import { IGenesysCloudMediaSessionParams, IMediaSession, IStanzaMediaSessionParams, SessionEvents } from './types/media-session';
+import { GenesysCloudMediaSession } from './types/genesys-cloud-media-session';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -78,7 +79,9 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private discoRetries = 0;
   private refreshIceServersRetryPromise: RetryPromise<ExtendedRTCIceServer[]> | undefined;
   private refreshIceServersTimer: any;
+  private iceServers: RTCIceServer[] = [];
   private stanzaInstance?: NamedAgent;
+  private webrtcSessions: GenesysCloudMediaSession[] = [];
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -107,6 +110,14 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     this.client.on('jingle:incoming', (session: JingleSession) => {
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
+
+    this.client.on('jingle:created', (session: JingleSession) => {
+      // if this is not a JingleSession, this is a generic BaseSession from jingle, aka dummy session.
+      // in this case, we can just kill this session because we will be using
+      if (!(session instanceof StanzaMediaSession)) {
+        session.end('cancel', true);
+      }
+    });
   }
 
   async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
@@ -116,6 +127,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       clearInterval(this.refreshIceServersTimer);
       this.refreshIceServersTimer = null;
     }
+
+    stanzaInstance.on('iq:set:genesysWebrtc' as any, this.handleGenesysWebrtcStanza.bind(this));
 
     this.refreshIceServersTimer = setInterval(this.refreshIceServers.bind(this), ICE_SERVER_REFRESH_PERIOD);
 
@@ -150,8 +163,12 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     ];
     for (const e of eventsToProxy) {
       stanzaInstance.jingle.on(
-        e,
-        (session: GenesysCloudMediaSession, ...data: any) => {
+        e as string,
+        (session: JingleSession | StanzaMediaSession, ...data: any) => {
+          if (!(session instanceof StanzaMediaSession)) {
+            return;
+          }
+
           session.emit(e as any, ...data);
         }
       );
@@ -171,6 +188,78 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     return this._refreshIceServers(stanzaInstance);
   }
 
+  private async handleGenesysOffer (iq: IQ) {
+    const message = iq.genesysWebrtc!;
+    const params = message.params as GenesysWebrtcOfferParams;
+
+    const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
+
+    const commonParams = {
+      id: params.sessionId,
+      logger: this.logger,
+      peerID: iq.from!,
+      fromJid: iq.from!,
+      sessionType: this.getSessionTypeByJid(iq.from!),
+      conversationId: params.conversationId,
+      ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF,
+      optOutOfWebrtcStatsTelemetry: !!this.config.optOutOfWebrtcStatsTelemetry,
+      allowIPv6: this.config.allowIPv6,
+      iceServers: this.iceServers,
+      iceTransportPolicy: this.getIceTransportPolicy()!
+    };
+
+    let mediaSessionParams: IGenesysCloudMediaSessionParams;
+
+    // we should only do something if the pending session tells us to
+    const pendingSession = this.pendingSessions[params.sessionId];
+    if (pendingSession) {
+      mediaSessionParams = {
+        ...commonParams,
+        fromUserId: pendingSession.fromUserId,
+        originalRoomJid: pendingSession.originalRoomJid,
+      };
+    } else {
+      mediaSessionParams = commonParams;
+    }
+
+    const session = new GenesysCloudMediaSession(this, mediaSessionParams);
+
+    await session.setRemoteDescription(params.sdp);
+
+    session.on('sendIq' as any, (iq: IQ) => this.stanzaInstance?.sendIQ(iq));
+
+    this.webrtcSessions.push(session);
+    return this.emit(events.INCOMING_RTCSESSION, session);
+  }
+
+  private async handleGenesysIceCandidate (iq: IQ) {
+    const message = iq.genesysWebrtc!;
+    const params: GenesysWebrtcSdpParams = message.params as GenesysWebrtcSdpParams;
+
+    const session = this.getSessionById(params.sessionId);
+    await (session as GenesysCloudMediaSession).addRemoteIceCandidate(params.sdp);
+  }
+
+  private async handleGenesysTerminate (iq: IQ) {
+    const message = iq.genesysWebrtc!;
+    const params: GenesysSessionTerminateParams = message.params as GenesysSessionTerminateParams;
+
+    const session = this.getSessionById(params.sessionId);
+    (session as GenesysCloudMediaSession).onSessionTerminate(params.reason);
+  }
+
+  private getSessionById (id: string): IMediaSession {
+    const session = this.getAllSessions().find(session => session.id === id);
+
+    if (!session) {
+      const error = new Error('Failed to find session by id');
+      this.logger.error(error, { sessionId: id });
+      throw error;
+    }
+
+    return session;
+  }
+
   async handleMessage (msg) {
     if (msg.propose) {
       await this.handlePropose(msg);
@@ -183,16 +272,40 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     }
   }
 
+  async handleGenesysWebrtcStanza (iq: IQ) {
+    const webrtcInfo = iq.genesysWebrtc!;
+
+    if (webrtcInfo.method === 'offer') {
+      return this.handleGenesysOffer(iq);
+    } else if (webrtcInfo.method === 'iceCandidate') {
+      return this.handleGenesysIceCandidate(iq);
+    } else if (webrtcInfo.method === 'terminate') {
+      return this.handleGenesysTerminate(iq);
+    }
+  }
+
   prepareSession (options: SessionOpts) {
     const pendingSession = this.pendingSessions[options.sid!];
+
+    // TODO: when we can safely remove the jingle session handling, this pending session
+    // will need to be deleted in the `handleGenesysOffer` fn.
     if (pendingSession) {
       delete this.pendingSessions[pendingSession.sessionId];
     }
 
+    if (pendingSession?.sdpOverXmpp) {
+      this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp on the pendingSession');
+      return;
+    }
+
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
 
-    const gcSessionOpts: IGenesysCloudMediaSessionParams = {
+    const gcSessionOpts: IStanzaMediaSessionParams = {
       options,
+      logger: this.logger,
+      id: options.sid!,
+      fromJid: options.peerID,
+      peerID: options.peerID,
       optOutOfWebrtcStatsTelemetry: !!this.config.optOutOfWebrtcStatsTelemetry,
       conversationId: pendingSession?.conversationId,
       fromUserId: pendingSession?.fromJid,
@@ -202,14 +315,14 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF
     };
 
-    const session = new GenesysCloudMediaSession(gcSessionOpts);
+    const session = new StanzaMediaSession(gcSessionOpts);
     this.proxyStatsForSession(session);
     return session;
   }
 
   // This should probably go into the webrtc sdk, but for now I'm putting here so it's in a central location.
   // This should be moved when the sdk is the primary consumer
-  proxyStatsForSession (session: GenesysCloudMediaSession) {
+  proxyStatsForSession (session: IMediaSession) {
     session.on('stats', (statsEvent: StatsEvent) => {
       /* if our logger was stopped, we need to stop stats logging too */
       if (this.client.logger['stopReason']) {
@@ -219,7 +332,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
         conference: (session as any).conversationId,
-        session: session.sid,
+        session: session.id,
         sessionType: session.sessionType
       };
 
@@ -390,7 +503,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         fromJid,
         sessionType,
         roomJid,
-        id: sessionId
+        id: sessionId,
+        sdpOverXmpp: msg.propose.sdpOverXmpp
       };
 
       this.pendingSessions[sessionId] = sessionInfo;
@@ -577,27 +691,27 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     this.logger.info('sent session-info:accept', logDetails);
   }
 
-  async notifyScreenShareStart (session: GenesysCloudMediaSession): Promise<void> {
+  async notifyScreenShareStart (session: IMediaSession): Promise<void> {
     return this.stanzaInstance!.send('iq', {
       to: `${session.peerID}`,
       from: this.jid,
       type: 'set',
       jingle: {
         action: JingleAction.SessionInfo,
-        sid: session.sid,
+        sid: session.id,
         screenstart: {}
       } as any
     });
   }
 
-  async notifyScreenShareStop (session: GenesysCloudMediaSession): Promise<void> {
+  async notifyScreenShareStop (session: IMediaSession): Promise<void> {
     return this.stanzaInstance!.send('iq', {
       to: `${session.peerID}`,
       from: this.jid,
       type: 'set',
       jingle: {
         action: JingleAction.SessionInfo,
-        sid: session.sid,
+        sid: session.id,
         screenstop: {}
       } as any
     });
@@ -737,6 +851,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   setIceServers (iceServers: any[], stanzaInstance: NamedAgent) {
     stanzaInstance.jingle.iceServers = iceServers;
+    this.iceServers = iceServers;
   }
 
   getIceTransportPolicy () {
@@ -765,6 +880,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     return this.stanzaInstance?.jingle;
   }
 
+  getAllSessions (): IMediaSession[] {
+    const stanzaSessionsObj = this.stanzaInstance?.jingle.sessions;
+    const stanzaSessions = stanzaSessionsObj && Object.values(stanzaSessionsObj) || [];
+
+    return [ ...stanzaSessions, ...this.webrtcSessions ] as IMediaSession[];
+  }
+
   get expose (): WebrtcExtensionAPI {
     return {
       on: this.on.bind(this),
@@ -781,7 +903,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       rtcSessionAccepted: this.rtcSessionAccepted.bind(this),
       initiateRtcSession: this.initiateRtcSession.bind(this),
       getSessionTypeByJid: this.getSessionTypeByJid.bind(this),
-      getSessionManager: this.getSessionManager.bind(this)
+      getSessionManager: this.getSessionManager.bind(this),
+      getAllSessions: this.getAllSessions.bind(this)
     };
   }
 }
@@ -798,8 +921,9 @@ export interface WebrtcExtensionAPI {
   cancelRtcSession (sessionId: string): void;
   rtcSessionAccepted (sessionId: string): void;
   initiateRtcSession (opts: InitRtcSessionOptions): Promise<void>;
-  notifyScreenShareStart (session: GenesysCloudMediaSession): void;
-  notifyScreenShareStop (session: GenesysCloudMediaSession): void;
+  notifyScreenShareStart (session: IMediaSession): void;
+  notifyScreenShareStop (session: IMediaSession): void;
   getSessionTypeByJid (jid: string): SessionTypes;
   getSessionManager: () => SessionManager | undefined;
+  getAllSessions: () => IMediaSession[];
 }

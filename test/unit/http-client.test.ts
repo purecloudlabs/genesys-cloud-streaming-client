@@ -3,6 +3,7 @@ import nock from 'nock';
 import { HttpClient } from '../../src/http-client';
 import { wait } from '../helpers/testing-utils';
 import { ILogger } from '../../src/types/interfaces';
+import * as utils from '../../src/utils';
 
 import axios, { AxiosError } from 'axios';
 
@@ -148,7 +149,7 @@ describe('HttpRequestClient', () => {
 
     it('should retry if there is a retriable status', async () => {
       const error = new Error('bad');
-      (error as any).response = { status: 429 };
+      (error as any).response = { status: 429, headers: {} };
       const spy = jest.spyOn(http, 'requestApi').mockRejectedValueOnce(error).mockResolvedValue(null);
 
       await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }, 0).promise;
@@ -163,6 +164,50 @@ describe('HttpRequestClient', () => {
 
       await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise
         .catch(e => expect(e).toBe(error));
+    });
+
+    it('retry handler should return the retry-after value in milliseconds', async () => {
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '3', promise: Promise.resolve(), cancel: jest.fn() });
+
+      const error = {
+        response: {
+          headers: {
+            'retry-after': '42'
+          }
+        }
+      };
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise;
+
+      const errFn: (error: any) => boolean | number = spy.mock.calls[0][1] as any;
+      expect(errFn(error)).toEqual(42000);
+      spy.mockRestore();
+    });
+
+    it('should not blow up if there are no headers', async () => {
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '4', promise: Promise.resolve(), cancel: jest.fn() });
+
+      const error = {
+        response: { }
+      };
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise;
+
+      const errFn: (error: any) => boolean | number = spy.mock.calls[0][1] as any;
+      expect(errFn(error)).toEqual(false);
+      spy.mockRestore();
+    });
+
+    it('should not blow up if there is no response object', async () => {
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '4', promise: Promise.resolve(), cancel: jest.fn() });
+
+      const error = {};
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise;
+
+      const errFn: (error: any) => boolean | number = spy.mock.calls[0][1] as any;
+      expect(errFn(error)).toEqual(false);
+      spy.mockRestore();
     });
   });
 

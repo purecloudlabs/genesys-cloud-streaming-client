@@ -64,7 +64,8 @@ export type RetryPromise<T = any> = {
 
 export function retryPromise<T = any> (
   promiseFn: () => Promise<T>,
-  retryFn: (error?: Error | any) => boolean,
+  // if a number is returned, that's how long we will wait before retrying (in milliseconds)
+  retryFn: (error?: Error | any) => boolean | number,
   retryInterval: number = 15000,
   logger: any = console
 ): RetryPromise<T> {
@@ -80,9 +81,16 @@ export function retryPromise<T = any> (
         const val = await promiseFn();
         complete(val);
       } catch (error) {
-        if (retryFn(error)) {
+        let timeToWait = retryInterval;
+
+        const retryValue = retryFn(error);
+        if (Number.isInteger(retryValue)) {
+          timeToWait = retryValue as number;
+        }
+
+        if (retryValue !== false) {
           logger.debug('Retrying promise', error);
-          timeout = setTimeout(tryPromiseFn, retryInterval);
+          timeout = setTimeout(tryPromiseFn, timeToWait);
         } else {
           cancel(error);
         }
