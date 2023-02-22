@@ -8,14 +8,20 @@ import { EventEmitter } from 'events';
 import browserama from 'browserama';
 
 import { WebrtcExtension } from '../../src/webrtc';
-import { GenesysCloudMediaSession } from '../../src/types/media-session';
 import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
-import { ISessionInfo, SessionTypes } from '../../src/types/interfaces';
+import { GenesysSessionTerminateParams, GenesysWebrtcSdpParams, ISessionInfo, SessionTypes } from '../../src/types/interfaces';
 import { NamedAgent } from '../../src/types/named-agent';
+import { StanzaMediaSession } from '../../src/types/stanza-media-session';
+import { GenesysCloudMediaSession } from '../../src/types/genesys-cloud-media-session';
+import { IQ } from 'stanza/protocol';
+import { IMediaSession } from '../../src/types/media-session';
 
-jest.mock('../../src/types/media-session');
+jest.mock('../../src/types/stanza-media-session');
+StanzaMediaSession.prototype.on = jest.fn();
+
+jest.mock('../../src/types/genesys-cloud-media-session');
 GenesysCloudMediaSession.prototype.on = jest.fn();
 
 function getFakeStanzaClient (): NamedAgent {
@@ -34,14 +40,14 @@ function getFakeStanzaClient (): NamedAgent {
           peerConnectionConfig: {}
         }
       },
-      send: jest.fn().mockResolvedValue(null)
+      send: jest.fn().mockResolvedValue(null),
+      sendIQ: jest.fn()
     }
   ) as unknown as NamedAgent;
 }
 
-class Client extends WildEmitter {
+class Client extends EventEmitter {
   connected = false;
-  emit!: (event: string, ...data: any) => void;
   logger = {
     debug () { },
     info () { },
@@ -111,9 +117,102 @@ describe('getIceTransportPolicy', () => {
   });
 });
 
+describe('handleGenesysWebrtcStanza', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+  });
+
+  it('should call handleGenesysOffer', async () => {
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'offer'
+      }
+    };
+
+    const spy = webrtc['handleGenesysOffer'] = jest.fn();
+
+    await webrtc.handleGenesysWebrtcStanza(iq);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call handleGenesysIceCandidate', async () => {
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'iceCandidate'
+      }
+    };
+
+    const spy = webrtc['handleGenesysIceCandidate'] = jest.fn();
+
+    await webrtc.handleGenesysWebrtcStanza(iq);
+    expect(spy).toHaveBeenCalled();
+  });
+
+  it('should call handleGenesysTerminate', async () => {
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'terminate'
+      }
+    };
+
+    const spy = webrtc['handleGenesysTerminate'] = jest.fn();
+
+    await webrtc.handleGenesysWebrtcStanza(iq);
+    expect(spy).toHaveBeenCalled();
+  });
+});
+
 describe('prepareSession', () => {
+  it('should return undefined if sdpOverXmpp', () => {
+    (StanzaMediaSession as jest.Mock).mockReset();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sessionId = 'abc';
+    const pendingSession = {
+      sdpOverXmpp: true
+    };
+    webrtc.pendingSessions[sessionId] = pendingSession as any;
+
+    webrtc.proxyStatsForSession = jest.fn();
+    jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('all');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue(SessionTypes.softphone);
+    Object.defineProperty(browserama, 'isFirefox', { get: () => true });
+
+    const session = webrtc.prepareSession({ sid: sessionId } as any);
+    expect(StanzaMediaSession).not.toHaveBeenCalled();
+    expect(session).toBeUndefined();
+  });
+
+  it('should create media session if sdpOverXmpp is falsey', () => {
+    (StanzaMediaSession as jest.Mock).mockReset();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sessionId = 'abc';
+    const pendingSession = {
+      sdpOverXmpp: false
+    };
+    webrtc.pendingSessions[sessionId] = pendingSession as any;
+
+    webrtc.proxyStatsForSession = jest.fn();
+    jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('all');
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue(SessionTypes.softphone);
+    Object.defineProperty(browserama, 'isFirefox', { get: () => true });
+
+    const session = webrtc.prepareSession({ sid: sessionId } as any);
+    expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
+  });
+
   it('should create media session with ignoreHostCandidates', () => {
-    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    (StanzaMediaSession as jest.Mock).mockReset();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.proxyStatsForSession = jest.fn();
@@ -122,12 +221,12 @@ describe('prepareSession', () => {
     Object.defineProperty(browserama, 'isFirefox', { get: () => true });
 
     const session = webrtc.prepareSession({} as any);
-    expect(GenesysCloudMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: true }));
+    expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: true }));
   });
 
   it('should delete pending session', () => {
-    (GenesysCloudMediaSession as jest.Mock).mockReset();
-    GenesysCloudMediaSession.prototype.on = jest.fn();
+    (StanzaMediaSession as jest.Mock).mockReset();
+    StanzaMediaSession.prototype.on = jest.fn();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
@@ -139,8 +238,8 @@ describe('prepareSession', () => {
   });
 
   it('should use sessionType from pendingSession', () => {
-    (GenesysCloudMediaSession as jest.Mock).mockReset();
-    GenesysCloudMediaSession.prototype.on = jest.fn();
+    (StanzaMediaSession as jest.Mock).mockReset();
+    StanzaMediaSession.prototype.on = jest.fn();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
@@ -148,12 +247,12 @@ describe('prepareSession', () => {
 
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
     const session = webrtc.prepareSession({ sid: 'mysid' } as any);
-    expect((GenesysCloudMediaSession as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({ sessionType: 'softphone' }));
+    expect((StanzaMediaSession as jest.Mock)).toHaveBeenCalledWith(expect.objectContaining({ sessionType: 'softphone' }));
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
   });
 
   it('should create mediaSession without ignoreHostCandidates if not ff', () => {
-    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    (StanzaMediaSession as jest.Mock).mockReset();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.proxyStatsForSession = jest.fn();
@@ -162,11 +261,11 @@ describe('prepareSession', () => {
     Object.defineProperty(browserama, 'isFirefox', { get: () => false });
 
     const session = webrtc.prepareSession({} as any);
-    expect(GenesysCloudMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
+    expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
   });
 
   it('should create mediaSession without ignoreHostCandidates if not relay and is firefox', () => {
-    (GenesysCloudMediaSession as jest.Mock).mockReset();
+    (StanzaMediaSession as jest.Mock).mockReset();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.proxyStatsForSession = jest.fn();
@@ -175,7 +274,7 @@ describe('prepareSession', () => {
     Object.defineProperty(browserama, 'isFirefox', { get: () => true });
 
     const session = webrtc.prepareSession({} as any);
-    expect(GenesysCloudMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
+    expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
   });
 });
 
@@ -289,7 +388,7 @@ describe('proxyEvents', () => {
       sid: sessionId
     }
 
-    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+    webrtc.on('incomingRtcSession', (session: StanzaMediaSession) => {
       expect(session.sid).toEqual(sessionId);
     });
 
@@ -311,11 +410,74 @@ describe('proxyEvents', () => {
     client.emit('jingle:incoming', fakeSession as any);
   });
 
-  
+  it('should end session in jingle:created if not StanzaMediaSession', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const fakeSession = {
+      end: jest.fn()
+    };
+
+    client.emit('jingle:created', fakeSession as any);
+
+    expect(fakeSession.end).toHaveBeenCalled();
+  });
+
+  it('should not end session in jingle:created if StanzaMediaSession', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const session = new StanzaMediaSession({
+      end: jest.fn()
+    } as any);
+
+    client.emit('jingle:created', session as any);
+
+    expect(session.end).not.toHaveBeenCalled();
+  });
 });
 
 describe('configureNewStanzaInstance', () => {
   it('should emit sessionEvents', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    jest.spyOn(webrtc as any, 'configureStanzaIceServers').mockResolvedValue(null);
+
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    (fakeStanza as any).jingle = new EventEmitter();
+    (fakeStanza as any).jingle.config = {
+      peerConnectionConfig: {}
+    };
+    await webrtc.configureNewStanzaInstance(fakeStanza);
+
+    const fakeSession = Object.create(StanzaMediaSession.prototype);
+    fakeSession.emit = jest.fn();
+
+    const events = [
+      'iceConnectionType',
+      'peerTrackAdded',
+      'peerTrackRemoved',
+      'mute',
+      'unmute',
+      'sessionState',
+      'connectionState',
+      'terminated',
+      'stats',
+      'endOfCandidates'
+    ];
+
+    for (const e of events) {
+      const fakeData = { str: v4() };
+      fakeStanza.jingle.emit(e, fakeSession, fakeData);
+      expect(fakeSession.emit).toHaveBeenCalledWith(e, fakeData);
+      fakeSession.emit.mockReset();
+    }
+
+    expect.assertions(events.length);
+  });
+  
+  it('should not emit sessionEvents if not a StanzaMediaSession', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
@@ -348,8 +510,7 @@ describe('configureNewStanzaInstance', () => {
     for (const e of events) {
       const fakeData = { str: v4() };
       fakeStanza.jingle.emit(e, fakeSession, fakeData);
-      expect(fakeSession.emit).toHaveBeenCalledWith(e, fakeData);
-      fakeSession.emit.mockReset();
+      expect(fakeSession.emit).not.toHaveBeenCalled();
     }
 
     expect.assertions(events.length);
@@ -857,9 +1018,9 @@ describe('notifyScreenShareStart', () => {
     const toJid = 'room@conference.com';
     const sessionId = 'session66231';
 
-    const session: GenesysCloudMediaSession = {
+    const session: StanzaMediaSession = {
       peerID: toJid,
-      sid: sessionId
+      id: sessionId
     } as any;
 
     const bareJid = 'user@test.com';
@@ -890,9 +1051,9 @@ describe('notifyScreenShareStop', () => {
     const toJid = 'room@conference.com';
     const sessionId = 'session66231';
 
-    const session: GenesysCloudMediaSession = {
+    const session: StanzaMediaSession = {
       peerID: toJid,
-      sid: sessionId
+      id: sessionId
     } as any;
 
     const bareJid = 'user@test.com';
@@ -1478,4 +1639,275 @@ describe('handleStanzaInstanceChange', () => {
 
     expect(spy).toHaveBeenCalledWith(123);
   })
+});
+
+describe('getAllSessions', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+  let stanza: NamedAgent;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+    stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+  });
+
+  it('should return a union of sessions', () => {
+    const jSession1 = { id: '51' };
+    const genSession1 = { id: '2' };
+
+    stanza.jingle.sessions = [ jSession1 ] as any;
+    webrtc['webrtcSessions'] = [ genSession1 ] as any;
+
+    const sessions = webrtc.getAllSessions();
+    expect(sessions.length).toBe(2);
+    expect(sessions).toContain(jSession1);
+    expect(sessions).toContain(genSession1);
+  });
+
+  it('should handle no stanza instance', () => {
+    webrtc['stanzaInstance'] = undefined;
+    const genSession1 = { id: '2' };
+
+    webrtc['webrtcSessions'] = [ genSession1 ] as any;
+
+    const sessions = webrtc.getAllSessions();
+    expect(sessions.length).toBe(1);
+    expect(sessions).toContain(genSession1);
+  });
+});
+
+describe('getSessionById', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+  let getAllSessionsSpy: jest.Mock;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+    getAllSessionsSpy = webrtc.getAllSessions = jest.fn();
+  });
+
+  it('should return session', () => {
+    const session = {
+      id: 'session86'
+    };
+
+    getAllSessionsSpy.mockReturnValue([ session ]);
+
+    expect(webrtc['getSessionById']('session86')).toBe(session);
+  });
+
+  it('should throw if no session is found', () => {
+    getAllSessionsSpy.mockReturnValue([ ]);
+    expect(() => webrtc['getSessionById']('session86')).toThrowError('Failed to find session by id');
+  });
+});
+
+describe('handleGenesysTerminate', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+  });
+
+  it('should call onSessionTerminate on the session', async () => {
+    const session = {
+      onSessionTerminate: jest.fn()
+    };
+
+    webrtc['getSessionById'] = jest.fn().mockReturnValue(session);
+
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'terminate',
+        params: {
+          sessionId: 'session24',
+          reason: 'general-error'
+        } as GenesysSessionTerminateParams
+      }
+    };
+
+    await webrtc['handleGenesysTerminate'](iq);
+    expect(session.onSessionTerminate).toHaveBeenCalledWith('general-error');
+  });
+});
+
+describe('handleGenesysIceCandidate', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+  });
+
+  it('should call onSessionTerminate on the session', async () => {
+    const session = {
+      addRemoteIceCandidate: jest.fn()
+    };
+
+    webrtc['getSessionById'] = jest.fn().mockReturnValue(session);
+
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'iceCandidate',
+        params: {
+          sessionId: 'session24',
+          sdp: 'my-candidate'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    await webrtc['handleGenesysIceCandidate'](iq);
+    expect(session.addRemoteIceCandidate).toHaveBeenCalledWith('my-candidate');
+  });
+});
+
+describe('handleGenesysOffer', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+  });
+
+  it('should create and emit a session (no pending session)', async () => {
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          sdp: 'my-offer'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+      expect(session.setRemoteDescription).toHaveBeenCalled();
+      expect(webrtc['webrtcSessions'].length).toEqual(1);
+    });
+
+    await webrtc['handleGenesysOffer'](iq);
+    expect.assertions(2);
+  });
+  
+  it('should set ignoreHostCandidatesForForceTurnFF', async () => {
+    Object.defineProperty(browserama, 'isFirefox', { get: () => true });
+    jest.spyOn(webrtc as any, 'getIceTransportPolicy').mockReturnValue('relay');
+
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          sdp: 'my-offer'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+      expect(session.setRemoteDescription).toHaveBeenCalled();
+      expect(webrtc['webrtcSessions'].length).toEqual(1);
+    });
+
+    await webrtc['handleGenesysOffer'](iq);
+    expect.assertions(2);
+  });
+  
+  it('should register and handle sendIq from the session', async () => {
+    const emitter = new EventEmitter();
+    (emitter as any).setRemoteDescription = jest.fn();
+    (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
+
+    const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+   
+    const iq: IQ = {
+      type: 'set',
+      from: 'fromJid25@gjoll.com',
+      genesysWebrtc: {
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          sdp: 'my-offer'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    await webrtc['handleGenesysOffer'](iq);
+    const iqObj = {};
+    emitter.emit('sendIq', iqObj);
+    expect(stanza.sendIQ).toHaveBeenCalledWith(iqObj);
+  });
+  
+  it('should register and handle sendIq from the session and not blow up if not stanzaInstance', async () => {
+    const emitter = new EventEmitter();
+    (emitter as any).setRemoteDescription = jest.fn();
+    (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
+
+    const iq: IQ = {
+      type: 'set',
+      from: 'fromJid25@gjoll.com',
+      genesysWebrtc: {
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          sdp: 'my-offer'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    await webrtc['handleGenesysOffer'](iq);
+    const iqObj = {};
+    emitter.emit('sendIq', iqObj);
+  });
+
+  it('should create and emit a session (from pending session)', async () => {
+    webrtc['stanzaInstance'] = getFakeStanzaClient();
+    
+    const iq: IQ = {
+      type: 'set',
+      from: 'fromJid25@gjoll.com',
+      genesysWebrtc: {
+        method: 'offer',
+        params: {
+          conversationId: 'convo25',
+          sessionId: 'session25',
+          sdp: 'my-offer'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+      expect(session.setRemoteDescription).toHaveBeenCalled();
+      expect(webrtc['webrtcSessions'].length).toEqual(1);
+      expect(GenesysCloudMediaSession).toHaveBeenCalledWith(expect.anything(), 
+        expect.objectContaining({
+          fromUserId: 'fromUserId26',
+          originalRoomJid: 'originalRoomJid26'
+        })
+      );
+    });
+
+    webrtc.pendingSessions['session25'] = {
+      autoAnswer: true,
+      conversationId: 'convo25',
+      fromJid: 'fromJid25@gjoll.com',
+      id: 'session25',
+      sessionId: 'session25',
+      sessionType: 'softphone',
+      toJid: 'tojid25',
+      fromUserId: 'fromUserId26',
+      originalRoomJid: 'originalRoomJid26'
+    };
+
+    await webrtc['handleGenesysOffer'](iq);
+  });
 });

@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.4...HEAD)
+### Added
+* [PCM-2042](https://inindca.atlassian.net/browse/PCM-2042) - add the ability to handle/manage sessions via sdp over xmpp rather than jingle. We will default to jingle unless the propose says to use sdp over xmpp in which case we will spin up a dummy session for jingle (since we can't stop jingle from handling a session-init) and terminate it immediately, silently.
+
 ### Fixed
 * [PCM-2075](https://inindca.atlassian.net/browse/PCM-2075) - Fix requestApiWithRetry to respect the retry-after response header; retryPromise now allows a number in the retry handler to override the future delay.
 
