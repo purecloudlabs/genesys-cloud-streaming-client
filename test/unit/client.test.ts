@@ -253,7 +253,7 @@ describe('backoffConnectRetryHandler', () => {
   });
 
   it('should return false if not keepTryingOnFailure', () => {
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: false }, {}, 1)).toBeFalsy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 1 }, {}, 1)).toBeFalsy();
   });
 
   it('should return false if AxiosError with a 401 code', () => {
@@ -269,7 +269,7 @@ describe('backoffConnectRetryHandler', () => {
         status: 401
       } as any
     );
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeFalsy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
   });
 
   it('should return false if AxiosError with a 403 code', () => {
@@ -285,7 +285,7 @@ describe('backoffConnectRetryHandler', () => {
         status: 403
       } as any
     );
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeFalsy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
   });
 
   it('should handle AxiosError without a response', () => {
@@ -298,26 +298,26 @@ describe('backoffConnectRetryHandler', () => {
       },
       {} as any
     );
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeTruthy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
   });
 
   it('should set hardReconnectRequired if SaslError', () => {
     const error = new SaslError('not-authorized', 'channelId', 'instanceId');
     client.hardReconnectRequired = false;
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeTruthy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(client.hardReconnectRequired).toBeTruthy();
   });
 
   it('should strip out irrelevant stack for timeout error', () => {
     const error = new TimeoutError('fake timeout');
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeTruthy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message
     }), { skipServer: false });
   });
   
   it('should handle undefined error', () => {
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, undefined, 1)).toBeTruthy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, undefined, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: expect.objectContaining({ message: 'streaming client backoff handler received undefined error' })
     }), { skipServer: false });
@@ -326,7 +326,7 @@ describe('backoffConnectRetryHandler', () => {
   it('should log additional details if included in timeout error', () => {
     const error = new TimeoutError('fake timeout');
     const details = (error as any).details = { };
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeTruthy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message,
       details
@@ -335,7 +335,7 @@ describe('backoffConnectRetryHandler', () => {
 
   it('should skip server logging if offline error', () => {
     const error = new OfflineError('here we go');
-    expect(client['backoffConnectRetryHandler']({ keepTryingOnFailure: true }, error, 1)).toBeTruthy();
+    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error
     }), { skipServer: true });

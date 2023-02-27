@@ -4,7 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.1...HEAD)
+
+# [v15.1.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.4...v15.1.1)
+### Deprecated
+* We deprecated the `StreamingClientConnectOptions.keepTryingOnFailure` property which is passed into `StreamingClient.connect(...)`. Please use `StreamingClientConnectOptions.maxConnectionAttempts` instead.
+
+### Changed
+* [PCM-2082](https://inindca.atlassian.net/browse/PCM-2082) - Deprecated the `StreamingClientConnectOptions.keepTryingOnFailure`. Changed the default maxConnectionAttempts to 15, and increased the default exponential-backoff delay for connection attempts from 10 seconds to 3 minutes.
+
 # [v15.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.4...v15.1.0)
 ### Added
 * [PCM-2042](https://inindca.atlassian.net/browse/PCM-2042) - add the ability to handle/manage sessions via sdp over xmpp rather than jingle. We will default to jingle unless the propose says to use sdp over xmpp in which case we will spin up a dummy session for jingle (since we can't stop jingle from handling a session-init) and terminate it immediately, silently.
