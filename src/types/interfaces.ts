@@ -146,7 +146,16 @@ export interface StreamingClientExtension {
 }
 
 export interface StreamingClientConnectOptions {
-  keepTryingOnFailure: boolean;
+  /**
+   * @deprecated since version 15.1.1. Please use maxConnectionAttempts instead
+   */
+  keepTryingOnFailure?: boolean;
+
+  // how many attempts streaming client will make before giving up
+  maxConnectionAttempts?: number;
+
+  // max delay for exponential backoff of attempts
+  maxDelayBetweenConnectionAttempts?: number;
 }
 
 export interface GenesysWebrtcJsonRpcMessage extends JsonRpcMessage {

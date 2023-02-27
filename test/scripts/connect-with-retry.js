@@ -4,6 +4,19 @@ const client = new window.GenesysCloudStreamingClient({
 
 window.client = client;
 
-client.connect({ keepTryingOnFailure: true, retryDelay: 3000 });
+let connectionAttempt = 0;
+
+client['makeConnectionAttempt'] = () => {
+  const conAttempt = connectionAttempt++;
+  console.log('making connection attempt', { connectionAttempt: conAttempt });
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      console.log('rejecting attempt', { connectionAttempt: conAttempt });
+      reject();
+    }, 100);
+  });
+}
+
+client.connect({ maxConnectionAttempts: 10, maxDelayBetweenConnectionAttempts: 10000 });
 
 client.logger.info('logging from the streaming-client logger');

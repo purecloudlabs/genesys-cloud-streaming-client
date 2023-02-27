@@ -234,7 +234,7 @@ export class Client extends EventEmitter {
     }, 5000, 'disconnecting streaming service');
   }
 
-  async connect (connectOpts: StreamingClientConnectOptions = { keepTryingOnFailure: false }) {
+  async connect (connectOpts?: StreamingClientConnectOptions) {
     if (this.connecting) {
       const error = new Error('Already trying to connect streaming client');
       return this.logger.warn(error);
@@ -242,13 +242,23 @@ export class Client extends EventEmitter {
 
     this.connecting = true;
 
+    const maxDelay = connectOpts?.maxDelayBetweenConnectionAttempts || 180000;
+
+    let maxAttempts = connectOpts?.maxConnectionAttempts || 1;
+
+    // tslint:disable-next-line
+    if (connectOpts?.keepTryingOnFailure) {
+      // this maintains the previous functionality
+      maxAttempts = Infinity;
+    }
+
     try {
       await backOff(() => this.makeConnectionAttempt(), {
         jitter: 'full',
-        maxDelay: 10000,
-        numOfAttempts: connectOpts.keepTryingOnFailure ? Infinity : 1,
+        maxDelay,
+        numOfAttempts: maxAttempts,
         startingDelay: 2000,
-        retry: this.backoffConnectRetryHandler.bind(this, connectOpts)
+        retry: this.backoffConnectRetryHandler.bind(this, { maxConnectionAttempts: maxAttempts })
       });
     } catch (err: any) {
       let error = err;
@@ -279,10 +289,10 @@ export class Client extends EventEmitter {
     }
   }
 
-  private backoffConnectRetryHandler (connectOpts: StreamingClientConnectOptions, err: any, connectionAttempt: number): boolean {
+  private backoffConnectRetryHandler (connectOpts: { maxConnectionAttempts: number }, err: any, connectionAttempt: number): boolean {
     // if we exceed the `numOfAttempts` in the backoff config it still calls this retry fn and just ignores the result
     // if that's the case, we just want to bail out and ignore all the extra logging here.
-    if (!connectOpts.keepTryingOnFailure) {
+    if (connectionAttempt >= connectOpts.maxConnectionAttempts) {
       return false;
     }
 
