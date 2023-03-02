@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.2...HEAD)
 
-# [v15.1.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.0.4...v15.1.1)
+# [v15.1.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.1...v15.1.2)
+### Fixed
+* [PCM-2089](https://inindca.atlassian.net/browse/PCM-2089) - [CRITICAL FIX] fixed issue where failing the initial service discover request causes connection instance fan out. We now clean up the websocket if an error happens *after* the socket is connected, but *before* the rest of the connection setup is completed. We also added a fixed number of attempts a client will reuse a channelId. Adjusted max exponential backoff to 90 seconds now that we have a concrete solution to the spamming connection attempts.
+
+# [v15.1.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.0...v15.1.1)
 ### Deprecated
 * We deprecated the `StreamingClientConnectOptions.keepTryingOnFailure` property which is passed into `StreamingClient.connect(...)`. Please use `StreamingClientConnectOptions.maxConnectionAttempts` instead.
 
