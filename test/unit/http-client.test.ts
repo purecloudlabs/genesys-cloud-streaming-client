@@ -184,6 +184,22 @@ describe('HttpRequestClient', () => {
       spy.mockRestore();
     });
 
+    it('retry handler should should handle XMLHttpRequest', async () => {
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '3', promise: Promise.resolve(), cancel: jest.fn() });
+
+      const error = {
+        response: {
+          getResponseHeader: () => '42'
+        }
+      };
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }).promise;
+
+      const errFn: (error: any) => boolean | number = spy.mock.calls[0][1] as any;
+      expect(errFn(error)).toEqual(42000);
+      spy.mockRestore();
+    });
+
     it('should not blow up if there are no headers', async () => {
       const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '4', promise: Promise.resolve(), cancel: jest.fn() });
 
@@ -377,6 +393,19 @@ describe('HttpRequestClient', () => {
         message: 'fake error',
         elapsed: expect.anything()
       }), { skipServer: true });
+    });
+
+    it('should handle no request object', async () => {
+      const error = new AxiosError('fake error', 'HELLO');
+
+      const spy = jest.fn();
+      const logger = {
+        debug: spy
+      };
+
+      delete error.request;
+
+      await expect(http['handleResponse'](logger as any, new Date().getTime(), { url: 'http://test.com' }, error as any)).rejects.toEqual({...error, text: undefined});
     });
   });
 

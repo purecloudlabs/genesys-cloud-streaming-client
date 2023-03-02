@@ -27,6 +27,7 @@ let extensions = {
 
 const STANZA_DISCONNECTED = 'stanzaDisconnected';
 const NO_LONGER_SUBSCRIBED = 'notify:no_longer_subscribed';
+const MAX_CHANNEL_REUSES = 10;
 
 export class Client extends EventEmitter {
   activeStanzaInstance?: NamedAgent;
@@ -42,6 +43,7 @@ export class Client extends EventEmitter {
   private autoReconnect = true;
   private extensions: StreamingClientExtension[] = [];
   private connectionManager: ConnectionManager;
+  private channelReuses = 0;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
@@ -242,7 +244,7 @@ export class Client extends EventEmitter {
 
     this.connecting = true;
 
-    const maxDelay = connectOpts?.maxDelayBetweenConnectionAttempts || 180000;
+    const maxDelay = connectOpts?.maxDelayBetweenConnectionAttempts || 90000;
 
     let maxAttempts = connectOpts?.maxConnectionAttempts || 1;
 
@@ -289,7 +291,7 @@ export class Client extends EventEmitter {
     }
   }
 
-  private backoffConnectRetryHandler (connectOpts: { maxConnectionAttempts: number }, err: any, connectionAttempt: number): boolean {
+  private async backoffConnectRetryHandler (connectOpts: { maxConnectionAttempts: number }, err: any, connectionAttempt: number): Promise<boolean> {
     // if we exceed the `numOfAttempts` in the backoff config it still calls this retry fn and just ignores the result
     // if that's the case, we just want to bail out and ignore all the extra logging here.
     if (connectionAttempt >= connectOpts.maxConnectionAttempts) {
@@ -340,6 +342,25 @@ export class Client extends EventEmitter {
       }
     }
 
+    if (err?.response) {
+      // This *should* be an axios error according to typings, but it appears this could be an AxiosError *or* and XmlHttpRequest
+      // we'll check both to be safe
+      const retryAfter = (err as AxiosError).response!.headers?.['retry-after'] || (err.response as XMLHttpRequest).getResponseHeader?.('retry-after');
+
+      if (retryAfter) {
+        // retry after comes in seconds, we need to return milliseconds
+        let retryDelay = parseInt(retryAfter, 10) * 1000;
+        additionalErrorDetails.retryDelay = retryDelay;
+        this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+        await new Promise((resolve) => {
+          setTimeout(resolve, retryDelay);
+        });
+
+        this.logger.debug('finished waiting for retry-after');
+        return true;
+      }
+    }
+
     this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
     return true;
   }
@@ -349,30 +370,60 @@ export class Client extends EventEmitter {
       throw new OfflineError('Browser is offline, skipping connection attempt');
     }
 
-    await this.prepareForConnect();
-    const stanzaInstance = await this.connectionManager.getNewStanzaConnection();
-    this.connected = true;
-    this.connecting = false;
-    this.addInateEventHandlers(stanzaInstance);
-    this.proxyStanzaEvents(stanzaInstance);
-    stanzaInstance.pinger = new Ping(this, stanzaInstance);
+    let stanzaInstance: NamedAgent | undefined;
+    let previousConnectingState = this.connecting;
+    try {
+      await this.prepareForConnect();
+      stanzaInstance = await this.connectionManager.getNewStanzaConnection();
+      this.connected = true;
+      this.connecting = false;
+      this.addInateEventHandlers(stanzaInstance);
+      this.proxyStanzaEvents(stanzaInstance);
+      stanzaInstance.pinger = new Ping(this, stanzaInstance);
 
-    // handle any extension configuration
-    for (const extension of this.extensions) {
-      if (extension.configureNewStanzaInstance) {
-        await extension.configureNewStanzaInstance(stanzaInstance);
+      // handle any extension configuration
+      for (const extension of this.extensions) {
+        if (extension.configureNewStanzaInstance) {
+          await extension.configureNewStanzaInstance(stanzaInstance);
+        }
       }
-    }
 
-    this.extensions.forEach(extension => extension.handleStanzaInstanceChange(stanzaInstance));
-    this.activeStanzaInstance = stanzaInstance;
-    this.emit('connected');
+      for (const extension of this.extensions) {
+        extension.handleStanzaInstanceChange(stanzaInstance);
+      }
+
+      this.activeStanzaInstance = stanzaInstance;
+      this.emit('connected');
+    } catch (err) {
+      if (stanzaInstance) {
+        this.logger.error('Error occurred in connection attempt, but after websocket connected. Cleaning up connection so backoff is respected', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+
+        // unproxy stanza events so we don't try and reconnect
+        (stanzaInstance as any).emit = stanzaInstance.originalEmitter;
+        stanzaInstance.pinger!.stop();
+        stanzaInstance.disconnect();
+
+        this.connected = false;
+        this.connecting = previousConnectingState;
+      }
+      throw err;
+    }
   }
 
   private async prepareForConnect () {
     if (this.config.jwt) {
       this.hardReconnectRequired = false;
       return this.connectionManager.setConfig(this.config);
+    }
+
+    if (!this.hardReconnectRequired) {
+      this.channelReuses++;
+
+      if (this.channelReuses > MAX_CHANNEL_REUSES) {
+        this.logger.warn('Forcing a hard reconnect due to max channel reuses', { channelId: this.config.channelId, channelReuses: this.channelReuses });
+        this.channelReuses = 0;
+        this.hardReconnectRequired = true;
+      }
     }
 
     if (this.hardReconnectRequired) {
@@ -386,7 +437,7 @@ export class Client extends EventEmitter {
           authToken: this.config.authToken,
           logger: this.logger
         };
-        jidPromise = this.http.requestApiWithRetry('users/me', jidRequestOpts).promise
+        jidPromise = this.http.requestApi('users/me', jidRequestOpts)
           .then(res => res.data.chat.jabberId);
       }
 
@@ -396,7 +447,7 @@ export class Client extends EventEmitter {
         authToken: this.config.authToken,
         logger: this.logger
       };
-      const channelPromise = this.http.requestApiWithRetry('notifications/channels?connectionType=streaming', channelRequestOpts).promise
+      const channelPromise = this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 
       const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);

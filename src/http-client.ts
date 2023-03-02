@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { Axios, AxiosError, AxiosRequestConfig, AxiosResponse } from 'axios';
 
 import { RetryPromise, retryPromise } from './utils';
 import {
@@ -33,10 +33,14 @@ export class HttpClient {
         let retryValue: boolean | number = false;
 
         if (error?.response) {
-          retryValue = HttpClient.retryStatusCodes.has(error.response.status || 0);
+          retryValue = HttpClient.retryStatusCodes.has((error.response as XMLHttpRequest).status || 0);
 
-          const retryAfter = error.response.headers?.['retry-after'];
+          // This *should* be an axios error according to typings, but it appears this could be an AxiosError *or* and XmlHttpRequest
+          // we'll check both to be safe
+          const retryAfter = (error as AxiosError).response!.headers?.['retry-after'] || (error.response as XMLHttpRequest).getResponseHeader?.('retry-after');
           if (retryAfter) {
+            (opts.logger || console).debug('retry-after header found on response. setting retry delay', { retryAfter });
+
             // retry after comes in seconds, we need to return milliseconds
             retryValue = parseInt(retryAfter, 10) * 1000;
           }
@@ -110,7 +114,7 @@ export class HttpClient {
       let body = response.data;
       let error: IAxiosResponseError = {
         ...res,
-        text: response.request.response
+        text: response.request?.response
       };
 
       logger.debug(`request error: ${params.url}`, {

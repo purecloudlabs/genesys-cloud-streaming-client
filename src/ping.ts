@@ -47,7 +47,8 @@ export class Ping {
     } catch (err) {
       const info = {
         channelId: this.client.config.channelId,
-        jid: this.stanzaInstance.jid
+        jid: this.stanzaInstance.jid,
+        stanzaInstanceId: this.stanzaInstance.id
       };
       this.client.logger.warn('Missed a ping.', Object.assign({ error: err }, info));
 

@@ -252,11 +252,11 @@ describe('backoffConnectRetryHandler', () => {
     errorSpy = jest.spyOn(client.logger, 'error');
   });
 
-  it('should return false if not keepTryingOnFailure', () => {
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 1 }, {}, 1)).toBeFalsy();
+  it('should return false if not keepTryingOnFailure', async () => {
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 1 }, {}, 1)).toBeFalsy();
   });
 
-  it('should return false if AxiosError with a 401 code', () => {
+  it('should return false if AxiosError with a 401 code', async () => {
     const error = new AxiosError(
       'fake error',
       'FAKE_ERROR',
@@ -269,10 +269,94 @@ describe('backoffConnectRetryHandler', () => {
         status: 401
       } as any
     );
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
+  });
+  
+  it('should wait until retryAfter has elapsed (axiosError)', async () => {
+    jest.useFakeTimers();
+
+    const error = new AxiosError(
+      'fake error',
+      'FAKE_ERROR',
+      {
+        url: 'fakeUrl',
+        method: 'get'
+      },
+      {},
+      {
+        status: 429,
+        headers: {
+          'retry-after': '13'
+        }
+      } as any
+    );
+
+    const errorSpy = jest.spyOn(client.logger, 'error');
+    const debugSpy = jest.spyOn(client.logger, 'debug');
+
+    const promise = client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
+
+    await flushPromises();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('respecting retry-after header'), expect.anything(), expect.anything());
+    expect(debugSpy).not.toHaveBeenCalled();
+
+    await flushPromises();
+    jest.advanceTimersByTime(10000);
+    await flushPromises();
+    expect(debugSpy).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(4000);
+    await flushPromises();
+    expect(debugSpy).toHaveBeenCalled();
+
+    await expect(promise).resolves.toBeTruthy();
+    jest.useRealTimers();
+  });
+  
+  it('should wait until retryAfter has elapsed (xmlhttperror)', async () => {
+    jest.useFakeTimers();
+
+    const error = {
+      response: {
+        status: 429,
+        getResponseHeader: () => '12'
+      }
+    };
+
+    const errorSpy = jest.spyOn(client.logger, 'error');
+    const debugSpy = jest.spyOn(client.logger, 'debug');
+
+    const promise = client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
+
+    await flushPromises();
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('respecting retry-after header'), expect.anything(), expect.anything());
+    expect(debugSpy).not.toHaveBeenCalled();
+
+    await flushPromises();
+    jest.advanceTimersByTime(10000);
+    await flushPromises();
+    expect(debugSpy).not.toHaveBeenCalled();
+
+    jest.advanceTimersByTime(4000);
+    await flushPromises();
+    expect(debugSpy).toHaveBeenCalled();
+
+    await expect(promise).resolves.toBeTruthy();
+    jest.useRealTimers();
+  });
+  
+  it('should handle response with no headers', async () => {
+    const error = {
+      response: {
+        status: 429
+      }
+    };
+
+    const promise = client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
+    expect(await promise).toBeTruthy();
   });
 
-  it('should return false if AxiosError with a 403 code', () => {
+  it('should return false if AxiosError with a 403 code', async () => {
     const error = new AxiosError(
       'fake error',
       'FAKE_ERROR',
@@ -285,10 +369,10 @@ describe('backoffConnectRetryHandler', () => {
         status: 403
       } as any
     );
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
   });
 
-  it('should handle AxiosError without a response', () => {
+  it('should handle AxiosError without a response', async () => {
     const error = new AxiosError(
       'fake error',
       'FAKE_ERROR',
@@ -298,44 +382,44 @@ describe('backoffConnectRetryHandler', () => {
       },
       {} as any
     );
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
   });
 
-  it('should set hardReconnectRequired if SaslError', () => {
+  it('should set hardReconnectRequired if SaslError', async () => {
     const error = new SaslError('not-authorized', 'channelId', 'instanceId');
     client.hardReconnectRequired = false;
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(client.hardReconnectRequired).toBeTruthy();
   });
 
-  it('should strip out irrelevant stack for timeout error', () => {
+  it('should strip out irrelevant stack for timeout error', async () => {
     const error = new TimeoutError('fake timeout');
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message
     }), { skipServer: false });
   });
   
-  it('should handle undefined error', () => {
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, undefined, 1)).toBeTruthy();
+  it('should handle undefined error', async () => {
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, undefined, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: expect.objectContaining({ message: 'streaming client backoff handler received undefined error' })
     }), { skipServer: false });
   });
 
-  it('should log additional details if included in timeout error', () => {
+  it('should log additional details if included in timeout error', async () => {
     const error = new TimeoutError('fake timeout');
     const details = (error as any).details = { };
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message,
       details
     }), { skipServer: false });
   });
 
-  it('should skip server logging if offline error', () => {
+  it('should skip server logging if offline error', async () => {
     const error = new OfflineError('here we go');
-    expect(client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error
     }), { skipServer: true });
@@ -394,6 +478,50 @@ describe('makeConnectionAttempt', () => {
     expect(client.connected).toBeTruthy();
     expect(client.connecting).toBeFalsy();
   });
+
+  it('should clean up connection an extension fails configureNewStanzaInstance', async () => {
+    const disconnectSpy = jest.fn();
+    const fakeEmit = jest.fn();
+    const fakeInstance = {
+      disconnect: disconnectSpy,
+      emit: null,
+      originalEmitter: fakeEmit
+    };
+    getConnectionSpy.mockResolvedValue(fakeInstance);
+    prepareSpy.mockResolvedValue(null);
+    const clientEmitSpy = jest.spyOn(client, 'emit');
+    client.connecting = true;
+
+    const addHandlersSpy = client['addInateEventHandlers'] = jest.fn();
+    const proxyEventsSpy = client['proxyStanzaEvents'] = jest.fn();
+
+    const fakeExtension = {
+      configureNewStanzaInstance: jest.fn().mockResolvedValue(null),
+      handleStanzaInstanceChange: jest.fn()
+    }
+
+    const err = new Error('Whoops, this is on purpose');
+    const fakeExtension2 = {
+      configureNewStanzaInstance: jest.fn().mockRejectedValue(err),
+      handleStanzaInstanceChange: jest.fn()
+    }
+
+    client['extensions'] = [fakeExtension, fakeExtension2];
+
+    client.on('connected', () => {
+      fail('This should not have happened');
+    });
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(err);
+    expect(clientEmitSpy).not.toHaveBeenCalled();
+    expect(client.activeStanzaInstance).toBeUndefined();
+    expect(addHandlersSpy).toHaveBeenCalled();
+    expect(proxyEventsSpy).toHaveBeenCalled();
+    expect(client.connected).toBeFalsy();
+    expect(client.connecting).toBeTruthy();
+    expect(fakeInstance.emit).toBe(fakeEmit);
+    expect(fakeInstance.disconnect).toHaveBeenCalled();
+  });
 });
 
 describe('prepareForConnect', () => {
@@ -407,7 +535,7 @@ describe('prepareForConnect', () => {
     });
 
     setConfigSpy = client['connectionManager'].setConfig = jest.fn();
-    httpSpy = client.http.requestApiWithRetry = jest.fn().mockImplementation((path) => {
+    httpSpy = client.http.requestApi = jest.fn().mockImplementation((path) => {
       const promise = new Promise(resolve => {
         if (path === 'users/me') {
           return resolve({ data: { chat: { jabberId: 'myRequestedJid' } } });
@@ -418,7 +546,7 @@ describe('prepareForConnect', () => {
         reject('unknown path');
       });
       
-      return { promise };
+      return promise;
     })
   });
 
@@ -463,6 +591,17 @@ describe('prepareForConnect', () => {
 
     expect(client.hardReconnectRequired).toBeFalsy();
     expect(setConfigSpy).toHaveBeenCalled();
+  });
+
+  it('should set hardReconnectRequired if max channel reuses are hit', async () => {
+    client.hardReconnectRequired = false;
+    client['channelReuses'] = 11;
+
+    await client['prepareForConnect']();
+    expect(setConfigSpy).toHaveBeenCalled();
+    expect(httpSpy).toHaveBeenCalled();
+    expect(client['channelReuses']).toEqual(0);
+    expect(client.hardReconnectRequired).toBeFalsy();
   });
 });
 
