@@ -55,7 +55,11 @@ export class ConnectionManager {
 
       stanza.updateConfig(options);
       stanza.connect();
-    }, 10 * 1000, 'connecting to streaming service', { channelId, stanzaInstanceId: stanza.id });
+    }, 15 * 1000, 'connecting to streaming service', { channelId, stanzaInstanceId: stanza.id });
+
+    connectionAttemptPromise.catch((e) => {
+      stanza.disconnect();
+    });
 
     return connectionAttemptPromise.finally(() => {
       stanza.off('raw:incoming', boundCheckForErrorStanza);

@@ -7,6 +7,7 @@ import { flushPromises } from '../helpers/testing-utils';
 import SaslError from '../../src/types/sasl-error';
 import { SASLFailure } from 'stanza/protocol';
 import * as utils from '../../src/utils';
+import { TimeoutError } from '../../src/types/timeout-error';
 
 jest.mock('genesys-cloud-client-logger');
 
@@ -40,6 +41,7 @@ describe('getNewStanzaConnection', () => {
     fakeStanza = new EventEmitter() as any;
     fakeStanza.updateConfig = jest.fn();
     fakeStanza.connect = jest.fn();
+    fakeStanza.disconnect = jest.fn();
     (fakeStanza as any).sasl = {
       mechanisms: [{ name: 'ANONYMOUS', priority: 2 }, { name: 'PLAIN', priority: 3 }]
     };
@@ -75,6 +77,7 @@ describe('getNewStanzaConnection', () => {
 
     const instance = await promise;
     expect(instance).toBe(fakeStanza);
+    expect(fakeStanza.disconnect).not.toHaveBeenCalled();
   });
 
   it('should listen on raw:incoming stanzas', async () => {
@@ -118,6 +121,24 @@ describe('getNewStanzaConnection', () => {
     });
 
     await expect(connectionManager.getNewStanzaConnection()).rejects.toBeUndefined();
+  });
+
+  it('should call disconnect if connection times out', async () => {
+    jest.useFakeTimers();
+
+    (fakeStanza.connect as jest.Mock).mockReturnValue(null);
+
+    connectionManager.getNewStanzaConnection().catch(e => {
+      expect(e).toBeInstanceOf(TimeoutError);
+    });
+
+    await flushPromises();
+    jest.advanceTimersByTime(12000);
+    await flushPromises();
+
+    expect(fakeStanza.disconnect).toHaveBeenCalled();
+
+    jest.useRealTimers();
   });
 
   it('should remove temporary listeners', async () => {
