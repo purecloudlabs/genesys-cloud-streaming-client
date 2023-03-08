@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.3...HEAD)
+### Fixed
+* [PCM-2089](https://inindca.atlassian.net/browse/PCM-2089) - fixed another case for connection fan-out
 
 # [v15.1.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.2...v15.1.3)
 ### Fixed
