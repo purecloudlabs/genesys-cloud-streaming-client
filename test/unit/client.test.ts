@@ -224,7 +224,12 @@ describe('disconnect', () => {
 
     const stanza = client.activeStanzaInstance = new EventEmitter() as any;
 
-    stanza.disconnect = jest.fn();
+    let resolve;
+    stanza.disconnect = jest.fn().mockImplementation(() => {
+      return new Promise(r => {
+        resolve = r;
+      });
+    });
     client.http.stopAllRetries = jest.fn();
 
     const promise = client.disconnect().then(() => isResolved = true);
@@ -233,7 +238,7 @@ describe('disconnect', () => {
     expect(stanza.disconnect).toHaveBeenCalled();
     expect(isResolved).toBeFalsy();
 
-    client.emit('disconnected');
+    resolve();
     await flushPromises();
 
     expect(isResolved).toBeTruthy();
@@ -487,6 +492,9 @@ describe('makeConnectionAttempt', () => {
       emit: null,
       originalEmitter: fakeEmit
     };
+    const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
+    client['boundStanzaDisconnect'] = async () => {};
+    client['boundStanzaNoLongerSubscribed'] = () => {};
     getConnectionSpy.mockResolvedValue(fakeInstance);
     prepareSpy.mockResolvedValue(null);
     const clientEmitSpy = jest.spyOn(client, 'emit');
@@ -519,7 +527,54 @@ describe('makeConnectionAttempt', () => {
     expect(proxyEventsSpy).toHaveBeenCalled();
     expect(client.connected).toBeFalsy();
     expect(client.connecting).toBeTruthy();
-    expect(fakeInstance.emit).toBe(fakeEmit);
+    expect(cleanupSpy).toHaveBeenCalled();
+    expect(fakeInstance.disconnect).toHaveBeenCalled();
+  });
+
+  it('should clean up pinger', async () => {
+    const disconnectSpy = jest.fn();
+    const fakeEmit = jest.fn();
+    const fakeInstance = {
+      disconnect: disconnectSpy,
+      emit: null,
+      originalEmitter: fakeEmit
+    };
+    const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
+    client['boundStanzaDisconnect'] = async () => {};
+    client['boundStanzaNoLongerSubscribed'] = () => {};
+    getConnectionSpy.mockResolvedValue(fakeInstance);
+    prepareSpy.mockResolvedValue(null);
+    client.connecting = true;
+    const normalEmit = client.emit;
+    const emitSpy = jest.spyOn(client, 'emit').mockImplementation(function (name) {
+      if (name === 'connected') {
+        throw new Error('this is expected');
+      }
+
+      return normalEmit.apply(client, arguments as any);
+    });
+
+    const addHandlersSpy = client['addInateEventHandlers'] = jest.fn();
+    const proxyEventsSpy = client['proxyStanzaEvents'] = jest.fn();
+
+    const fakeExtension = {
+      configureNewStanzaInstance: jest.fn().mockResolvedValue(null),
+      handleStanzaInstanceChange: jest.fn()
+    }
+
+    client['extensions'] = [fakeExtension];
+
+    client.on('connected', () => {
+      fail('This should not have happened');
+    });
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow();
+    expect(emitSpy).toHaveBeenCalled();
+    expect(addHandlersSpy).toHaveBeenCalled();
+    expect(proxyEventsSpy).toHaveBeenCalled();
+    expect(client.connected).toBeFalsy();
+    expect(client.connecting).toBeTruthy();
+    expect(cleanupSpy).toHaveBeenCalled();
     expect(fakeInstance.disconnect).toHaveBeenCalled();
   });
 });

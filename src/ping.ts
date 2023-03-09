@@ -16,26 +16,29 @@ export class Ping {
   private pingInterval: number;
   private failedPingsBeforeDisconnect: number;
   private numberOfFailedPings: number;
-  private nextPingTimeoutId: any;
+
+  // we will also use this as a gate
+  private nextPingTimeoutId: number | undefined;
 
   constructor (private client: Client, private stanzaInstance: NamedAgent, private options: PingOptions = {}) {
     this.pingInterval = options.pingInterval || DEFAULT_PING_INTERVAL;
     this.failedPingsBeforeDisconnect = options.failedPingsBeforeDisconnect || DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT;
     this.numberOfFailedPings = 0;
-    this.nextPingTimeoutId = null;
+    this.nextPingTimeoutId = undefined;
 
     this.start();
   }
 
   start () {
     if (!this.nextPingTimeoutId) {
+      this.nextPingTimeoutId = -1;
       this.queueNextPing();
     }
   }
 
   stop () {
     clearTimeout(this.nextPingTimeoutId);
-    this.nextPingTimeoutId = null;
+    this.nextPingTimeoutId = undefined;
     this.numberOfFailedPings = 0;
   }
 
@@ -64,6 +67,8 @@ export class Ping {
   }
 
   private queueNextPing () {
-    this.nextPingTimeoutId = setTimeout(this.performPing.bind(this), this.pingInterval);
+    if (this.nextPingTimeoutId) {
+      this.nextPingTimeoutId = setTimeout(this.performPing.bind(this), this.pingInterval) as unknown as number;
+    }
   }
 }

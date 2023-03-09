@@ -13,6 +13,7 @@ import { HttpClient } from './http-client';
 import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions } from './types/interfaces';
 import { AxiosError } from 'axios';
 import { NamedAgent } from './types/named-agent';
+import { Client as StanzaClient } from 'stanza';
 import EventEmitter from 'events';
 import { ConnectionManager } from './connection-manager';
 import { backOff } from 'exponential-backoff';
@@ -44,6 +45,9 @@ export class Client extends EventEmitter {
   private extensions: StreamingClientExtension[] = [];
   private connectionManager: ConnectionManager;
   private channelReuses = 0;
+
+  private boundStanzaDisconnect?: () => Promise<any>;
+  private boundStanzaNoLongerSubscribed?: () => void;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
@@ -150,8 +154,14 @@ export class Client extends EventEmitter {
   }
 
   private addInateEventHandlers (stanza: NamedAgent) {
-    this.on(STANZA_DISCONNECTED, this.handleStanzaDisconnectedEvent.bind(this, stanza));
-    this.on(NO_LONGER_SUBSCRIBED, this.handleNoLongerSubscribed.bind(this, stanza));
+    // make sure we don't stack event handlers. There should only ever be *at most* one handler
+    this.removeStanzaBoundEventHandlers();
+
+    this.boundStanzaDisconnect = this.handleStanzaDisconnectedEvent.bind(this, stanza);
+    this.boundStanzaNoLongerSubscribed = this.handleNoLongerSubscribed.bind(this, stanza);
+
+    this.on(STANZA_DISCONNECTED, this.boundStanzaDisconnect);
+    this.on(NO_LONGER_SUBSCRIBED, this.boundStanzaNoLongerSubscribed);
 
     this.extensions.forEach(extension => {
       if (typeof extension.handleIq === 'function') {
@@ -161,6 +171,18 @@ export class Client extends EventEmitter {
         stanza.on('message', extension.handleMessage.bind(extension));
       }
     });
+  }
+
+  private removeStanzaBoundEventHandlers () {
+    if (this.boundStanzaDisconnect) {
+      this.off(STANZA_DISCONNECTED, this.boundStanzaDisconnect);
+      this.boundStanzaDisconnect = undefined;
+    }
+
+    if (this.boundStanzaNoLongerSubscribed) {
+      this.off(NO_LONGER_SUBSCRIBED, this.boundStanzaNoLongerSubscribed);
+      this.boundStanzaNoLongerSubscribed = undefined;
+    }
   }
 
   private proxyStanzaEvents (stanza: NamedAgent) {
@@ -229,10 +251,10 @@ export class Client extends EventEmitter {
     }
 
     return timeoutPromise(resolve => {
-      this.once('disconnected', resolve);
       this.autoReconnect = false;
       this.http.stopAllRetries();
-      this.activeStanzaInstance!.disconnect();
+      return this.activeStanzaInstance!.disconnect()
+        .then(resolve);
     }, 5000, 'disconnecting streaming service');
   }
 
@@ -379,7 +401,6 @@ export class Client extends EventEmitter {
       this.connecting = false;
       this.addInateEventHandlers(stanzaInstance);
       this.proxyStanzaEvents(stanzaInstance);
-      stanzaInstance.pinger = new Ping(this, stanzaInstance);
 
       // handle any extension configuration
       for (const extension of this.extensions) {
@@ -393,15 +414,15 @@ export class Client extends EventEmitter {
       }
 
       this.activeStanzaInstance = stanzaInstance;
+      stanzaInstance.pinger = new Ping(this, stanzaInstance);
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {
         this.logger.error('Error occurred in connection attempt, but after websocket connected. Cleaning up connection so backoff is respected', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+        this.removeStanzaBoundEventHandlers();
 
-        // unproxy stanza events so we don't try and reconnect
-        (stanzaInstance as any).emit = stanzaInstance.originalEmitter;
-        stanzaInstance.pinger!.stop();
-        stanzaInstance.disconnect();
+        stanzaInstance.pinger?.stop();
+        await (stanzaInstance as unknown as StanzaClient).disconnect();
 
         this.connected = false;
         this.connecting = previousConnectingState;
