@@ -806,6 +806,7 @@ describe('handleStanzaDisconnectedEvent', () => {
   
   it('should reconnect if autoReconnect', async () => {
     client['autoReconnect'] = true;
+    fakeStanza.pinger = undefined;
 
     const disconnectHandler = jest.fn();
     client.on('disconnected', disconnectHandler);
@@ -859,6 +860,7 @@ describe('handleNoLongerSubscribed', () => {
     client.hardReconnectRequired = false;
     client.reconnectOnNoLongerSubscribed = true;
     client['autoReconnect'] = true;
+    fakeStanza.pinger = undefined;
 
     client['handleNoLongerSubscribed'](fakeStanza);
 
