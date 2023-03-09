@@ -213,7 +213,7 @@ export class Client extends EventEmitter {
     this.logger.info('stanzaDisconnected event received', { stanzaInstanceId: disconnectedInstance.id, channelId: disconnectedInstance.channelId });
     this.connected = false;
     this.connecting = false;
-    disconnectedInstance.pinger!.stop();
+    disconnectedInstance.pinger?.stop();
 
     this.removeAllListeners(STANZA_DISCONNECTED);
     this.removeAllListeners(NO_LONGER_SUBSCRIBED);
@@ -234,7 +234,7 @@ export class Client extends EventEmitter {
 
   private handleNoLongerSubscribed (stanzaInstance: NamedAgent) {
     this.logger.warn('noLongerSubscribed event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
-    stanzaInstance.pinger!.stop();
+    stanzaInstance.pinger?.stop();
 
     this.hardReconnectRequired = true;
 

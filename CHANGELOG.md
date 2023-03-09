@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.4...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.5...HEAD)
+# [v15.1.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.4...v15.1.5)
+### Fixed
+* [PCM-2093](https://inindca.atlassian.net/browse/PCM-2093) - Fixed error that occurs when connection is disconnected remotely before it has finished connecting
+
 # [v15.1.4](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.3...v15.1.4)
 ### Fixed
 * [PCM-2089](https://inindca.atlassian.net/browse/PCM-2089) - fixed another case for connection fan-out
