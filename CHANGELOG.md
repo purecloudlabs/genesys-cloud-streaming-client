@@ -4,7 +4,8 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.5...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.6...HEAD)
+# [v15.1.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.5...v15.1.6)
 ### Fixed
 * [PCM-2100]((https://inindca.atlassian.net/browse/PCM-2093) - Removed overly noisy data channel message logs.
 # [v15.1.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.4...v15.1.5)
