@@ -301,7 +301,6 @@ export class GenesysCloudMediaSession {
   }
 
   _handleDataChannelMessage (event: MessageEvent) {
-    this.log('debug', 'data channel message received', event);
     try {
       const message = JSON.parse(event.data);
       this.emit('dataChannelMessage', message);
