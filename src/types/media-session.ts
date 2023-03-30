@@ -45,6 +45,7 @@ export interface IStanzaMediaSessionParams extends IMediaSessionParams {
 export interface IGenesysCloudMediaSessionParams extends IMediaSessionParams {
   iceServers: RTCIceServer[];
   iceTransportPolicy: RTCIceTransportPolicy;
+  reinvite: boolean;
 }
 
 export interface IMediaSession extends StrictEventEmitter<EventEmitter, SessionEvents> {
@@ -58,10 +59,11 @@ export interface IMediaSession extends StrictEventEmitter<EventEmitter, SessionE
   dataChannel?: RTCDataChannel;
   connectionState: ConnectionState | string;
   state: SessionState | string;
+  reinvite: boolean;
 
   setupStatsGatherer (): void;
   accept (opts?: RTCAnswerOptions): Promise<void>;
-  end (reason: JingleReasonCondition, silent?: boolean): void;
+  end (reason: JingleReasonCondition, silent?: boolean): Promise<void>;
   addTrack (track: MediaStreamTrack, stream?: MediaStream): Promise<void>;
   removeTrack (sender: RTCRtpSender): Promise<void>;
   mute (userId: string, name?: string): Promise<void>;

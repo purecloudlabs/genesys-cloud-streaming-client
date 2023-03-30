@@ -1846,6 +1846,31 @@ describe('handleGenesysOffer', () => {
     emitter.emit('sendIq', iqObj);
     expect(stanza.sendIQ).toHaveBeenCalledWith(iqObj);
   });
+
+  it('terminated should update sessions', async () => {
+    const emitter = new EventEmitter();
+    (emitter as any).setRemoteDescription = jest.fn();
+    (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
+
+    const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+   
+    const iq: IQ = {
+      type: 'set',
+      from: 'fromJid25@gjoll.com',
+      genesysWebrtc: {
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          sdp: 'my-offer'
+        } as GenesysWebrtcSdpParams
+      }
+    };
+
+    await webrtc['handleGenesysOffer'](iq);
+    expect(webrtc.getAllSessions().length).toBe(1);
+    emitter.emit('terminated');
+    expect(webrtc.getAllSessions().length).toBe(0);
+  });
   
   it('should register and handle sendIq from the session and not blow up if not stanzaInstance', async () => {
     const emitter = new EventEmitter();
@@ -1909,5 +1934,28 @@ describe('handleGenesysOffer', () => {
     };
 
     await webrtc['handleGenesysOffer'](iq);
+  });
+});
+
+describe('sendIq', () => {
+  it('should proxy to stanza.sendIQ', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = jest.fn().mockResolvedValue({});
+    webrtc['stanzaInstance'] = { sendIQ: spy } as any;
+
+    const testObj = {};
+    await webrtc.sendIq(testObj as any);
+
+    expect(spy).toHaveBeenCalledWith(testObj);
+  });
+
+  it('should throw an error if there is no stanza client', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const testObj = {};
+    await expect(() => webrtc.sendIq(testObj as any)).rejects.toThrow();
   });
 });

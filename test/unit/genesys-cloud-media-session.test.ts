@@ -3,11 +3,13 @@ import Logger, { ILogger } from "genesys-cloud-client-logger";
 import { GenesysCloudMediaSession } from "../../src/types/genesys-cloud-media-session";
 import { IGenesysCloudMediaSessionParams } from "../../src/types/media-session";
 import { WebrtcExtension } from "../../src/webrtc";
+import { flushPromises } from '../helpers/testing-utils';
 
 jest.mock('../../src/webrtc');
 
 class FakePeerConnection extends EventTarget {
   createDataChannel: any;
+  close = jest.fn();
 
   createAnswer = jest.fn().mockResolvedValue({ sdp: 'blah', type: 'answer' });
   setLocalDescription = jest.fn().mockResolvedValue(null);
@@ -40,7 +42,8 @@ beforeEach(() => {
     id: 'sessionId',
     logger,
     peerID: 'fromJid@conference.com',
-    sessionType: 'softphone'
+    sessionType: 'softphone',
+    reinvite: false
   };
 });
 
@@ -463,6 +466,21 @@ describe('onSessionTerminate()', () => {
     session.onSessionTerminate();
   });
   
+  it('should emit a terminated event with default condition even if there is no peerConnection', () => {
+    const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+    const spy = jest.fn();
+
+    session.peerConnection = {
+      close: spy
+    } as any;
+
+    session.on('terminated', ( reason ) => {
+      expect(reason.condition).toEqual('success');
+    });
+
+    session.onSessionTerminate();
+  });
+  
   it('should emit a terminated event with provided condition', () => {
     const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
 
@@ -557,7 +575,7 @@ describe('addRemoteIceCandidate()', () => {
 });
 
 describe('sendGenesysWebrtc()', () => {
-  it('should emit sendIq', () => {
+  it('should call sendIQ on webrtc extension', async () => {
     const info = {
       test: true
     };
@@ -565,19 +583,14 @@ describe('sendGenesysWebrtc()', () => {
     const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
     const from = (mockWebrtcExtension as any).jid = 'myJid@conference.com';
 
-    
-    session.on('sendIq' as any, (message) => {
-      expect(message).toMatchObject({
-        type: 'set',
-        genesysWebrtc: info,
-        from,
-        to: config.peerID
-      });
-    });
+    await session['sendGenesysWebrtc'](info as any);
 
-    session['sendGenesysWebrtc'](info as any);
-
-    expect.assertions(1);
+    expect(mockWebrtcExtension.sendIq).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'set',
+      genesysWebrtc: info,
+      from,
+      to: config.peerID
+    }));
   });
 });
 
@@ -604,18 +617,21 @@ describe('end()', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('should automatically close the peerConnection if still connected after 2 seconds', () => {
+  it('should automatically close the peerConnection if still connected after 2 seconds', async () => {
     jest.useFakeTimers();
     const spy = session['sendGenesysWebrtc'] = jest.fn().mockResolvedValue(null);
 
+    (mockWebrtcExtension.sendIq as jest.Mock).mockResolvedValue({});
+
     const closeSpy = session.peerConnection.close = jest.fn();
     (session.peerConnection as any).connectionState = 'connecting';
-    session.end('alternative-session', false);
+    const promise = session.end('alternative-session', false);
 
     expect(spy).toHaveBeenCalled();
     expect(closeSpy).not.toHaveBeenCalled();
 
     jest.advanceTimersByTime(2100);
+    await flushPromises();
     expect(closeSpy).toHaveBeenCalled();
   });
   
