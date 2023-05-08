@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.5...HEAD)
+* [PCM-2141]((https://inindca.atlassian.net/browse/PCM-2141) - Sanitize auth token from error responses
 ### Fixed
 * [PCM-2100]((https://inindca.atlassian.net/browse/PCM-2093) - Removed overly noisy data channel message logs.
 # [v15.1.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.4...v15.1.5)
