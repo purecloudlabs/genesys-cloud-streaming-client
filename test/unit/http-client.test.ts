@@ -395,6 +395,36 @@ describe('HttpRequestClient', () => {
       }), { skipServer: true });
     });
 
+    it('should sanitize access token from ECONNABORTED error', async () => {
+      const error = new AxiosError('fake error', 'ECONNABORTED');
+      error.config = { headers: { Authorization: 'mysupersecretaccesstoken' }};
+
+      const spy = jest.fn();
+      const logger = {
+        debug: spy
+      };
+
+      http['handleResponse'](logger as any, new Date().getTime(), { url: 'http://test.com' }, error as any)
+        .catch((e) => {
+          expect(e.config.headers.Authorization).toBe('redacted');
+        });
+    });
+
+    it('should sanitize access token from error', async () => {
+      const error = new AxiosError('fake error');
+      error.config = { headers: { Authorization: 'mysupersecretaccesstoken' }};
+
+      const spy = jest.fn();
+      const logger = {
+        debug: spy
+      };
+
+      http['handleResponse'](logger as any, new Date().getTime(), { url: 'http://test.com' }, error as any)
+        .catch((e) => {
+          expect(e.config.headers.Authorization).toBe('redacted');
+        });
+    });
+
     it('should handle no request object', async () => {
       const error = new AxiosError('fake error', 'HELLO');
 

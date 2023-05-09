@@ -124,6 +124,8 @@ export class GenesysCloudMediaSession {
         this.peerConnection.close();
       }
     }, 2000);
+
+    this.onSessionTerminate(params.reason);
   }
 
   setupStatsGatherer () {

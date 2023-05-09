@@ -96,6 +96,11 @@ export class HttpClient {
     let elapsed = (now - start) + 'ms';
 
     if (res instanceof AxiosError) {
+      // sanitize the auth token
+      if (res.config?.headers?.Authorization) {
+        res.config.headers.Authorization = 'redacted';
+      }
+
       // handles request timeout
       if (res.code === 'ECONNABORTED') {
         logger.debug(`request error: ${params.url}`, {
