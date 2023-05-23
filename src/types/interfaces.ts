@@ -173,6 +173,7 @@ export interface GenesysWebrtcSdpParams extends GenesysWebrtcBaseParams {
 
 export interface GenesysWebrtcOfferParams extends GenesysWebrtcSdpParams {
   conversationId: string;
+  reinvite?: boolean;
 }
 
 export interface GenesysInfoActiveParams extends GenesysWebrtcBaseParams {

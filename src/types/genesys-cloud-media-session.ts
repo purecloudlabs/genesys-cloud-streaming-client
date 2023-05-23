@@ -7,6 +7,7 @@ import { ConnectionState, IGenesysCloudMediaSessionParams, IMediaSession, IMedia
 import Logger, { ILogMessageOptions } from 'genesys-cloud-client-logger';
 import { WebrtcExtension } from '../webrtc';
 import { v4 } from 'uuid';
+import { timeoutPromise } from '../utils';
 
 const loggingOverrides = {
   'Discovered new ICE candidate': { skipMessage: true }
@@ -52,6 +53,7 @@ export class GenesysCloudMediaSession {
     this.ignoreHostCandidatesFromRemote = !!params.ignoreHostCandidatesFromRemote;
     this.allowIPv6 = !!params.allowIPv6;
     this.allowTCP = !!params.allowTCP;
+    this.reinvite = !!params.reinvite;
 
     // babel does not like the typescript recipe for multiple extends so we are hacking this one
     // referencing https://github.com/babel/babel/issues/798
@@ -90,7 +92,7 @@ export class GenesysCloudMediaSession {
     this.logger[level](message, logDetails, options);
   }
 
-  private sendGenesysWebrtc (info: GenesysWebrtcJsonRpcMessage) {
+  private async sendGenesysWebrtc (info: GenesysWebrtcJsonRpcMessage): Promise<any> {
     info.id = info.id || v4();
     info.jsonrpc = info.jsonrpc || '2.0';
 
@@ -100,10 +102,11 @@ export class GenesysCloudMediaSession {
       from: this.webrtcExtension.jid,
       to: this.peerID
     };
-    this.emit('sendIq' as any, iq);
+
+    return this.webrtcExtension.sendIq(iq);
   }
 
-  end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
+  async end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
     this.state = 'ended';
 
     const params: GenesysSessionTerminateParams = {
@@ -112,18 +115,13 @@ export class GenesysCloudMediaSession {
     };
 
     if (!silent) {
-      this.sendGenesysWebrtc({
-        method: 'terminate',
-        params
-      });
+      await timeoutPromise(
+        () => this.sendGenesysWebrtc({ method: 'terminate', params }),
+        2000,
+        'Timeout waiting for response to termination request',
+        { sessionId: this.id, conversationId: this.conversationId, sessionType: this.sessionType }
+      ).catch((e) => this.logger.error(e));
     }
-
-    // After sending session-terminate, wait for the peer connection to die -> if it doesn't, we will manually close it.
-    setTimeout(() => {
-      if (this.peerConnection.connectionState === 'connected' || this.peerConnection.connectionState === 'connecting') {
-        this.peerConnection.close();
-      }
-    }, 2000);
 
     this.onSessionTerminate(params.reason);
   }
@@ -155,7 +153,7 @@ export class GenesysCloudMediaSession {
         status: 'active'
       };
 
-      this.sendGenesysWebrtc({
+      await this.sendGenesysWebrtc({
         params,
         method: 'info',
       });
@@ -261,6 +259,9 @@ export class GenesysCloudMediaSession {
   }
 
   onSessionTerminate (reason?: JingleReasonCondition) {
+    if (this.peerConnection) {
+      this.peerConnection.close();
+    }
     this.emit('terminated', { condition: reason || 'success' });
   }
 

@@ -205,6 +205,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       optOutOfWebrtcStatsTelemetry: !!this.config.optOutOfWebrtcStatsTelemetry,
       allowIPv6: this.config.allowIPv6,
       iceServers: this.iceServers,
+      reinvite: !!params.reinvite,
       iceTransportPolicy: this.getIceTransportPolicy()!
     };
 
@@ -227,6 +228,9 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     await session.setRemoteDescription(params.sdp);
 
     session.on('sendIq' as any, (iq: IQ) => this.stanzaInstance?.sendIQ(iq));
+    session.on('terminated', () => {
+      this.webrtcSessions = this.webrtcSessions.filter(s => s.id !== session.id);
+    });
 
     this.webrtcSessions.push(session);
     return this.emit(events.INCOMING_RTCSESSION, session);
@@ -258,6 +262,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     }
 
     return session;
+  }
+
+  async sendIq (iq: IQ): Promise<any> {
+    if (!this.stanzaInstance) {
+      throw new Error('Failed to send iq because there was no stanza instance');
+    }
+    return this.stanzaInstance.sendIQ(iq);
   }
 
   async handleMessage (msg) {
