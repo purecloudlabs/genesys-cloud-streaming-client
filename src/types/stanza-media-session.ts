@@ -52,6 +52,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
   allowIPv6: boolean;
   allowTCP: boolean;
   dataChannel?: RTCDataChannel;
+  reinvite = false;
 
   constructor (params: IStanzaMediaSessionParams) {
     super(params.options);
@@ -141,7 +142,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
     this.logger[level](message, details);
   }
 
-  end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
+  async end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
     this.state = 'ended';
     this.processingQueue.kill();
 
