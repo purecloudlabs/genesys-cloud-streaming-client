@@ -57,6 +57,16 @@ def getDeployConfig = {
   return deployConfig;
 }
 
+def getMailerAddresses = {
+  def mailer = 'genesyscloud-client-media@genesys.com'
+
+  if (isMain()) {
+    return mailer + ', joe.wilson@genesys.com'
+  }
+
+  return mailer
+}
+
 def npmFunctions = new com.genesys.jenkins.Npm()
 def gitFunctions = new com.genesys.jenkins.Git()
 def notifications = new com.genesys.jenkins.Notifications()
@@ -69,7 +79,7 @@ webappPipeline {
     projectName = 'developercenter-cdn/streaming-client'
     team = 'Genesys Client Media (WebRTC)'
 
-    mailer = 'genesyscloud-client-media@genesys.com'
+    mailer = getMailerAddresses()
     chatGroupId = chatGroupId
 
     nodeVersion = '14.x'
