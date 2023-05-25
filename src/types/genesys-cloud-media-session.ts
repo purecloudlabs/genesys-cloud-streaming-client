@@ -116,7 +116,7 @@ export class GenesysCloudMediaSession {
 
     if (!silent) {
       await timeoutPromise(
-        () => this.sendGenesysWebrtc({ method: 'terminate', params }),
+        (resolve: (params: any) => any, reject: (params: any) => any) => this.sendGenesysWebrtc({ method: 'terminate', params }).then(resolve, reject),
         2000,
         'Timeout waiting for response to termination request',
         { sessionId: this.id, conversationId: this.conversationId, sessionType: this.sessionType }
