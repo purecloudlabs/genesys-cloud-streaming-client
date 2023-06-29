@@ -495,6 +495,7 @@ describe('makeConnectionAttempt', () => {
     const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
     client['boundStanzaDisconnect'] = async () => {};
     client['boundStanzaNoLongerSubscribed'] = () => {};
+    client['boundStanzaDuplicateId'] = () => {};
     getConnectionSpy.mockResolvedValue(fakeInstance);
     prepareSpy.mockResolvedValue(null);
     const clientEmitSpy = jest.spyOn(client, 'emit');
@@ -529,6 +530,9 @@ describe('makeConnectionAttempt', () => {
     expect(client.connecting).toBeTruthy();
     expect(cleanupSpy).toHaveBeenCalled();
     expect(fakeInstance.disconnect).toHaveBeenCalled();
+    expect(client['boundStanzaDisconnect']).toBeUndefined();
+    expect(client['boundStanzaNoLongerSubscribed']).toBeUndefined();
+    expect(client['boundStanzaDuplicateId']).toBeUndefined();
   });
 
   it('should clean up pinger', async () => {
@@ -865,6 +869,44 @@ describe('handleNoLongerSubscribed', () => {
     client['handleNoLongerSubscribed'](fakeStanza);
 
     expect(client['autoReconnect']).toBeTruthy();
+  });
+});
+
+describe('handleDuplicateId', () => {
+  let client: Client;
+  let fakeStanza: NamedAgent;
+
+  beforeEach(() => {
+    client = new Client(getDefaultOptions());
+
+    fakeStanza = {
+      emit: jest.fn(),
+      pinger: { stop: jest.fn() }
+    } as any;
+
+    client.connected = true;
+
+    client.activeStanzaInstance = fakeStanza;
+  });
+
+  it('should set hardReconnect to true', () => {
+    client.hardReconnectRequired = false;
+    fakeStanza.pinger = undefined;
+
+    client['handleDuplicateId'](fakeStanza);
+
+    expect(client['hardReconnectRequired']).toBeTruthy();
+  });
+
+  it('should set hardReconnect to true - with pinger', () => {
+    client.hardReconnectRequired = false;
+    const spy = jest.fn();
+    fakeStanza.pinger = { stop: spy } as any;
+
+    client['handleDuplicateId'](fakeStanza);
+
+    expect(client['hardReconnectRequired']).toBeTruthy();
+    expect(spy).toHaveBeenCalled();
   });
 });
 

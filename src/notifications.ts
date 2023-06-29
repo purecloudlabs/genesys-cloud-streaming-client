@@ -69,6 +69,8 @@ export class Notifications implements StreamingClientExtension {
     let topic = pubsub.items!.node;
     if (topic.includes('no_longer_subscribed')) {
       topic = 'no_longer_subscribed';
+    } else if (topic.includes('duplicate_id')) {
+      topic = 'duplicate_id';
     }
 
     const payload = (pubsub.items!.published![0].content as any).json;
