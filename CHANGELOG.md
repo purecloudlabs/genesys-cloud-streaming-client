@@ -7,11 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.1...HEAD)
 ### Added
 * [PCM-2091](https://inindca.atlassian.net/browse/PCM-2091) - Be able to handle a duplicate channel message from hawk signaling a mandatory hard reconnect
+* [PCM-2163](https://inindca.atlassian.net/browse/PCM-2163) - don't log turn server creds
 
 # [v16.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.0...v16.0.1)
 ### Fixed
 * [PCM-2114](https://inindca.atlassian.net/browse/PCM-2114) - fix false-positive timeout error for ending reinvited sessions
-* [PCM-2163](https://inindca.atlassian.net/browse/PCM-2163) - don't log turn server creds
 
 # [v16.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.7...v16.0.0)
 ### Breaking Changes
