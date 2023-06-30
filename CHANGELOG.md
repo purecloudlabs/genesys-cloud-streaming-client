@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [v16.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.0...v16.0.1)
 ### Fixed
 * [PCM-2114](https://inindca.atlassian.net/browse/PCM-2114) - fix false-positive timeout error for ending reinvited sessions
+* [PCM-2163](https://inindca.atlassian.net/browse/PCM-2163) - don't log turn server creds
 
 # [v16.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.7...v16.0.0)
 ### Breaking Changes
 * `session.end()` now returns a `Promise<void>` instead of `void`
+* `session.sid` no longer exists. Use `session.id` instead.
 
 ### Added
 * [PCM-2114](https://inindca.atlassian.net/browse/PCM-2114) - proxy the reinvite property through for the offer (sdp over xmpp)
