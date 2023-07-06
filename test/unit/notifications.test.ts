@@ -837,4 +837,34 @@ describe('Notifications', () => {
     expect(spy).toHaveBeenCalledWith('notify', { topic: 'no_longer_subscribed', data: payload });
     expect(spy).toHaveBeenCalledWith('notify:no_longer_subscribed', payload);
   });
+
+  it('should change the topic to duplicate_id', () => {
+    const payload = { channelId: 'streaming-sdklnena98w4' };
+    const duplicateId = {
+      pubsub: {
+        items: {
+          node: `system.v2.duplicate_id.${payload.channelId}`,
+          published: [
+            {
+              content: { json: payload }
+            }
+          ]
+        }
+      }
+    };
+
+    const client = new Client({
+      apiHost: 'example.com',
+      channelId: 'notification-test-channel'
+    });
+    const notification = new Notifications(client);
+    notification.stanzaInstance = getFakeStanzaClient();
+
+
+    const spy = jest.spyOn(client, 'emit');
+    (client as any).emit('pubsub:event', duplicateId);
+
+    expect(spy).toHaveBeenCalledWith('notify', { topic: 'duplicate_id', data: payload });
+    expect(spy).toHaveBeenCalledWith('notify:duplicate_id', payload);
+  });
 });

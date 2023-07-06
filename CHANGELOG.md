@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.2...HEAD)
+# [v16.0.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.1...v16.0.2)
+### Added
+* [PCM-2091](https://inindca.atlassian.net/browse/PCM-2091) - Be able to handle a duplicate channel message from hawk signaling a mandatory hard reconnect
+
+### Fixed
+* [PCM-2163](https://inindca.atlassian.net/browse/PCM-2163) - don't log turn server creds
 
 # [v16.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.0.0...v16.0.1)
 ### Fixed
@@ -13,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [v16.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v15.1.7...v16.0.0)
 ### Breaking Changes
 * `session.end()` now returns a `Promise<void>` instead of `void`
+* `session.sid` no longer exists. Use `session.id` instead.
 
 ### Added
 * [PCM-2114](https://inindca.atlassian.net/browse/PCM-2114) - proxy the reinvite property through for the offer (sdp over xmpp)

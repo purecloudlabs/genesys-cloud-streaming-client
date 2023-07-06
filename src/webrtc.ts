@@ -819,12 +819,6 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     const [turnServers, stunServers] = await servicesPromise;
-    // const [turnServers, stunServers] = await Promise.all([turnServersPromise, stunServersPromise]) as any;
-
-    this.logger.debug('STUN/TURN server discovery result', {
-      turnServers,
-      stunServers
-    });
 
     const iceServers = [
       ...turnServers.services,
