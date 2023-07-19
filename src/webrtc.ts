@@ -216,6 +216,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     if (pendingSession) {
       mediaSessionParams = {
         ...commonParams,
+        meetingId: pendingSession.meetingId,
         fromUserId: pendingSession.fromUserId,
         originalRoomJid: pendingSession.originalRoomJid,
       };
@@ -323,7 +324,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       originalRoomJid: pendingSession?.originalRoomJid,
       sessionType: pendingSession?.sessionType,
       allowIPv6: this.config.allowIPv6,
-      ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF
+      ignoreHostCandidatesFromRemote: ignoreHostCandidatesForForceTurnFF,
+      meetingId: pendingSession?.meetingId
     };
 
     const session = new StanzaMediaSession(gcSessionOpts);

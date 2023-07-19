@@ -128,6 +128,7 @@ export interface IPendingSession {
   fromUserId?: string;
   roomJid?: string;
   accepted?: boolean;
+  meetingId?: string;
   sessionType: SessionTypes | SessionTypesAsStrings;
 }
 
