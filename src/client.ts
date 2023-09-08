@@ -20,10 +20,12 @@ import { backOff } from 'exponential-backoff';
 import OfflineError from './types/offline-error';
 import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
+import { MessengerExtensionApi, MessengerExtension } from './messenger';
 
 let extensions = {
   notifications: Notifications,
-  webrtcSessions: WebrtcExtension
+  webrtcSessions: WebrtcExtension,
+  messenger: MessengerExtension
 };
 
 const STANZA_DISCONNECTED = 'stanzaDisconnected';
@@ -56,6 +58,8 @@ export class Client extends EventEmitter {
   _notifications!: Notifications;
   webrtcSessions!: WebrtcExtensionAPI;
   _webrtcSessions!: WebrtcExtension;
+  messenger!: MessengerExtension;
+  _messenger!: MessengerExtensionApi;
 
   _ping!: Ping;
 

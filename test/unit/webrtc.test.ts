@@ -130,7 +130,12 @@ describe('handleGenesysWebrtcStanza', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
-        method: 'offer'
+        jsonrpc: '2.0',
+        method: 'offer',
+        params: {
+          sessionId: 'sid',
+          sdp: 'jskdf'
+        }
       }
     };
 
@@ -144,7 +149,12 @@ describe('handleGenesysWebrtcStanza', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
-        method: 'iceCandidate'
+        jsonrpc: '2.0',
+        method: 'iceCandidate',
+        params: {
+          sessionId: 'sid',
+          sdp: 'jskdf'
+        }
       }
     };
 
@@ -158,7 +168,12 @@ describe('handleGenesysWebrtcStanza', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
-        method: 'terminate'
+        jsonrpc: '2.0',
+        method: 'terminate',
+        params: {
+          sessionId: 'sid',
+          reason: 'alternative-session'
+        }
       }
     };
 
@@ -1723,6 +1738,7 @@ describe('handleGenesysTerminate', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'terminate',
         params: {
           sessionId: 'session24',
@@ -1755,6 +1771,7 @@ describe('handleGenesysIceCandidate', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'iceCandidate',
         params: {
           sessionId: 'session24',
@@ -1781,6 +1798,7 @@ describe('handleGenesysOffer', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
@@ -1805,6 +1823,7 @@ describe('handleGenesysOffer', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
@@ -1833,6 +1852,7 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
@@ -1858,6 +1878,7 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
@@ -1881,6 +1902,7 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
@@ -1901,6 +1923,7 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           conversationId: 'convo25',
