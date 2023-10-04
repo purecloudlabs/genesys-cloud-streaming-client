@@ -437,7 +437,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       });
       this.currentMaxStatSize = desiredMaxStatsSize;
     } catch (err: any) {
-      if (err.status === 413) {
+      this.logger.warn('mMoo: inside insights catch block', err);
+      if (err.response.status === 413) {
         const attemptedPayloadSize = this.currentMaxStatSize;
         this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
         this.statsArr = [...statsToSend, ...this.statsArr];
@@ -451,6 +452,9 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
           { attemptedPayloadSize, newPayloadSize: this.currentMaxStatSize }
         );
         await this.sendStats();
+      } else if(err.response.status === 401 || err.status === 401) {
+        this.logger.warn('mMoo: Token invalid', { err }, { skipServer: true });
+        this.emit(events.RTCSESSION_ERROR, err);
       } else {
         this.logger.error('Failed to send stats', {
           err,
