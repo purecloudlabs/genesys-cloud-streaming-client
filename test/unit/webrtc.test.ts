@@ -1522,7 +1522,7 @@ describe('sendStats', () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
-    const sendSpy = jest.spyOn(client.http, 'requestApi');
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockRejectedValue({ response: { status: ''}});
     const logSpy = jest.spyOn(webrtc.logger, 'error');
 
     webrtc['statsArr'].push({} as any);
@@ -1539,7 +1539,7 @@ describe('sendStats', () => {
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
       const err: any = new Error('error');
-      err.status = 413;
+      err.response = { status: 413 };
       throw err;
     });
     const logSpy = jest.spyOn(webrtc.logger, 'info');
