@@ -94,7 +94,6 @@ export class HttpClient {
   private handleResponse (logger: Logger, start: number, params: AxiosRequestConfig, res: AxiosResponse): Promise<AxiosResponse> {
     let now = new Date().getTime();
     let elapsed = (now - start) + 'ms';
-    logger.warn('mMoo: inside handleResponse', { res, axiosError: res instanceof AxiosError }, { skipServer: true });
     if (res instanceof AxiosError) {
       // sanitize the auth token
       if (res.config?.headers?.Authorization) {
@@ -109,9 +108,6 @@ export class HttpClient {
           elapsed
         }, { skipServer: true });
 
-        return Promise.reject(res);
-      } else if (res?.response?.status === 401) {
-        logger.warn('mMoo: Token invalidated', { res }, { skipServer: true });
         return Promise.reject(res);
       }
 
