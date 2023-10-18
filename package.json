@@ -1,6 +1,6 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "16.0.2",
+  "version": "16.0.3",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
@@ -57,7 +57,7 @@
     "core-js": "^3.6.5",
     "debounce-promise": "^3.1.2",
     "exponential-backoff": "^3.1.0",
-    "genesys-cloud-client-logger": "^4.2.3",
+    "genesys-cloud-client-logger": "^4.2.5",
     "limiter": "^1.1.0",
     "lodash.throttle": "^4.1.1",
     "lru-cache": "^6.0.0",

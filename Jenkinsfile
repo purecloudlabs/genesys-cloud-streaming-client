@@ -1,4 +1,4 @@
-@Library('pipeline-library@COMUI-857') _
+@Library('pipeline-library') _
 
 def MAIN_BRANCH = 'master'
 def DEVELOP_BRANCH = 'develop'

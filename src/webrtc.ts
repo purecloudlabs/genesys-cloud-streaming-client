@@ -437,7 +437,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       });
       this.currentMaxStatSize = desiredMaxStatsSize;
     } catch (err: any) {
-      if (err.status === 413) {
+      if (err.response.status === 413) {
         const attemptedPayloadSize = this.currentMaxStatSize;
         this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
         this.statsArr = [...statsToSend, ...this.statsArr];
