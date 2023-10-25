@@ -20,7 +20,7 @@ export interface SessionEvents {
   terminated: JingleReason;
   stats: StatsEvent;
   endOfCandidates: void;
-  dataChannelMessage: JsonRpcMessage;
+  dataChannelMessage: JsonRpcMessage<any>;
 }
 
 export interface IMediaSessionParams {

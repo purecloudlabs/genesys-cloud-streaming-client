@@ -2,12 +2,12 @@ import { JingleReasonCondition, JINGLE_INFO_ACTIVE } from 'stanza/Constants';
 import StatsGatherer, { StatsEvent } from 'webrtc-stats-gatherer';
 import { EventEmitter } from 'events';
 import { JingleReason, IQ } from 'stanza/protocol';
-import { GenesysInfoActiveParams, GenesysSessionTerminateParams, GenesysWebrtcBaseParams, GenesysWebrtcJsonRpcMessage, GenesysWebrtcMuteParams, GenesysWebrtcSdpParams, SessionTypes } from './interfaces';
 import { ConnectionState, IGenesysCloudMediaSessionParams, IMediaSession, IMediaSessionParams, SessionState } from './media-session';
 import Logger, { ILogMessageOptions } from 'genesys-cloud-client-logger';
 import { WebrtcExtension } from '../webrtc';
 import { v4 } from 'uuid';
 import { timeoutPromise } from '../utils';
+import { SessionTypes, GenesysSessionTerminateParams, GenesysInfoActiveParams, GenesysWebrtcSdpParams, GenesysWebrtcMuteParams, GenesysWebrtcJsonRpcMessage } from './interfaces';
 
 const loggingOverrides = {
   'Discovered new ICE candidate': { skipMessage: true }
@@ -116,7 +116,7 @@ export class GenesysCloudMediaSession {
 
     if (!silent) {
       await timeoutPromise(
-        (resolve: (params: any) => any, reject: (params: any) => any) => this.sendGenesysWebrtc({ method: 'terminate', params }).then(resolve, reject),
+        (resolve: (params: any) => any, reject: (params: any) => any) => this.sendGenesysWebrtc({ jsonrpc: '2.0', method: 'terminate', params }).then(resolve, reject),
         2000,
         'Timeout waiting for response to termination request',
         { sessionId: this.id, conversationId: this.conversationId, sessionType: this.sessionType }
@@ -128,7 +128,7 @@ export class GenesysCloudMediaSession {
 
   setupStatsGatherer () {
     this.statsGatherer = new StatsGatherer(this.peerConnection);
-    this.statsGatherer.on('stats', this.emit.bind(this, 'stats'));
+    this.statsGatherer.on('stats', this.emit.bind(this, 'stats' as any));
   }
 
   protected async onIceStateChange () {
@@ -154,6 +154,7 @@ export class GenesysCloudMediaSession {
       };
 
       await this.sendGenesysWebrtc({
+        jsonrpc: '2.0',
         params,
         method: 'info',
       });
@@ -250,6 +251,7 @@ export class GenesysCloudMediaSession {
     }
 
     return this.sendGenesysWebrtc({
+      jsonrpc: '2.0',
       method: 'iceCandidate',
       params: {
         sessionId: this.id,
@@ -323,6 +325,7 @@ export class GenesysCloudMediaSession {
     };
 
     return this.sendGenesysWebrtc({
+      jsonrpc: '2.0',
       method: 'answer',
       params
     });
@@ -335,6 +338,7 @@ export class GenesysCloudMediaSession {
     };
 
     return this.sendGenesysWebrtc({
+      jsonrpc: '2.0',
       method: 'mute',
       params
     });
@@ -347,6 +351,7 @@ export class GenesysCloudMediaSession {
     };
 
     return this.sendGenesysWebrtc({
+      jsonrpc: '2.0',
       method: 'unmute',
       params
     });

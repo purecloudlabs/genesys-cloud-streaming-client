@@ -131,13 +131,6 @@ export interface IPendingSession {
   sessionType: SessionTypes | SessionTypesAsStrings;
 }
 
-export interface JsonRpcMessage {
-  jsonrpc?: string;
-  method: string;
-  id?: string; // this would be the correlationId
-  params?: { [key: string]: any };
-}
-
 export interface StreamingClientExtension {
   handleIq?: Function;
   handleMessage?: Function;
@@ -158,32 +151,46 @@ export interface StreamingClientConnectOptions {
   maxDelayBetweenConnectionAttempts?: number;
 }
 
-export interface GenesysWebrtcJsonRpcMessage extends JsonRpcMessage {
-  id?: string;
-  method: 'offer' | 'answer' | 'info' | 'iceCandidate' | 'terminate' | 'mute' | 'unmute';
-}
-
-export interface GenesysWebrtcBaseParams {
-  sessionId: string;
-}
-
-export interface GenesysWebrtcSdpParams extends GenesysWebrtcBaseParams {
-  sdp: string;
-}
-
-export interface GenesysWebrtcOfferParams extends GenesysWebrtcSdpParams {
+export type GenesysWebrtcBaseParams = { sessionId: string };
+export type GenesysWebrtcSdpParams = GenesysWebrtcBaseParams & { sdp: string; };
+export type GenesysWebrtcOfferParams = GenesysWebrtcSdpParams & {
   conversationId: string;
   reinvite?: boolean;
-}
+};
 
-export interface GenesysInfoActiveParams extends GenesysWebrtcBaseParams {
-  status: 'active';
-}
+export type GenesysInfoActiveParams = GenesysWebrtcBaseParams & { status: 'active' };
+export type GenesysSessionTerminateParams = GenesysWebrtcBaseParams & { reason?: JingleReasonCondition };
+export type GenesysWebrtcMuteParams = GenesysWebrtcBaseParams & { type: 'audio' | 'video' };
 
-export interface GenesysSessionTerminateParams extends GenesysWebrtcBaseParams {
-  reason?: JingleReasonCondition;
-}
+export type JsonRpcMessage<T> = {
+  jsonrpc: string;
+  method: keyof T;
+  id?: string; // this would be the correlationId
+  // the following line makes `params` optional if T[keyof T] is undefined, otherwise it is required
+} & (T[keyof T] extends undefined ? { params?: T[keyof T] } : { params: T[keyof T] });
 
-export interface GenesysWebrtcMuteParams extends GenesysWebrtcBaseParams {
-  type: 'audio' | 'video';
-}
+export type GenesysWebrtcParams = {
+  offer: GenesysWebrtcOfferParams,
+  answer: GenesysWebrtcSdpParams,
+  info: GenesysInfoActiveParams,
+  iceCandidate: GenesysWebrtcSdpParams,
+  terminate: GenesysSessionTerminateParams,
+  mute: GenesysWebrtcMuteParams,
+  unmute: GenesysWebrtcMuteParams
+};
+
+export type GenesysWebrtcJsonRpcMessage = JsonRpcMessage<GenesysWebrtcParams>;
+
+export type HeadsetControlsRequestType = 'mediaHelper' | 'standard' | 'prioritized';
+export type HeadsetControlsRejectionReason = 'activeCall' | 'mediaHelper' | 'priority';
+
+export type GenesysMediaMessageParams = {
+  headsetControlsRequest: { requestType: HeadsetControlsRequestType },
+  headsetControlsRejection: {
+    requestId: string, // this should be the same uuid as the request
+    reason: HeadsetControlsRejectionReason
+  },
+  headsetControlsChanged: { hasControls: boolean }
+};
+
+export type GenesysMediaMessage = JsonRpcMessage<GenesysMediaMessageParams>;

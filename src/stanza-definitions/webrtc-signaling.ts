@@ -1,7 +1,7 @@
 import { DefinitionOptions, attribute, booleanAttribute, childAttribute, childJSON } from 'stanza/jxt';
 import { NS_CLIENT, NS_JINGLE_RTP_INFO_1 } from 'stanza/Namespaces';
-import { GenesysWebrtcJsonRpcMessage } from '../types/interfaces';
 import { Stanzas } from 'stanza';
+import { GenesysMediaMessage, GenesysMediaMessageParams, GenesysWebrtcJsonRpcMessage } from '../types/interfaces';
 
 const NS_JINGLE_SIGNALING = 'urn:xmpp:jingle-message:0';
 
@@ -90,6 +90,10 @@ declare module 'stanza/protocol' {
     genesysWebrtc?: GenesysWebrtcJsonRpcMessage;
   }
 
+  export interface ReceivedMessage {
+    mediaMessage?: GenesysMediaMessage;
+  }
+
   export interface AgentEvents {
     /* tslint:disable-next-line no-unnecessary-qualifier */
     'iq:set:genesysWebrtc': Stanzas.ReceivedIQ & { genesysWebrtc: GenesysWebrtcJsonRpcMessage };
@@ -108,6 +112,15 @@ const genesysWebrtc: DefinitionOptions = {
   element: 'iq',
   fields: {
     genesysWebrtc: childJSON('genesys', 'genesys-webrtc')
+  }
+};
+
+const mediaMessage: DefinitionOptions = {
+  path: 'message',
+  namespace: NS_CLIENT,
+  element: 'message',
+  fields: {
+    mediaMessage: childJSON('genesys', 'media-message')
   }
 };
 
@@ -135,5 +148,6 @@ export const definitions = [
   screenStartDefinition,
   screenStopDefinition,
   upgradeMediaPresenceDefinition,
-  genesysWebrtc
+  genesysWebrtc,
+  mediaMessage
 ];
