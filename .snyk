@@ -1,0 +1,9 @@
+# Snyk (https://snyk.io) policy file, patches or ignores known vulnerabilities.
+version: v1.22.1
+# ignores vulnerabilities until expiry date; change duration by modifying expiry date
+ignore:
+  SNYK-JS-AXIOS-6032459:
+    - '*':
+        reason: (https://inindca.atlassian.net/browse/PCM-2255). Migration will require concerted effort across multiple internal dependencies, but is underway.
+        expires: 2024-01-26T12:00:00.000Z
+        
