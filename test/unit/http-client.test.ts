@@ -4,8 +4,9 @@ import { HttpClient } from '../../src/http-client';
 import { wait } from '../helpers/testing-utils';
 import { ILogger } from '../../src/types/interfaces';
 import * as utils from '../../src/utils';
+import AxiosMockAdapter from 'axios-mock-adapter';
 
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, AxiosHeaders } from 'axios';
 
 describe('HttpRequestClient', () => {
   let http: HttpClient;
@@ -24,18 +25,13 @@ describe('HttpRequestClient', () => {
   });
 
   describe('requestApi()', () => {
+    let axiosMock: AxiosMockAdapter;
+    beforeEach(() => {
+      axiosMock = new AxiosMockAdapter(axios);
+    });
+
     describe('axios error without response', () => {
       let originalAdapter: any;
-
-      // use an adapter that will die instead of making a request
-      beforeAll(() => {
-        originalAdapter = axios.defaults.adapter;
-
-        const path = require('path');
-        const lib = path.join(path.dirname(require.resolve('axios')),'lib/adapters/xhr');
-        const xhr = require(lib);
-        axios.defaults.adapter = xhr;
-      });
 
       afterAll(() => {
         axios.defaults.adapter = originalAdapter;
@@ -58,57 +54,45 @@ describe('HttpRequestClient', () => {
       const host = 'example.com';
       const path = 'users/me';
 
-      const api = nock(`https://api.${host}`, {
-        reqheaders: {
-          'content-type': 'application/json',
-          authorization: /Bearer/,
-        }
-      });
+      const url = `https://api.${host}/api/v2/${path}`;
+      axiosMock.onGet(url).reply(200, []);
 
-      const users = api.get(`/api/v2/${path}`)
-        .reply(200, []);
-
-      const response = await http.requestApi(path, { host, method: 'get' });
+      const response = await http.requestApi(path, { host, method: 'get', authToken: '123' });
 
       expect(response.data).toEqual([]);
-      expect(users.isDone()).toBe(true);
+
+      expect(axiosMock.history.get.length).toBe(1);
+      const req = axiosMock.history.get[0]!;
+      expect((req.headers!.get as any)('authorization')).toEqual('Bearer 123');
     });
 
     it('should make a request without an authorization header', async () => {
       const host = 'example.com';
       const path = 'users/me';
 
-      const api = nock(`https://api.${host}`, {
-        reqheaders: {
-          'content-type': 'application/json'
-        }
-      });
-
-      const users = api.get(`/api/v2/${path}`)
-        .reply(200, []);
+      const url = `https://api.${host}/api/v2/${path}`;
+      axiosMock.onGet(url).reply(200, []);
 
       const response = await http.requestApi(path, { host, method: 'get', noAuthHeader: true, logger });
 
       expect(response.data).toEqual([]);
-      expect(response)
-      expect(users.isDone()).toBe(true);
+      expect(axiosMock.history.get.length).toBe(1);
+      const req = axiosMock.history.get[0]!;
+      expect((req.headers!.get as any)('authorization')).toBeUndefined();
     });
 
     it('should handle errors', async () => {
       const host = 'example.com';
       const path = 'users/me';
 
-      const api = nock(`https://api.${host}`);
-
-      const users = api.get(`/api/v2/${path}`)
-        .reply(404, { message: 'bad request' }, { ['inin-correlation-id']: 'abc123' });
+      const url = `https://api.${host}/api/v2/${path}`;
+      axiosMock.onGet(url).reply(404, { message: 'bad request' }, { ['inin-correlation-id']: 'abc123' });
 
       try {
         await http.requestApi(path, { host, method: 'get', logger });
         fail('should have thrown');
       } catch (error) {
         expect(error.response.data.message).toBe('bad request');
-        expect(users.isDone()).toBe(true);
       }
     });
   });
@@ -397,7 +381,7 @@ describe('HttpRequestClient', () => {
 
     it('should sanitize access token from ECONNABORTED error', async () => {
       const error = new AxiosError('fake error', 'ECONNABORTED');
-      error.config = { headers: { Authorization: 'mysupersecretaccesstoken' }};
+      error.config = { headers: new AxiosHeaders({ Authorization: 'mysupersecretaccesstoken' })};
 
       const spy = jest.fn();
       const logger = {
@@ -412,7 +396,7 @@ describe('HttpRequestClient', () => {
 
     it('should sanitize access token from error', async () => {
       const error = new AxiosError('fake error');
-      error.config = { headers: { Authorization: 'mysupersecretaccesstoken' }};
+      error.config = { headers: new AxiosHeaders({ Authorization: 'mysupersecretaccesstoken' })};
 
       const spy = jest.fn();
       const logger = {
