@@ -310,7 +310,7 @@ export class Client extends EventEmitter {
         error = new Error('Streaming client connection attempted received and undefined error');
       } else if (err.name === 'AxiosError') {
         const axiosError = err as AxiosError;
-        const config = axiosError.config;
+        const config = axiosError.config || { url: undefined, method: undefined };
 
         // sanitized error for logging
         error = {
@@ -346,7 +346,7 @@ export class Client extends EventEmitter {
       additionalErrorDetails.error = new Error('streaming client backoff handler received undefined error');
     } else if (err.name === 'AxiosError') {
       const axiosError = err as AxiosError;
-      const config = axiosError.config;
+      const config = axiosError.config || { url: undefined, method: undefined };
       let sanitizedError = {
         config: {
           url: config.url,

@@ -9,12 +9,14 @@ module.exports = {
     '<rootDir>/test/unit/**/*.(ts|js)'
   ],
   setupFiles: [
-    '<rootDir>/test/setup.js'
   ],
   transform: {
     '^.+\\.jsx?$': 'babel-jest',
     '^.+\\.tsx?$': 'ts-jest'
   },
+  transformIgnorePatterns: [
+    "node_modules/(?!axios|genesys-cloud-client-logger)"
+  ],
   collectCoverage: true,
   collectCoverageFrom: [
     '<rootDir>/src/**/*.{js,jsx,ts,tsx}',

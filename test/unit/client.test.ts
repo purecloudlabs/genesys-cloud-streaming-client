@@ -5,7 +5,7 @@ import nock from 'nock';
 import { Client } from '../../src/client';
 import { Logger } from 'genesys-cloud-client-logger';
 import * as utils from '../../src/utils';
-import { AxiosError } from 'axios';
+import { AxiosError, AxiosHeaders } from 'axios';
 import SaslError from '../../src/types/sasl-error';
 import { TimeoutError } from '../../src/types/timeout-error';
 import OfflineError from '../../src/types/offline-error';
@@ -151,7 +151,8 @@ describe('connect', () => {
   it('should massage AxiosError on failure', async () => {
     const error = new AxiosError('fake error', 'FAKE_ERROR', {
       url: 'fakeUrl',
-      method: 'get'
+      method: 'get',
+      headers: new AxiosHeaders()
     },
     undefined,
     { status: 401 } as any
@@ -164,8 +165,8 @@ describe('connect', () => {
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
       error: {
         config: {
-          url: error.config.url,
-          method: error.config.method
+          url: error.config!.url,
+          method: error.config!.method
         },
         status: error.response?.status,
         code: error.code,
@@ -179,7 +180,8 @@ describe('connect', () => {
   it('should massage AxiosError (no response object) on failure', async () => {
     const error = new AxiosError('fake error', 'FAKE_ERROR', {
       url: 'fakeUrl',
-      method: 'get'
+      method: 'get',
+      headers: new AxiosHeaders()
     });
     connectionAttemptSpy.mockRejectedValue(error);
 
@@ -189,8 +191,8 @@ describe('connect', () => {
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
       error: {
         config: {
-          url: error.config.url,
-          method: error.config.method
+          url: error.config!.url,
+          method: error.config!.method
         },
         status: error.response?.status,
         code: error.code,
@@ -267,7 +269,8 @@ describe('backoffConnectRetryHandler', () => {
       'FAKE_ERROR',
       {
         url: 'fakeUrl',
-        method: 'get'
+        method: 'get',
+        headers: new AxiosHeaders()
       },
       {},
       {
@@ -285,7 +288,8 @@ describe('backoffConnectRetryHandler', () => {
       'FAKE_ERROR',
       {
         url: 'fakeUrl',
-        method: 'get'
+        method: 'get',
+        headers: new AxiosHeaders()
       },
       {},
       {
@@ -367,7 +371,8 @@ describe('backoffConnectRetryHandler', () => {
       'FAKE_ERROR',
       {
         url: 'fakeUrl',
-        method: 'get'
+        method: 'get',
+        headers: new AxiosHeaders()
       },
       {},
       {
@@ -383,7 +388,8 @@ describe('backoffConnectRetryHandler', () => {
       'FAKE_ERROR',
       {
         url: 'fakeUrl',
-        method: 'get'
+        method: 'get',
+        headers: new AxiosHeaders()
       },
       {} as any
     );
