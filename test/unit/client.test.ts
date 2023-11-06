@@ -138,6 +138,37 @@ describe('connect', () => {
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('should handle error with no config property', async () => {
+    const error = new AxiosError('fake error', 'FAKE_ERROR', {
+      url: 'fakeUrl',
+      method: 'get',
+      headers: new AxiosHeaders()
+    },
+    undefined,
+    { status: 401 } as any
+    );
+
+    delete (error as any).config;
+    connectionAttemptSpy.mockRejectedValue(error);
+
+    const errorSpy = jest.spyOn(client.logger, 'error');
+
+    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
+    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
+      error: {
+        config: {
+          url: undefined,
+          method: undefined
+        },
+        status: error.response?.status,
+        code: error.code,
+        name: error.name,
+        message: error.message
+      }
+    });
+    expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+  });
+
   it('should throw if connection attempt fails and retry handler returns false', async () => {
     const error = new Error('fake error');
     connectionAttemptSpy.mockRejectedValue(error);
@@ -277,6 +308,25 @@ describe('backoffConnectRetryHandler', () => {
         status: 401
       } as any
     );
+    expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
+  });
+
+  it('should return false if error has no config', async () => {
+    const error = new AxiosError(
+      'fake error',
+      'FAKE_ERROR',
+      {
+        url: 'fakeUrl',
+        method: 'get',
+        headers: new AxiosHeaders()
+      },
+      {},
+      {
+        status: 401
+      } as any
+    );
+
+    delete (error as any).config;
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
   });
   
