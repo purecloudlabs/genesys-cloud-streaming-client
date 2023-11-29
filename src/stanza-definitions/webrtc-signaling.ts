@@ -1,7 +1,7 @@
 import { DefinitionOptions, attribute, booleanAttribute, childAttribute, childJSON } from 'stanza/jxt';
 import { NS_CLIENT, NS_JINGLE_RTP_INFO_1 } from 'stanza/Namespaces';
 import { Stanzas } from 'stanza';
-import { GenesysMediaMessage, GenesysMediaMessageParams, GenesysWebrtcJsonRpcMessage } from '../types/interfaces';
+import { GenesysMediaMessage, GenesysWebrtcJsonRpcMessage } from '../types/interfaces';
 
 const NS_JINGLE_SIGNALING = 'urn:xmpp:jingle-message:0';
 

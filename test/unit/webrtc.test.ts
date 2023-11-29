@@ -134,6 +134,7 @@ describe('handleGenesysWebrtcStanza', () => {
         method: 'offer',
         params: {
           sessionId: 'sid',
+          conversationId: 'cid',
           sdp: 'jskdf'
         }
       }
@@ -1802,8 +1803,9 @@ describe('handleGenesysOffer', () => {
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1827,8 +1829,9 @@ describe('handleGenesysOffer', () => {
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1856,8 +1859,9 @@ describe('handleGenesysOffer', () => {
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1882,8 +1886,9 @@ describe('handleGenesysOffer', () => {
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1906,8 +1911,9 @@ describe('handleGenesysOffer', () => {
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1929,7 +1935,7 @@ describe('handleGenesysOffer', () => {
           conversationId: 'convo25',
           sessionId: 'session25',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
