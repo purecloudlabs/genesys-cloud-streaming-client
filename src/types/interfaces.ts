@@ -162,35 +162,36 @@ export type GenesysInfoActiveParams = GenesysWebrtcBaseParams & { status: 'activ
 export type GenesysSessionTerminateParams = GenesysWebrtcBaseParams & { reason?: JingleReasonCondition };
 export type GenesysWebrtcMuteParams = GenesysWebrtcBaseParams & { type: 'audio' | 'video' };
 
-export type JsonRpcMessage<T> = {
+export type TypedJsonRpcMessage<Method extends string, Params> = {
   jsonrpc: string;
-  method: keyof T;
-  id?: string; // this would be the correlationId
-  // the following line makes `params` optional if T[keyof T] is undefined, otherwise it is required
-} & (T[keyof T] extends undefined ? { params?: T[keyof T] } : { params: T[keyof T] });
-
-export type GenesysWebrtcParams = {
-  offer: GenesysWebrtcOfferParams,
-  answer: GenesysWebrtcSdpParams,
-  info: GenesysInfoActiveParams,
-  iceCandidate: GenesysWebrtcSdpParams,
-  terminate: GenesysSessionTerminateParams,
-  mute: GenesysWebrtcMuteParams,
-  unmute: GenesysWebrtcMuteParams
+  method: Method;
+  id?: string;
+  params?: Params;
 };
 
-export type GenesysWebrtcJsonRpcMessage = JsonRpcMessage<GenesysWebrtcParams>;
+export type JsonRpcMessage = TypedJsonRpcMessage<string, any>;
+
+export type GenesysWebrtcOffer = TypedJsonRpcMessage<'offer', GenesysWebrtcOfferParams>;
+export type GenesysWebrtcAnswer = TypedJsonRpcMessage<'answer', GenesysWebrtcSdpParams>;
+export type GenesysWebrtcInfo = TypedJsonRpcMessage<'info', GenesysInfoActiveParams>;
+export type GenesysWebrtcIceCandidate = TypedJsonRpcMessage<'iceCandidate', GenesysWebrtcSdpParams>;
+export type GenesysWebrtcTerminate = TypedJsonRpcMessage<'terminate', GenesysSessionTerminateParams>;
+export type GenesysWebrtcMute = TypedJsonRpcMessage<'mute', GenesysWebrtcMuteParams>;
+export type GenesysWebrtcUnmute = TypedJsonRpcMessage<'unmute', GenesysWebrtcMuteParams>;
+
+export type GenesysWebrtcJsonRpcMessage = GenesysWebrtcOffer | GenesysWebrtcAnswer | GenesysWebrtcInfo | GenesysWebrtcIceCandidate | GenesysWebrtcTerminate | GenesysWebrtcMute | GenesysWebrtcUnmute;
 
 export type HeadsetControlsRequestType = 'mediaHelper' | 'standard' | 'prioritized';
 export type HeadsetControlsRejectionReason = 'activeCall' | 'mediaHelper' | 'priority';
 
-export type GenesysMediaMessageParams = {
-  headsetControlsRequest: { requestType: HeadsetControlsRequestType },
-  headsetControlsRejection: {
-    requestId: string, // this should be the same uuid as the request
-    reason: HeadsetControlsRejectionReason
-  },
-  headsetControlsChanged: { hasControls: boolean }
+export type HeadsetControlsRejectionParams = {
+  requestId: string, // this should be the same uuid as the request
+  reason: HeadsetControlsRejectionReason
 };
+export type HeadsetControlsChangedParams = { hasControls: boolean };
 
-export type GenesysMediaMessage = JsonRpcMessage<GenesysMediaMessageParams>;
+export type HeadsetControlsRequest = TypedJsonRpcMessage<'headsetControlsRequest', { requestType: HeadsetControlsRequestType }>;
+export type HeadsetControlsRejection = TypedJsonRpcMessage<'headsetControlsRejection', HeadsetControlsRejectionParams>;
+export type HeadsetControlsChanged = TypedJsonRpcMessage<'headsetControlsChanged', HeadsetControlsChangedParams>;
+
+export type GenesysMediaMessage = HeadsetControlsRequest | HeadsetControlsRejection | HeadsetControlsChanged;
