@@ -11,7 +11,7 @@ import { WebrtcExtension } from '../../src/webrtc';
 import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
-import { GenesysSessionTerminateParams, GenesysWebrtcSdpParams, ISessionInfo, SessionTypes } from '../../src/types/interfaces';
+import { GenesysSessionTerminateParams, GenesysWebrtcSdpParams, ISessionInfo, InsightAction, SessionTypes } from '../../src/types/interfaces';
 import { NamedAgent } from '../../src/types/named-agent';
 import { StanzaMediaSession } from '../../src/types/stanza-media-session';
 import { GenesysCloudMediaSession } from '../../src/types/genesys-cloud-media-session';
@@ -1354,14 +1354,17 @@ describe('proxyStatsForSession', () => {
 
     webrtc['throttledSendStats'] = jest.fn();
 
-    const formattedStats = {
-      actionName: 'test',
-      actionDate: expect.anything(),
-      details: {
-        conference: 'myconvoid',
-        session: 'mysid',
-        sessionType: 'softphone',
-      },
+    const details = {
+      _eventType: 'test',
+      _eventTimestamp: new Date().toISOString(),
+      conversationId: 'myconvoid',
+      sessionId: 'mysid',
+      sessionType: 'softphone',
+    };
+
+    const formattedStats: InsightAction<typeof details> = {
+      actionName: 'WebrtcStats',
+      details
     };
 
     jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
@@ -1386,15 +1389,17 @@ describe('proxyStatsForSession', () => {
     webrtc['currentMaxStatSize'] = 1;
     webrtc['throttledSendStats'].flush = jest.fn();
 
+    const details = {
+      _eventType: 'test',
+      _eventTimestamp: new Date().toISOString(),
+      conversationId: 'myconvoid',
+      sessionId: 'mysid',
+      sessionType: 'softphone',
+    };
 
-    const formattedStats = {
-      actionName: 'test',
-      actionDate: expect.anything(),
-      details: {
-        conference: 'myconvoid',
-        session: 'mysid',
-        sessionType: 'softphone',
-      },
+    const formattedStats: InsightAction<typeof details> = {
+      actionName: 'WebrtcStats',
+      details
     };
 
     jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
@@ -1988,3 +1993,33 @@ describe('sendIq', () => {
     await expect(() => webrtc.sendIq(testObj as any)).rejects.toThrow();
   });
 });
+
+describe('addStatToQueue', () => {
+  it('should do nothing if optOutOfWebrtcStatsTelemetry', () => {
+    const client = new Client({ });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc.config.optOutOfWebrtcStatsTelemetry = true;
+
+    const spy1 = webrtc.flushStats = jest.fn();
+    const spy2 = webrtc['throttledSendStats'] = jest.fn();
+
+    const myObj = {} as any;
+    webrtc.addStatToQueue(myObj);
+
+    expect(spy1).not.toHaveBeenCalled();
+    expect(spy2).not.toHaveBeenCalled();
+  });
+});
+
+describe('proxyNRStat', () => {
+  it('should call addStatToQueue', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = webrtc.addStatToQueue = jest.fn();
+
+    const myObj = {} as any;
+    webrtc.proxyNRStat(myObj);
+    expect(spy).toHaveBeenCalled();
+  });
+})
