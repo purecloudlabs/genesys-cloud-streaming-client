@@ -1,48 +1,41 @@
 import { GetStatsEvent, StatsConnectEvent, StatsEvent } from 'webrtc-stats-gatherer';
+import { FlatObject, InsightAction, InsightActionDetails } from './types/interfaces';
 
-export function formatStatsEvent (event: StatsEvent, extraDetails: any = {}) {
-  let details: any;
-  const eventType = event.name;
+function isGetStatsEvent (event: StatsEvent): event is GetStatsEvent {
+  return event.name === 'getStats';
+}
 
-  if (event.name === 'connect') {
-    const e: StatsConnectEvent = event as any;
-    details = e;
+function prepGetStatsEvent (event: GetStatsEvent): FlatObject {
+  let details: FlatObject = {};
+  Object.assign(details, deepFlatten(event.tracks, 'localTrack'));
+  delete (event as any).tracks;
 
-    Object.assign(details, deepFlatten(e.candidatePairDetails, 'candidatePairDetails'));
-    delete details.candidatePairDetails;
-  } else if (event.name === 'getStats') {
-    const e: GetStatsEvent = event as any;
-    details = e;
+  Object.assign(details, deepFlatten(event.remoteTracks, `remoteTrack`));
+  delete (event as any).remoteTracks;
 
-    Object.assign(details, deepFlatten(e.tracks, 'localTrack'));
-    delete details.tracks;
+  return details;
+}
 
-    Object.assign(details, deepFlatten(e.remoteTracks, `remoteTrack`));
-    delete details.remoteTracks;
-  } else {
-    details = {};
-    if (event.name !== 'failure') {
-      // TODO: log this out when we get genesys-cloud-client-logger in place (allows logging from anywhere)
-    }
+export function formatStatsEvent (event: StatsEvent, extraDetails: FlatObject = {}): InsightAction<{_eventType: string} & FlatObject> {
+  const details: InsightActionDetails<{_eventType: string } & FlatObject> = {
+    _eventType: event.name,
+    _eventTimestamp: new Date().toISOString(),
+    ...extraDetails
+  };
 
-    Object.assign(details, deepFlatten(event));
+  // anything that needs to be renamed or massaged
+  if (isGetStatsEvent(event)) {
+    Object.assign(details, prepGetStatsEvent(event));
   }
+
+  // general case
+  Object.assign(details, deepFlatten(event));
+
   delete details.name;
 
-  Object.assign(details, extraDetails, { '_eventType': eventType });
-
-  // new relic doesn't accept booleans so we convert them to strings
-  Object.keys(details).forEach((key) => {
-    const val = details[key];
-    if (typeof val === 'boolean') {
-      details[key] = `${val}`;
-    }
-  });
-
-  const formattedEvent = {
+  const formattedEvent: InsightAction<typeof details> = {
     actionName: 'WebrtcStats',
-    actionDate: Date.now(),
-    details
+    details,
   };
 
   return formattedEvent;

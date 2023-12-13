@@ -16,8 +16,9 @@ describe('formatStatsEvent', () => {
       sessionType: 'softphone',
       conference: '2660d40f-44d6-4a3b-a899-329b426806ae'
     };
-
-    expect(formatStatsEvent(connectStatsEvent as any, extraDetails)).toEqual(Object.assign(formattedConnectStatsEvent, { actionDate: expect.anything() }));
+    const expected: any = { ...formattedConnectStatsEvent };
+    expected.details._eventTimestamp = expect.anything();
+    expect(formatStatsEvent(connectStatsEvent as any, extraDetails)).toEqual(Object.assign(expected));
   });
 
   it('should format getStats event', () => {
@@ -26,8 +27,9 @@ describe('formatStatsEvent', () => {
       sessionType: 'softphone',
       conference: '2660d40f-44d6-4a3b-a899-329b426806ae'
     };
-
-    expect(formatStatsEvent(getStatsEvent as any, extraDetails)).toEqual(Object.assign(formattedGetStatsEvent, { actionDate: expect.anything() }));
+    const expected: any = { ...formattedGetStatsEvent };
+    expected.details._eventTimestamp = expect.anything();
+    expect(formatStatsEvent(getStatsEvent as any, extraDetails)).toEqual(Object.assign(expected));
   });
 
   it('should format failed event', () => {
@@ -36,8 +38,9 @@ describe('formatStatsEvent', () => {
       sessionType: 'softphone',
       conference: '2660d40f-44d6-4a3b-a899-329b426806ae'
     };
-
-    expect(formatStatsEvent(failedStatsEvent as any, extraDetails)).toEqual(Object.assign(failedStatsEventFormatted, { actionDate: expect.anything() }));
+    const expected: any = { ...failedStatsEventFormatted };
+    expected.details._eventTimestamp = expect.anything();
+    expect(formatStatsEvent(failedStatsEvent as any, extraDetails)).toEqual(Object.assign(expected));
   });
 
   it('should format unknown event', () => {
@@ -46,16 +49,22 @@ describe('formatStatsEvent', () => {
       sessionType: 'softphone',
       conference: '2660d40f-44d6-4a3b-a899-329b426806ae'
     };
+    const expected: any = { ...someStatsEventFormatted };
+    expected.details._eventTimestamp = expect.anything();
 
-    expect(formatStatsEvent(someStatsEvent as any, extraDetails)).toEqual(Object.assign(someStatsEventFormatted, { actionDate: expect.anything() }));
+    expect(formatStatsEvent(someStatsEvent as any, extraDetails)).toEqual(Object.assign(expected));
   });
 
   it('should handle no extraDetails', () => {
-    const expected: any = { ...someStatsEventFormatted, actionDate: expect.anything() };
+    const expected: any = { ...someStatsEventFormatted };
     delete expected.details.session;
     delete expected.details.sessionType;
     delete expected.details.conference;
 
-    expect(formatStatsEvent(someStatsEvent as any)).toEqual(expected);
+    expected.details._eventTimestamp = expect.anything();
+
+    const result = formatStatsEvent(someStatsEvent as any);
+
+    expect(result).toEqual(expected);
   });
 });

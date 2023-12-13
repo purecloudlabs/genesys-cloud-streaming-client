@@ -1,12 +1,11 @@
 {
   "actionName": "WebrtcStats",
-  "actionDate": 1603398166959,
   "details": {
     "session": "70285efa-90e5-4c50-933a-61ebeb070d9a",
     "conference": "2660d40f-44d6-4a3b-a899-329b426806ae",
-    "candidatePairHadActiveSource": "true",
-    "localCandidateChanged": "false",
-    "remoteCandidateChanged": "false",
+    "candidatePairHadActiveSource": true,
+    "localCandidateChanged": false,
+    "remoteCandidateChanged": false,
     "networkType": "ethernet",
     "candidatePair": "srflx;srflx",
     "bytesSent": 738,

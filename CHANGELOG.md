@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.1.2...HEAD)
+### Added
+* [PCM-2276](https://inindca.atlassian.net/browse/PCM-2276) Added an function to proxy stats to nr from other apps like the webrtc sdk; Fixed some issues with nr stats gathering.
 
 # [v16.1.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v16.1.1...v16.1.2)
 ### Fixed

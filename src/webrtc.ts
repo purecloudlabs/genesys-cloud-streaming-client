@@ -13,12 +13,13 @@ import { isFirefox } from 'browserama';
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import { Client } from './client';
-import { formatStatsEvent } from './stats-formatter';
-import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams } from './types/interfaces';
+import { deepFlatten, formatStatsEvent } from './stats-formatter';
+import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams, NRProxyStat, FirstProposeStat, InsightActionDetails, InsightReport, InsightAction, FlatObject } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
 import { StanzaMediaSession } from './types/stanza-media-session';
 import { IGenesysCloudMediaSessionParams, IMediaSession, IStanzaMediaSessionParams, SessionEvents } from './types/media-session';
 import { GenesysCloudMediaSession } from './types/genesys-cloud-media-session';
+import Logger from 'genesys-cloud-client-logger';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -70,7 +71,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     allowIPv6: boolean;
     optOutOfWebrtcStatsTelemetry?: boolean;
   };
-  private statsArr: any[] = [];
+  private statsArr: InsightActionDetails<any>[] = [];
   private throttleSendStatsInterval = 25000;
   private currentMaxStatSize = desiredMaxStatsSize;
   private statsSizeDecreaseAmount = 3000;
@@ -226,6 +227,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const session = new GenesysCloudMediaSession(this, mediaSessionParams);
 
     await session.setRemoteDescription(params.sdp);
+    this.proxyStatsForSession(session);
 
     session.on('sendIq' as any, (iq: IQ) => this.stanzaInstance?.sendIQ(iq));
     session.on('terminated', () => {
@@ -342,29 +344,62 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
-        conference: (session as any).conversationId,
-        session: session.id,
+        conversationId: (session as any).conversationId,
+        sessionId: session.id,
         sessionType: session.sessionType
       };
 
       // format the event to what the api expects
       const event = formatStatsEvent(statsCopy, extraDetails);
 
-      const currentEventSize = calculatePayloadSize(event);
-      // Check if the size of the current event plus the size of the previous stats exceeds max size.
-      const exceedsMaxStatSize =
-        this.statBuffer + currentEventSize > this.currentMaxStatSize;
+      this.addStatToQueue(event);
+    });
+  }
 
-      this.statsArr.push(event);
-      this.statBuffer += currentEventSize;
+  // this fn checks to see if the new stat fits inside the buffer. If not, send the queue;
+  addStatToQueue<T extends {_eventType: string}> (stat: InsightAction<T>): void {
+    if (this.config.optOutOfWebrtcStatsTelemetry) {
+      return;
+    }
 
-      // If it exceeds max size, don't append just send current payload.
-      if (exceedsMaxStatSize) {
-        this.flushStats();
-      } else {
-        this.throttledSendStats();
+    if (!stat.details._appId) {
+      stat.details._appId = (this.logger as Logger).clientId;
+      stat.details._appName = 'streamingclient';
+      stat.details._appVersion = Client.version;
+    }
+
+    (stat.details as any)._originAppId = this.client.config.appId;
+
+    // nr only accepts single level objects so we must flatten everything just in case
+    const flattenedDetails: FlatObject = deepFlatten(stat.details);
+
+    // new relic doesn't accept booleans so we convert them to strings
+    Object.keys(flattenedDetails).forEach((key) => {
+      const val = flattenedDetails[key];
+      if (typeof val === 'boolean') {
+        flattenedDetails[key] = `${val}`;
       }
     });
+
+    const formattedStat = {
+      ...stat,
+      details: flattenedDetails
+    };
+
+    const currentEventSize = calculatePayloadSize(formattedStat);
+    // Check if the size of the current event plus the size of the previous stats exceeds max size.
+    const exceedsMaxStatSize =
+      this.statBuffer + currentEventSize > this.currentMaxStatSize;
+
+    this.statsArr.push(formattedStat);
+    this.statBuffer += currentEventSize;
+
+    // If it exceeds max size, don't append just send current payload.
+    if (exceedsMaxStatSize) {
+      this.flushStats();
+    } else {
+      this.throttledSendStats();
+    }
   }
 
   getLogDetailsForPendingSessionId (sessionId: string): { conversationId?: string, sessionId: string, sessionType?: SessionTypes } {
@@ -386,7 +421,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   async sendStats () {
-    const statsToSend: any[] = [];
+    const statsToSend: InsightActionDetails<any>[] = [];
     let currentSize = 0;
 
     for (const stats of this.statsArr) {
@@ -409,7 +444,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       return;
     }
 
-    const data = {
+    const data: InsightReport = {
       appName: 'streamingclient',
       appVersion: Client.version,
       originAppName: this.client.config.appName,
@@ -502,6 +537,20 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     this.logger.info('propose received', loggingParams);
 
     if (!isDuplicatePropose) {
+      const { appId } = this.client.config;
+      const proposeStat: FirstProposeStat = {
+        actionName: 'WebrtcStats',
+        details: {
+          _eventTimestamp: new Date().toISOString(),
+          _eventType: 'firstPropose',
+          conversationId: loggingParams.conversationId,
+          sdpViaXmppRequested: !!msg.propose.sdpOverXmpp,
+          sessionId: sessionId,
+          sessionType: sessionType,
+        }
+      };
+      this.addStatToQueue(proposeStat);
+
       // TODO: is ofrom used?
       // const roomJid = (msg.ofrom && msg.ofrom.full) || msg.from.full || msg.from;
       const fromJid = msg.from;
@@ -892,6 +941,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     return [ ...stanzaSessions, ...this.webrtcSessions ] as IMediaSession[];
   }
 
+  proxyNRStat (stat: NRProxyStat): void {
+    this.addStatToQueue(stat as InsightAction<{_eventType: string}>);
+  }
+
   get expose (): WebrtcExtensionAPI {
     return {
       on: this.on.bind(this),
@@ -909,7 +962,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       initiateRtcSession: this.initiateRtcSession.bind(this),
       getSessionTypeByJid: this.getSessionTypeByJid.bind(this),
       getSessionManager: this.getSessionManager.bind(this),
-      getAllSessions: this.getAllSessions.bind(this)
+      getAllSessions: this.getAllSessions.bind(this),
+      proxyNRStat: this.proxyNRStat.bind(this)
     };
   }
 }
@@ -931,4 +985,5 @@ export interface WebrtcExtensionAPI {
   getSessionTypeByJid (jid: string): SessionTypes;
   getSessionManager: () => SessionManager | undefined;
   getAllSessions: () => IMediaSession[];
+  proxyNRStat: (stat: NRProxyStat) => void;
 }
