@@ -195,3 +195,64 @@ export type HeadsetControlsRejection = TypedJsonRpcMessage<'headsetControlsRejec
 export type HeadsetControlsChanged = TypedJsonRpcMessage<'headsetControlsChanged', HeadsetControlsChangedParams>;
 
 export type GenesysMediaMessage = HeadsetControlsRequest | HeadsetControlsRejection | HeadsetControlsChanged;
+
+export type FlatObject = {
+  [key: string]: string | number | boolean | null | Date;
+};
+
+export type GenericAction = { _eventType: string; };
+
+export type InsightReport = {
+  appName: string;
+  appVersion: string;
+  originAppName?: string;
+  originAppVersion?: string;
+  actions: InsightAction<any>[];
+};
+
+export type InsightAction<T extends { _eventType: string }> = {
+  actionName: 'WebrtcStats';
+  details: InsightActionDetails<T>;
+};
+
+export type InsightActionDetails<K extends { _eventType: string }> = {
+  _eventType: K['_eventType'];
+  /**
+   * This should be an ISO string
+   */
+  _eventTimestamp: string;
+  _appId?: string;
+  _appName?: string;
+  _appVersion?: string;
+} & K;
+
+export type FirstProposeStat = InsightAction<{
+  _eventType: 'firstPropose';
+  sdpViaXmppRequested: boolean;
+  sessionType: SessionTypesAsStrings;
+  originAppId?: string;
+  conversationId: string;
+  sessionId: string;
+}>;
+
+export type FirstAlertingConversationStat = InsightAction<{
+  _eventType: 'firstAlertingConversationUpdate';
+  conversationId: string;
+  participantId: string;
+}>;
+
+export type MediaStat = InsightAction<{
+  _eventType: 'mediaRequested' | 'mediaStarted' | 'mediaError';
+  requestId?: string;
+  message?: string;
+  audioRequested: boolean;
+  videoRequested: boolean;
+  displayRequested: boolean;
+  conversationId?: string;
+  sessionType?: SessionTypesAsStrings;
+  sessionId?: string;
+  elapsedMsFromInitialRequest?: number;
+}>;
+
+// This will be a union of all the stats we want to proxy
+export type NRProxyStat = FirstAlertingConversationStat | MediaStat;

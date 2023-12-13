@@ -78,7 +78,8 @@ export class Client extends EventEmitter {
       jidResource: options.jidResource,
       channelId: null as any, // created on connect
       appName: options.appName,
-      appVersion: options.appVersion
+      appVersion: options.appVersion,
+      appId: options.appId
     };
 
     this.backgroundAssistantMode = this.checkIsBackgroundAssistant();
