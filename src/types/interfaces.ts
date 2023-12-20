@@ -218,9 +218,9 @@ export type InsightAction<T extends { _eventType: string }> = {
 export type InsightActionDetails<K extends { _eventType: string }> = {
   _eventType: K['_eventType'];
   /**
-   * This should be an ISO string
+   * This should be ms since epoch, e.g. new Date().getTime()
    */
-  _eventTimestamp: string;
+  _eventTimestamp: number;
   _appId?: string;
   _appName?: string;
   _appVersion?: string;

@@ -19,7 +19,7 @@ function prepGetStatsEvent (event: GetStatsEvent): FlatObject {
 export function formatStatsEvent (event: StatsEvent, extraDetails: FlatObject = {}): InsightAction<{_eventType: string} & FlatObject> {
   const details: InsightActionDetails<{_eventType: string } & FlatObject> = {
     _eventType: event.name,
-    _eventTimestamp: new Date().toISOString(),
+    _eventTimestamp: new Date().getTime(),
     ...extraDetails
   };
 

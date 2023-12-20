@@ -541,7 +541,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       const proposeStat: FirstProposeStat = {
         actionName: 'WebrtcStats',
         details: {
-          _eventTimestamp: new Date().toISOString(),
+          _eventTimestamp: new Date().getTime(),
           _eventType: 'firstPropose',
           conversationId: loggingParams.conversationId,
           sdpViaXmppRequested: !!msg.propose.sdpOverXmpp,
