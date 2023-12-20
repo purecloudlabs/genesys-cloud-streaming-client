@@ -1356,7 +1356,7 @@ describe('proxyStatsForSession', () => {
 
     const details = {
       _eventType: 'test',
-      _eventTimestamp: new Date().toISOString(),
+      _eventTimestamp: new Date().getTime(),
       conversationId: 'myconvoid',
       sessionId: 'mysid',
       sessionType: 'softphone',
@@ -1391,7 +1391,7 @@ describe('proxyStatsForSession', () => {
 
     const details = {
       _eventType: 'test',
-      _eventTimestamp: new Date().toISOString(),
+      _eventTimestamp: new Date().getTime(),
       conversationId: 'myconvoid',
       sessionId: 'mysid',
       sessionType: 'softphone',
