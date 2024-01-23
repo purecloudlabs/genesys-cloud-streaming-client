@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.0.0...HEAD)
+### Added
+* [PCM-2295](https://inindca.atlassian.net/browse/PCM-2295) New relic stat for when navigator.onLine changes.
+
 ### Fixed
 * [no-jira] Fix snyk vulns: axios and follow-redirects
 

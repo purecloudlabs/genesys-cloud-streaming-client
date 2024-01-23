@@ -65,6 +65,16 @@ class Client extends EventEmitter {
   }
 }
 
+let isOnline = true;
+
+beforeAll(() => {
+  Object.defineProperty(navigator, 'onLine', { get: () => isOnline });
+})
+
+afterEach(() => {
+  isOnline = true;
+});
+
 class FakePeerConnection extends EventTarget {
   oniceconnectionstatechange = jest.fn();
 }
@@ -1572,6 +1582,27 @@ describe('sendStats', () => {
     expect(logSpy).toHaveBeenCalled();
   });
 
+  it('should re-add failed stats if offline', async () => {
+    const client = new Client({ authToken: '123' });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
+      const err: any = new Error('error');
+      err.response = undefined;
+      throw err;
+    });
+
+    isOnline = false;
+
+    expect(webrtc['statsArr'].length).toBe(0);
+    webrtc['statsArr'].push({} as any);
+    expect(webrtc['statsArr'].length).toBe(1);
+
+    await webrtc.sendStats();
+    expect(sendSpy).toHaveBeenCalled();
+    expect(webrtc['statsArr'].length).toBe(1);
+  });
+
   describe('calculatePayloadSize', () => {
     it('should calculate payload size.', () => {
       jest.spyOn(utils, 'calculatePayloadSize')
@@ -2022,4 +2053,37 @@ describe('proxyNRStat', () => {
     webrtc.proxyNRStat(myObj);
     expect(spy).toHaveBeenCalled();
   });
-})
+});
+
+describe('onOnlineStatusChange()', () => {
+  it('should call addStatToQueue with online', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = webrtc.addStatToQueue = jest.fn();
+
+    const expectedDetails = expect.objectContaining({
+      _eventType: 'onlineStatus',
+      online: true
+    });
+
+    window.dispatchEvent(new Event('online'));
+    expect(spy).toHaveBeenCalledWith({ actionName: 'WebrtcStats', details: expectedDetails });
+  });
+  
+  it('should call addStatToQueue with offline', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = webrtc.addStatToQueue = jest.fn();
+
+    
+    const expectedDetails = expect.objectContaining({
+      _eventType: 'onlineStatus',
+      online: false
+    });
+
+    window.dispatchEvent(new Event('offline'));
+    expect(spy).toHaveBeenCalledWith({ actionName: 'WebrtcStats', details: expectedDetails });
+  });
+});
