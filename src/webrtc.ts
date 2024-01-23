@@ -14,12 +14,13 @@ import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
 import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise } from './utils';
 import { Client } from './client';
 import { deepFlatten, formatStatsEvent } from './stats-formatter';
-import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams, NRProxyStat, FirstProposeStat, InsightActionDetails, InsightReport, InsightAction, FlatObject } from './types/interfaces';
+import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams, NRProxyStat, FirstProposeStat, InsightActionDetails, InsightReport, InsightAction, FlatObject, OnlineStatusStat } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
 import { StanzaMediaSession } from './types/stanza-media-session';
 import { IGenesysCloudMediaSessionParams, IMediaSession, IStanzaMediaSessionParams, SessionEvents } from './types/media-session';
 import { GenesysCloudMediaSession } from './types/genesys-cloud-media-session';
 import Logger from 'genesys-cloud-client-logger';
+import { HttpClient } from './http-client';
 
 const events = {
   REQUEST_WEBRTC_DUMP: 'requestWebrtcDump', // dump triggered by someone in room
@@ -119,6 +120,20 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         session.end('cancel', true);
       }
     });
+
+    window.addEventListener('offline', () => this.onOnlineStatusChange(false));
+    window.addEventListener('online', () => this.onOnlineStatusChange(true));
+  }
+
+  private onOnlineStatusChange (online: boolean) {
+    this.addStatToQueue({
+      actionName: 'WebrtcStats',
+      details: {
+        _eventType: 'onlineStatus',
+        _eventTimestamp: new Date().getTime(),
+        online,
+      }
+    } as OnlineStatusStat);
   }
 
   async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
@@ -472,15 +487,19 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       });
       this.currentMaxStatSize = desiredMaxStatsSize;
     } catch (err: any) {
-      if (err.response.status === 413) {
-        const attemptedPayloadSize = this.currentMaxStatSize;
-        this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
+      // re-add the stats to the buffer
+      if (HttpClient.retryStatusCodes.has(err.response?.status) || !navigator.onLine) {
         this.statsArr = [...statsToSend, ...this.statsArr];
         this.statBuffer = this.statsArr.reduce(
           (currentSize, stats) =>
             currentSize + calculatePayloadSize(stats),
           0
         );
+      }
+
+      if (err.response?.status === 413) {
+        const attemptedPayloadSize = this.currentMaxStatSize;
+        this.currentMaxStatSize -= this.statsSizeDecreaseAmount;
         this.logger.info(
           'Failed to send stats due to 413, retrying with smaller set',
           { attemptedPayloadSize, newPayloadSize: this.currentMaxStatSize }

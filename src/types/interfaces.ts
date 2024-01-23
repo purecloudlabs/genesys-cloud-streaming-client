@@ -226,6 +226,11 @@ export type InsightActionDetails<K extends { _eventType: string }> = {
   _appVersion?: string;
 } & K;
 
+export type OnlineStatusStat = InsightAction<{
+  _eventType: 'onlineStatus';
+  online: boolean;
+}>;
+
 export type FirstProposeStat = InsightAction<{
   _eventType: 'firstPropose';
   sdpViaXmppRequested: boolean;
