@@ -1,6 +1,6 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "17.0.0",
+  "version": "17.0.1",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
@@ -51,7 +51,7 @@
   "author": "",
   "dependencies": {
     "@babel/runtime-corejs3": "^7.10.4",
-    "axios": "^1.6.0",
+    "axios": "^1.6.5",
     "backoff-web": "^1.0.1",
     "browserama": "^3.2.0",
     "core-js": "^3.6.5",
