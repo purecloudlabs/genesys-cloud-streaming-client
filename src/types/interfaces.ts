@@ -261,3 +261,14 @@ export type MediaStat = InsightAction<{
 
 // This will be a union of all the stats we want to proxy
 export type NRProxyStat = FirstAlertingConversationStat | MediaStat;
+
+export type SCConnectionData = {
+  currentDelayMs: number;
+  delayMsAfterNextReduction?: number;
+  // At this time, we will reduce the current delay.
+  // This is a long date
+  nextDelayReductionTime?: number;
+  // At this time, we will disregard any saved delays. It should be updated every failure.
+  // This is a long date
+  timeOfTotalReset?: number;
+};

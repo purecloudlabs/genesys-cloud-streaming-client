@@ -17,6 +17,12 @@ export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, de
   });
 }
 
+export function delay (ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export function splitIntoIndividualTopics (topicString: string) {
   const topics: string[] = [];
 
