@@ -6,11 +6,13 @@ describe('Utils', () => {
   describe('jid utils', () => {
     it('isAcdJid', () => {
       expect(utils.isAcdJid('acd-sdkfjk@test.com')).toBeTruthy();
+      expect(utils.isAcdJid('acd-sdkfjk@gjoll.com')).toBeFalsy();
       expect(utils.isAcdJid('sdkfjk@test.com')).toBeFalsy();
     });
 
     it('isScreenRecordingJid', () => {
       expect(utils.isScreenRecordingJid('screenrecording-sdkfjk@test.com')).toBeTruthy();
+      expect(utils.isScreenRecordingJid('screenrecording-sdkfjk@gjoll.test.com')).toBeFalsy();
       expect(utils.isScreenRecordingJid('sdkfjk@test.com')).toBeFalsy();
     });
 
