@@ -7,10 +7,10 @@ import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Ping } from './ping';
-import { parseJwt, timeoutPromise } from './utils';
+import { delay, parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
-import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions } from './types/interfaces';
+import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions, SCConnectionData } from './types/interfaces';
 import { AxiosError } from 'axios';
 import { NamedAgent } from './types/named-agent';
 import { Client as StanzaClient } from 'stanza';
@@ -32,6 +32,9 @@ const STANZA_DISCONNECTED = 'stanzaDisconnected';
 const NO_LONGER_SUBSCRIBED = 'notify:no_longer_subscribed';
 const DUPLICATE_ID = 'notify:duplicate_id';
 const MAX_CHANNEL_REUSES = 10;
+const SESSION_STORE_KEY = 'sc_connectionData';
+const BACKOFF_DECREASE_DELAY_MULTIPLIER = 5;
+const INITIAL_DELAY = 2000;
 
 export class Client extends EventEmitter {
   activeStanzaInstance?: NamedAgent;
@@ -48,6 +51,8 @@ export class Client extends EventEmitter {
   private extensions: StreamingClientExtension[] = [];
   private connectionManager: ConnectionManager;
   private channelReuses = 0;
+  private backoffReductionTimer: any;
+  private hasMadeInitialAttempt = false;
 
   private boundStanzaDisconnect?: () => Promise<any>;
   private boundStanzaNoLongerSubscribed?: () => void;
@@ -279,6 +284,77 @@ export class Client extends EventEmitter {
     }, 5000, 'disconnecting streaming service');
   }
 
+  private getConnectionData (): SCConnectionData {
+    const connectionDataStr = sessionStorage.getItem(SESSION_STORE_KEY);
+
+    const defaultValue = {
+      currentDelayMs: 0,
+    };
+
+    if (connectionDataStr) {
+      try {
+        return JSON.parse(connectionDataStr);
+      } catch (e) {
+        this.logger.warn('failed to parse streaming client connection data');
+        return defaultValue;
+      }
+    }
+
+    return defaultValue;
+  }
+
+  private setConnectionData (data: SCConnectionData) {
+    sessionStorage.setItem(SESSION_STORE_KEY, JSON.stringify(data));
+  }
+
+  private increaseBackoff () {
+    const connectionData = this.getConnectionData();
+
+    const currentDelay = Math.max(connectionData.currentDelayMs * 2, INITIAL_DELAY);
+    this.setConnectionData({
+      currentDelayMs: currentDelay,
+      delayMsAfterNextReduction: currentDelay / 2,
+      nextDelayReductionTime: new Date().getTime() + (currentDelay * BACKOFF_DECREASE_DELAY_MULTIPLIER),
+      timeOfTotalReset: new Date().getTime() + 1000 * 60 * 60 // one hour in the future
+    });
+  }
+
+  private decreaseBackoff (newAmountMs: number) {
+    const data = this.getConnectionData();
+    const msUntilNextReduction = newAmountMs * BACKOFF_DECREASE_DELAY_MULTIPLIER;
+    const newConnectionData: SCConnectionData = {
+      currentDelayMs: newAmountMs,
+      delayMsAfterNextReduction: newAmountMs / 2,
+      nextDelayReductionTime: new Date().getTime() + (msUntilNextReduction),
+      timeOfTotalReset: data.timeOfTotalReset
+    };
+
+    // if we are past the total reset time, do that instead
+    if (data.timeOfTotalReset && data.timeOfTotalReset < new Date().getTime() || newAmountMs < INITIAL_DELAY) {
+      this.logger.debug('decreaseBackoff() called, but timeOfTotalReset has elasped or next delay is below 2s. Resetting backoff');
+      return this.setConnectionData({
+        currentDelayMs: 0
+      });
+    }
+
+    this.setConnectionData(newConnectionData);
+
+    clearTimeout(this.backoffReductionTimer);
+    this.logger.debug('Setting timer for next backoff reduction since we haven\'t reached total reset', { msUntilReduction: msUntilNextReduction, delayMsAfterNextReduction: newConnectionData.delayMsAfterNextReduction });
+    this.backoffReductionTimer = setTimeout(() => this.decreaseBackoff(newConnectionData.delayMsAfterNextReduction!), msUntilNextReduction);
+  }
+
+  private getStartingDelay (connectionData: SCConnectionData, maxDelay: number): number {
+    // we don't want the delay to ever be less than 2 seconds
+    const minDelay = Math.max(connectionData.currentDelayMs, INITIAL_DELAY);
+
+    if (connectionData.timeOfTotalReset && connectionData.timeOfTotalReset < new Date().getTime()) {
+      return INITIAL_DELAY;
+    }
+
+    return Math.min(minDelay, maxDelay);
+  }
+
   async connect (connectOpts?: StreamingClientConnectOptions) {
     if (this.connecting) {
       const error = new Error('Already trying to connect streaming client');
@@ -297,14 +373,36 @@ export class Client extends EventEmitter {
       maxAttempts = Infinity;
     }
 
+    clearTimeout(this.backoffReductionTimer);
+    const connectionData = this.getConnectionData();
+
+    const startingDelay = this.getStartingDelay(connectionData, maxDelay);
+    const delayFirstAttempt = this.hasMadeInitialAttempt;
+    this.hasMadeInitialAttempt = true;
+
     try {
-      await backOff(() => this.makeConnectionAttempt(), {
-        jitter: 'full',
-        maxDelay,
-        numOfAttempts: maxAttempts,
-        startingDelay: 2000,
-        retry: this.backoffConnectRetryHandler.bind(this, { maxConnectionAttempts: maxAttempts })
-      });
+      await backOff(
+        async () => {
+          const connectionData = this.getConnectionData();
+          await this.makeConnectionAttempt();
+          if (connectionData.nextDelayReductionTime) {
+            const msUntilReduction = connectionData.nextDelayReductionTime - new Date().getTime();
+            this.logger.debug('Setting timer for next backoff reduction', { msUntilReduction, delayMsAfterNextReduction: connectionData.delayMsAfterNextReduction });
+
+            this.backoffReductionTimer = setTimeout(() => this.decreaseBackoff(connectionData.delayMsAfterNextReduction || 0), msUntilReduction);
+          }
+        },
+        {
+          jitter: 'none',
+          maxDelay,
+          numOfAttempts: maxAttempts,
+          startingDelay,
+          delayFirstAttempt,
+          retry: this.backoffConnectRetryHandler.bind(this, {
+            maxConnectionAttempts: maxAttempts,
+          }),
+        }
+      );
     } catch (err: any) {
       let error = err;
       if (!err) {
@@ -395,9 +493,7 @@ export class Client extends EventEmitter {
         let retryDelay = parseInt(retryAfter, 10) * 1000;
         additionalErrorDetails.retryDelay = retryDelay;
         this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails, { skipServer: err instanceof OfflineError });
-        await new Promise((resolve) => {
-          setTimeout(resolve, retryDelay);
-        });
+        await delay(retryDelay);
 
         this.logger.debug('finished waiting for retry-after');
         return true;
@@ -405,6 +501,7 @@ export class Client extends EventEmitter {
     }
 
     this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+    this.increaseBackoff();
     return true;
   }
 
@@ -461,7 +558,7 @@ export class Client extends EventEmitter {
     if (!this.hardReconnectRequired) {
       this.channelReuses++;
 
-      if (this.channelReuses > MAX_CHANNEL_REUSES) {
+      if (this.channelReuses >= MAX_CHANNEL_REUSES) {
         this.logger.warn('Forcing a hard reconnect due to max channel reuses', { channelId: this.config.channelId, channelReuses: this.channelReuses });
         this.channelReuses = 0;
         this.hardReconnectRequired = true;

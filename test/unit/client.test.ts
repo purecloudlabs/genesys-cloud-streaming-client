@@ -13,6 +13,7 @@ import { reject } from 'lodash';
 import EventEmitter from 'events';
 import { NamedAgent } from '../../src/types/named-agent';
 import { flushPromises } from '../helpers/testing-utils';
+import { SCConnectionData } from '../../src';
 
 jest.mock('genesys-cloud-client-logger');
 
@@ -41,23 +42,32 @@ class TestExtension extends WildEmitter { }
 
 Client.extend('testExtension', TestExtension as any);
 
-function mockApi () {
-  nock.restore();
-  nock.cleanAll();
-  nock.activate();
-  const api = nock('https://api.example.com');
-  const channel = api
-    .post('/api/v2/notifications/channels', () => true)
-    .query(true)
-    .reply(200, { id: 'streaming-someid' });
-  const me = api
-    .get('/api/v2/users/me')
-    .reply(200, { chat: { jabberId: defaultOptions.jid } });
-  const subscriptions = api
-    .post('/api/v2/notifications/channels/streaming-someid/subscriptions', () => true)
-    .reply(202);
-  return { api, channel, me, subscriptions };
-}
+const localStorageMock = (() => {
+  let store = {};
+
+  return {
+    getItem(key: string) {
+      return store[key] || null;
+    },
+    setItem(key: string, value: string) {
+      store[key] = value.toString();
+    },
+    removeItem(key: string) {
+      delete store[key];
+    },
+    clear() {
+      store = {};
+    }
+  };
+})();
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: localStorageMock
+});
+
+beforeEach(() => {
+  window.sessionStorage.clear();
+});
 
 describe('constructor', () => {
   it('client creation', () => {
@@ -96,6 +106,137 @@ describe('constructor', () => {
   });
 });
 
+describe('getConnectionData', () => {
+  let client: Client;
+  
+  beforeEach(() => {
+    client = new Client(getDefaultOptions());
+  });
+
+  it('should return default on parse error', () => {
+    window.sessionStorage.setItem('sc_connectionData', '{"lsdkn":');
+
+    expect(client['getConnectionData']()).toEqual({ currentDelayMs: 0 } as SCConnectionData);
+  });
+});
+
+describe('increaseBackoff', () => {
+  let client: Client;
+  
+  beforeEach(() => {
+    client = new Client(getDefaultOptions());
+  });
+
+  it('should double current backoff', () => {
+    let current = 0;
+    const spy = client['setConnectionData'] = jest.fn().mockImplementation((data: SCConnectionData) => {
+      current = data.currentDelayMs;
+    });
+
+    client['getConnectionData'] = jest.fn().mockImplementation((): SCConnectionData => {
+      return { currentDelayMs: current }
+    });
+
+    client['increaseBackoff']();
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 2000 }));
+
+    client['increaseBackoff']();
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 4000 }));
+
+    client['increaseBackoff']();
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 8000 }));
+  });
+});
+
+describe('descreaseBackoff', () => {
+  let client: Client;
+  
+  beforeEach(() => {
+    client = new Client(getDefaultOptions());
+  });
+
+  it('should reset backoff delay if timeOfTotalReset is past', () => {
+    const mockConnectionData: SCConnectionData = {
+      currentDelayMs: 10000,
+      nextDelayReductionTime: new Date().getTime() + 10000, // 10 seconds in the future
+      delayMsAfterNextReduction: 5000,
+      timeOfTotalReset: new Date().getTime() - 1000 // 1 second ago
+    };
+    client['getConnectionData'] = jest.fn().mockReturnValue(mockConnectionData);
+    const spy = client['setConnectionData'] = jest.fn();
+
+    client['decreaseBackoff'](5000);
+
+    expect(spy).toHaveBeenCalledWith({
+      currentDelayMs: 0
+    } as SCConnectionData);
+  });
+
+  it('should update and update the delay to half its current value', () => {
+    jest.useFakeTimers();
+
+    const mockConnectionData: SCConnectionData = {
+      currentDelayMs: 10000,
+      nextDelayReductionTime: new Date().getTime() + 10000, // 10 seconds in the future
+      delayMsAfterNextReduction: 5000,
+      timeOfTotalReset: new Date().getTime() + (1000 * 60 * 60) // 1 hour in the future
+    };
+    client['getConnectionData'] = jest.fn().mockReturnValue(mockConnectionData);
+    const spy = client['setConnectionData'] = jest.fn();
+
+    client['decreaseBackoff'](5000);
+
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({
+      currentDelayMs: 5000,
+      delayMsAfterNextReduction: 2500,
+      nextDelayReductionTime: expect.any(Number),
+    }));
+  
+    const calls = spy.mock.calls;
+  
+    const spyCallArg = calls[0][0];
+  
+    const expectedNextReductionTime = new Date().getTime() + (5000 * 5);
+    expect(spyCallArg.nextDelayReductionTime).toBeGreaterThanOrEqual(expectedNextReductionTime - 1000);
+    expect(spyCallArg.nextDelayReductionTime).toBeLessThanOrEqual(expectedNextReductionTime + 1000);
+
+    const recursiveSpy = jest.spyOn(client as any, 'decreaseBackoff');
+    jest.advanceTimersByTime(expectedNextReductionTime + 100);
+    expect(recursiveSpy).toHaveBeenCalledWith(2500);
+  });
+});
+
+describe('getStartingDelay', () => {
+  let client: Client;
+  
+  beforeEach(() => {
+    client = new Client(getDefaultOptions());
+  });
+
+  it('should never return a value less than 2000', () => {
+    expect(client['getStartingDelay']({
+      currentDelayMs: 500
+    }, 90000)).toEqual(2000);
+
+    expect(client['getStartingDelay']({
+      currentDelayMs: 5000
+    }, 90000)).toEqual(5000);
+  });
+
+  it('should never return value greater than maxDelay', () => {
+    expect(client['getStartingDelay']({
+      currentDelayMs: 95000
+    }, 90000)).toEqual(90000);
+  });
+
+  it('should return initialDelay if timeOfTotalReset has past', () => {
+    expect(client['getStartingDelay']({
+      currentDelayMs: 50000,
+      timeOfTotalReset: new Date().getTime() - 1000 // 1 second ago
+    }, 90000)).toEqual(2000);
+  });
+});
+
 describe('connect', () => {
   let connectionAttemptSpy: jest.Mock;
   let backoffRetrySpy: jest.Mock;
@@ -114,6 +255,49 @@ describe('connect', () => {
     client.connecting = true;
     await client.connect();
     expect(connectionAttemptSpy).not.toHaveBeenCalled();
+  });
+
+  it('should set a backoff reduction timer upon success', async () => {
+    jest.useFakeTimers();
+    client['makeConnectionAttempt'] = jest.fn().mockResolvedValue(null);
+    const spy = client['decreaseBackoff'] = jest.fn();
+
+    const mockConnectionData: SCConnectionData = {
+      currentDelayMs: 10000,
+      nextDelayReductionTime: new Date().getTime() + 10000, // 10 seconds in the future
+      delayMsAfterNextReduction: 5000
+    };
+    client['getConnectionData'] = jest.fn().mockReturnValue(mockConnectionData);
+
+    await client.connect();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+
+    expect(client['backoffReductionTimer']).toBeTruthy();
+
+    jest.advanceTimersByTime(10100);
+    expect(spy).toHaveBeenCalledWith(5000);
+  });
+
+  it('should set next backoff value to 0 if there is no value but there is a time', async () => {
+    jest.useFakeTimers();
+    client['makeConnectionAttempt'] = jest.fn().mockResolvedValue(null);
+    const spy = client['decreaseBackoff'] = jest.fn();
+
+    const mockConnectionData: SCConnectionData = {
+      currentDelayMs: 10000,
+      nextDelayReductionTime: new Date().getTime() + 10000, // 10 seconds in the future
+    };
+    client['getConnectionData'] = jest.fn().mockReturnValue(mockConnectionData);
+
+    await client.connect();
+    await flushPromises();
+    jest.advanceTimersToNextTimer();
+
+    expect(client['backoffReductionTimer']).toBeTruthy();
+
+    jest.advanceTimersByTime(10100);
+    expect(spy).toHaveBeenCalledWith(0);
   });
 
   it('should resolve if connection attempt is successful', async () => {
