@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [v17.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.0.0...v17.0.1)
 ### Added
-* [PCM-2295](https://inindca.atlassian.net/browse/PCM-2295) New relic stat for when navigator.onLine changes.
+* [PCM-2295](https://inindca.atlassian.net/browse/PCM-2295) New relic stat for when navigator.onLine changes
 
 ### Fixed
 * [no-jira] Fix snyk vulns: axios and follow-redirects
