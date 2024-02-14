@@ -42,11 +42,11 @@ export function splitIntoIndividualTopics (topicString: string) {
 }
 
 export const isAcdJid = function (jid: string): boolean {
-  return jid.startsWith('acd-');
+  return jid.startsWith('acd-') && !isSoftphoneJid(jid);
 };
 
 export const isScreenRecordingJid = function (jid: string): boolean {
-  return jid.startsWith('screenrecording-');
+  return jid.startsWith('screenrecording-') && !isSoftphoneJid(jid);
 };
 
 export const isSoftphoneJid = function (jid: string): boolean {
