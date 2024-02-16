@@ -1,4 +1,3 @@
-import { Registry } from 'stanza/jxt';
 import { definitions } from '../../../src/stanza-definitions/webrtc-signaling';
 import { v4 } from 'uuid';
 import { createClient } from 'stanza';
