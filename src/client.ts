@@ -532,7 +532,8 @@ export class Client extends EventEmitter {
       }
 
       this.activeStanzaInstance = stanzaInstance;
-      stanzaInstance.pinger = new Ping(this, stanzaInstance);
+
+      await this.setupPinger(stanzaInstance);
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {
@@ -546,6 +547,16 @@ export class Client extends EventEmitter {
         this.connecting = previousConnectingState;
       }
       throw err;
+    }
+  }
+
+  private async setupPinger (stanzaInstance: NamedAgent) {
+    try {
+      // if this fails, then hawk doesn't support serverside pinging and we need to do client side pings
+      await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');
+    } catch (err) {
+      this.logger.warn('failed to establish server-side pinging, falling back to client-side pinging', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+      stanzaInstance.pinger = new Ping(this, stanzaInstance);
     }
   }
 

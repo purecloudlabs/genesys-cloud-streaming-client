@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.0.2...HEAD)
+### Changed
+* [PCM-2321](https://inindca.atlassian.net/browse/PCM-2321) default to server-side pinging, fallback to client side pinging
+
 # [v17.0.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.0.1...v17.0.2)
 ### Changed
 * [PCM-2312](https://inindca.atlassian.net/browse/PCM-2312) bump logger version
