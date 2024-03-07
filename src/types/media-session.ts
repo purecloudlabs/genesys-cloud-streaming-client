@@ -36,6 +36,7 @@ export interface IMediaSessionParams {
   conversationId?: string;
   fromUserId?: string;
   originalRoomJid?: string;
+  meetingId?: string;
 }
 
 export interface IStanzaMediaSessionParams extends IMediaSessionParams {
@@ -60,6 +61,7 @@ export interface IMediaSession extends StrictEventEmitter<EventEmitter, SessionE
   connectionState: ConnectionState | string;
   state: SessionState | string;
   reinvite: boolean;
+  meetingId?: string;
 
   setupStatsGatherer (): void;
   accept (opts?: RTCAnswerOptions): Promise<void>;
