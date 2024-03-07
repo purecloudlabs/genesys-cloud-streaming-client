@@ -94,7 +94,6 @@ export class HttpClient {
   private handleResponse (logger: Logger, start: number, params: AxiosRequestConfig, res: AxiosResponse): Promise<AxiosResponse> {
     let now = new Date().getTime();
     let elapsed = (now - start) + 'ms';
-
     if (res instanceof AxiosError) {
       // sanitize the auth token
       if (res.config?.headers?.Authorization) {

@@ -140,6 +140,7 @@ describe('peerConnection event listeners', () => {
       expect(session['iceCandidatesDiscovered']).toBe(1);
       expect(emitSpy).not.toHaveBeenCalled();
       expect(sendSpy).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
         method: 'iceCandidate',
         params: {
           sessionId: 'sessionId',
@@ -160,6 +161,7 @@ describe('peerConnection event listeners', () => {
       expect(session['iceCandidatesDiscovered']).toBe(0);
       expect(emitSpy).toHaveBeenCalledWith('endOfCandidates');
       expect(sendSpy).toHaveBeenCalledWith({
+        jsonrpc: '2.0',
         method: 'iceCandidate',
         params: {
           sessionId: 'sessionId',
@@ -195,7 +197,7 @@ describe('peerConnection event listeners', () => {
 
       const spy = session['sendGenesysWebrtc'] = jest.fn();
       session['onIceStateChange']();
-      expect(spy).toHaveBeenCalledWith({ method: 'info', params: { sessionId: 'sessionId', status: 'active' }});
+      expect(spy).toHaveBeenCalledWith({ jsonrpc: '2.0', method: 'info', params: { sessionId: 'sessionId', status: 'active' }});
     });
 
     it('failed - should log message', async () => {
@@ -429,7 +431,7 @@ describe('accept()', () => {
     await session.accept();
 
     expect(session.peerConnection.setLocalDescription).toHaveBeenCalledWith({ sdp: 'blah', type: 'answer' });
-    expect(sendSpy).toHaveBeenCalledWith({ method: 'answer', params: { sdp: 'blah', sessionId: 'sessionId' }});
+    expect(sendSpy).toHaveBeenCalledWith({ jsonrpc: '2.0', method: 'answer', params: { sdp: 'blah', sessionId: 'sessionId' }});
   });
 });
 
@@ -440,7 +442,7 @@ describe('mute()', () => {
 
     await session.mute('userId', 'audio');
 
-    expect(sendSpy).toHaveBeenCalledWith({ method: 'mute', params: { type: 'audio', sessionId: 'sessionId' }});
+    expect(sendSpy).toHaveBeenCalledWith({ jsonrpc: '2.0', method: 'mute', params: { type: 'audio', sessionId: 'sessionId' }});
   });
 });
 
@@ -451,7 +453,7 @@ describe('unmute()', () => {
 
     await session.unmute('userId', 'audio');
 
-    expect(sendSpy).toHaveBeenCalledWith({ method: 'unmute', params: { type: 'audio', sessionId: 'sessionId' }});
+    expect(sendSpy).toHaveBeenCalledWith({ jsonrpc: '2.0', method: 'unmute', params: { type: 'audio', sessionId: 'sessionId' }});
   });
 });
 

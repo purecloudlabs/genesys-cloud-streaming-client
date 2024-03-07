@@ -132,13 +132,6 @@ export interface IPendingSession {
   sessionType: SessionTypes | SessionTypesAsStrings;
 }
 
-export interface JsonRpcMessage {
-  jsonrpc?: string;
-  method: string;
-  id?: string; // this would be the correlationId
-  params?: { [key: string]: any };
-}
-
 export interface StreamingClientExtension {
   handleIq?: Function;
   handleMessage?: Function;
@@ -159,32 +152,124 @@ export interface StreamingClientConnectOptions {
   maxDelayBetweenConnectionAttempts?: number;
 }
 
-export interface GenesysWebrtcJsonRpcMessage extends JsonRpcMessage {
-  id?: string;
-  method: 'offer' | 'answer' | 'info' | 'iceCandidate' | 'terminate' | 'mute' | 'unmute';
-}
-
-export interface GenesysWebrtcBaseParams {
-  sessionId: string;
-}
-
-export interface GenesysWebrtcSdpParams extends GenesysWebrtcBaseParams {
-  sdp: string;
-}
-
-export interface GenesysWebrtcOfferParams extends GenesysWebrtcSdpParams {
+export type GenesysWebrtcBaseParams = { sessionId: string };
+export type GenesysWebrtcSdpParams = GenesysWebrtcBaseParams & { sdp: string; };
+export type GenesysWebrtcOfferParams = GenesysWebrtcSdpParams & {
   conversationId: string;
   reinvite?: boolean;
-}
+};
 
-export interface GenesysInfoActiveParams extends GenesysWebrtcBaseParams {
-  status: 'active';
-}
+export type GenesysInfoActiveParams = GenesysWebrtcBaseParams & { status: 'active' };
+export type GenesysSessionTerminateParams = GenesysWebrtcBaseParams & { reason?: JingleReasonCondition };
+export type GenesysWebrtcMuteParams = GenesysWebrtcBaseParams & { type: 'audio' | 'video' };
 
-export interface GenesysSessionTerminateParams extends GenesysWebrtcBaseParams {
-  reason?: JingleReasonCondition;
-}
+export type TypedJsonRpcMessage<Method extends string, Params> = {
+  jsonrpc: string;
+  method: Method;
+  id?: string;
+  params?: Params;
+};
 
-export interface GenesysWebrtcMuteParams extends GenesysWebrtcBaseParams {
-  type: 'audio' | 'video';
-}
+export type JsonRpcMessage = TypedJsonRpcMessage<string, any>;
+
+export type GenesysWebrtcOffer = TypedJsonRpcMessage<'offer', GenesysWebrtcOfferParams>;
+export type GenesysWebrtcAnswer = TypedJsonRpcMessage<'answer', GenesysWebrtcSdpParams>;
+export type GenesysWebrtcInfo = TypedJsonRpcMessage<'info', GenesysInfoActiveParams>;
+export type GenesysWebrtcIceCandidate = TypedJsonRpcMessage<'iceCandidate', GenesysWebrtcSdpParams>;
+export type GenesysWebrtcTerminate = TypedJsonRpcMessage<'terminate', GenesysSessionTerminateParams>;
+export type GenesysWebrtcMute = TypedJsonRpcMessage<'mute', GenesysWebrtcMuteParams>;
+export type GenesysWebrtcUnmute = TypedJsonRpcMessage<'unmute', GenesysWebrtcMuteParams>;
+
+export type GenesysWebrtcJsonRpcMessage = GenesysWebrtcOffer | GenesysWebrtcAnswer | GenesysWebrtcInfo | GenesysWebrtcIceCandidate | GenesysWebrtcTerminate | GenesysWebrtcMute | GenesysWebrtcUnmute;
+
+export type HeadsetControlsRequestType = 'mediaHelper' | 'standard' | 'prioritized';
+export type HeadsetControlsRejectionReason = 'activeCall' | 'mediaHelper' | 'priority';
+
+export type HeadsetControlsRejectionParams = {
+  requestId: string, // this should be the same uuid as the request
+  reason: HeadsetControlsRejectionReason
+};
+export type HeadsetControlsChangedParams = { hasControls: boolean };
+
+export type HeadsetControlsRequest = TypedJsonRpcMessage<'headsetControlsRequest', { requestType: HeadsetControlsRequestType }>;
+export type HeadsetControlsRejection = TypedJsonRpcMessage<'headsetControlsRejection', HeadsetControlsRejectionParams>;
+export type HeadsetControlsChanged = TypedJsonRpcMessage<'headsetControlsChanged', HeadsetControlsChangedParams>;
+
+export type GenesysMediaMessage = HeadsetControlsRequest | HeadsetControlsRejection | HeadsetControlsChanged;
+
+export type FlatObject = {
+  [key: string]: string | number | boolean | null | Date;
+};
+
+export type GenericAction = { _eventType: string; };
+
+export type InsightReport = {
+  appName: string;
+  appVersion: string;
+  originAppName?: string;
+  originAppVersion?: string;
+  actions: InsightAction<any>[];
+};
+
+export type InsightAction<T extends { _eventType: string }> = {
+  actionName: 'WebrtcStats';
+  details: InsightActionDetails<T>;
+};
+
+export type InsightActionDetails<K extends { _eventType: string }> = {
+  _eventType: K['_eventType'];
+  /**
+   * This should be ms since epoch, e.g. new Date().getTime()
+   */
+  _eventTimestamp: number;
+  _appId?: string;
+  _appName?: string;
+  _appVersion?: string;
+} & K;
+
+export type OnlineStatusStat = InsightAction<{
+  _eventType: 'onlineStatus';
+  online: boolean;
+}>;
+
+export type FirstProposeStat = InsightAction<{
+  _eventType: 'firstPropose';
+  sdpViaXmppRequested: boolean;
+  sessionType: SessionTypesAsStrings;
+  originAppId?: string;
+  conversationId: string;
+  sessionId: string;
+}>;
+
+export type FirstAlertingConversationStat = InsightAction<{
+  _eventType: 'firstAlertingConversationUpdate';
+  conversationId: string;
+  participantId: string;
+}>;
+
+export type MediaStat = InsightAction<{
+  _eventType: 'mediaRequested' | 'mediaStarted' | 'mediaError';
+  requestId?: string;
+  message?: string;
+  audioRequested: boolean;
+  videoRequested: boolean;
+  displayRequested: boolean;
+  conversationId?: string;
+  sessionType?: SessionTypesAsStrings;
+  sessionId?: string;
+  elapsedMsFromInitialRequest?: number;
+}>;
+
+// This will be a union of all the stats we want to proxy
+export type NRProxyStat = FirstAlertingConversationStat | MediaStat;
+
+export type SCConnectionData = {
+  currentDelayMs: number;
+  delayMsAfterNextReduction?: number;
+  // At this time, we will reduce the current delay.
+  // This is a long date
+  nextDelayReductionTime?: number;
+  // At this time, we will disregard any saved delays. It should be updated every failure.
+  // This is a long date
+  timeOfTotalReset?: number;
+};

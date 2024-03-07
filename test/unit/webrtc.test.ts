@@ -11,7 +11,7 @@ import { WebrtcExtension } from '../../src/webrtc';
 import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
-import { GenesysSessionTerminateParams, GenesysWebrtcSdpParams, ISessionInfo, SessionTypes } from '../../src/types/interfaces';
+import { GenesysSessionTerminateParams, GenesysWebrtcSdpParams, ISessionInfo, InsightAction, SessionTypes } from '../../src/types/interfaces';
 import { NamedAgent } from '../../src/types/named-agent';
 import { StanzaMediaSession } from '../../src/types/stanza-media-session';
 import { GenesysCloudMediaSession } from '../../src/types/genesys-cloud-media-session';
@@ -64,6 +64,16 @@ class Client extends EventEmitter {
     this.http = new HttpClient();
   }
 }
+
+let isOnline = true;
+
+beforeAll(() => {
+  Object.defineProperty(navigator, 'onLine', { get: () => isOnline });
+})
+
+afterEach(() => {
+  isOnline = true;
+});
 
 class FakePeerConnection extends EventTarget {
   oniceconnectionstatechange = jest.fn();
@@ -130,7 +140,13 @@ describe('handleGenesysWebrtcStanza', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
-        method: 'offer'
+        jsonrpc: '2.0',
+        method: 'offer',
+        params: {
+          sessionId: 'sid',
+          conversationId: 'cid',
+          sdp: 'jskdf'
+        }
       }
     };
 
@@ -144,7 +160,12 @@ describe('handleGenesysWebrtcStanza', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
-        method: 'iceCandidate'
+        jsonrpc: '2.0',
+        method: 'iceCandidate',
+        params: {
+          sessionId: 'sid',
+          sdp: 'jskdf'
+        }
       }
     };
 
@@ -158,7 +179,12 @@ describe('handleGenesysWebrtcStanza', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
-        method: 'terminate'
+        jsonrpc: '2.0',
+        method: 'terminate',
+        params: {
+          sessionId: 'sid',
+          reason: 'alternative-session'
+        }
       }
     };
 
@@ -1338,14 +1364,17 @@ describe('proxyStatsForSession', () => {
 
     webrtc['throttledSendStats'] = jest.fn();
 
-    const formattedStats = {
-      actionName: 'test',
-      actionDate: expect.anything(),
-      details: {
-        conference: 'myconvoid',
-        session: 'mysid',
-        sessionType: 'softphone',
-      },
+    const details = {
+      _eventType: 'test',
+      _eventTimestamp: new Date().getTime(),
+      conversationId: 'myconvoid',
+      sessionId: 'mysid',
+      sessionType: 'softphone',
+    };
+
+    const formattedStats: InsightAction<typeof details> = {
+      actionName: 'WebrtcStats',
+      details
     };
 
     jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
@@ -1370,15 +1399,17 @@ describe('proxyStatsForSession', () => {
     webrtc['currentMaxStatSize'] = 1;
     webrtc['throttledSendStats'].flush = jest.fn();
 
+    const details = {
+      _eventType: 'test',
+      _eventTimestamp: new Date().getTime(),
+      conversationId: 'myconvoid',
+      sessionId: 'mysid',
+      sessionType: 'softphone',
+    };
 
-    const formattedStats = {
-      actionName: 'test',
-      actionDate: expect.anything(),
-      details: {
-        conference: 'myconvoid',
-        session: 'mysid',
-        sessionType: 'softphone',
-      },
+    const formattedStats: InsightAction<typeof details> = {
+      actionName: 'WebrtcStats',
+      details
     };
 
     jest.spyOn(statsFormatter, 'formatStatsEvent').mockReturnValue(formattedStats);
@@ -1522,7 +1553,7 @@ describe('sendStats', () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
-    const sendSpy = jest.spyOn(client.http, 'requestApi');
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockRejectedValue({ response: { status: ''}});
     const logSpy = jest.spyOn(webrtc.logger, 'error');
 
     webrtc['statsArr'].push({} as any);
@@ -1539,7 +1570,7 @@ describe('sendStats', () => {
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
       const err: any = new Error('error');
-      err.status = 413;
+      err.response = { status: 413 };
       throw err;
     });
     const logSpy = jest.spyOn(webrtc.logger, 'info');
@@ -1549,6 +1580,27 @@ describe('sendStats', () => {
     await webrtc.sendStats();
     expect(sendSpy).toHaveBeenCalled();
     expect(logSpy).toHaveBeenCalled();
+  });
+
+  it('should re-add failed stats if offline', async () => {
+    const client = new Client({ authToken: '123' });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
+      const err: any = new Error('error');
+      err.response = undefined;
+      throw err;
+    });
+
+    isOnline = false;
+
+    expect(webrtc['statsArr'].length).toBe(0);
+    webrtc['statsArr'].push({} as any);
+    expect(webrtc['statsArr'].length).toBe(1);
+
+    await webrtc.sendStats();
+    expect(sendSpy).toHaveBeenCalled();
+    expect(webrtc['statsArr'].length).toBe(1);
   });
 
   describe('calculatePayloadSize', () => {
@@ -1723,6 +1775,7 @@ describe('handleGenesysTerminate', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'terminate',
         params: {
           sessionId: 'session24',
@@ -1755,6 +1808,7 @@ describe('handleGenesysIceCandidate', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'iceCandidate',
         params: {
           sessionId: 'session24',
@@ -1781,11 +1835,13 @@ describe('handleGenesysOffer', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1805,11 +1861,13 @@ describe('handleGenesysOffer', () => {
     const iq: IQ = {
       type: 'set',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1833,11 +1891,13 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1858,11 +1918,13 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1881,11 +1943,13 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           sessionId: 'session24',
+          conversationId: 'cid',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1901,12 +1965,13 @@ describe('handleGenesysOffer', () => {
       type: 'set',
       from: 'fromJid25@gjoll.com',
       genesysWebrtc: {
+        jsonrpc: '2.0',
         method: 'offer',
         params: {
           conversationId: 'convo25',
           sessionId: 'session25',
           sdp: 'my-offer'
-        } as GenesysWebrtcSdpParams
+        }
       }
     };
 
@@ -1957,5 +2022,68 @@ describe('sendIq', () => {
 
     const testObj = {};
     await expect(() => webrtc.sendIq(testObj as any)).rejects.toThrow();
+  });
+});
+
+describe('addStatToQueue', () => {
+  it('should do nothing if optOutOfWebrtcStatsTelemetry', () => {
+    const client = new Client({ });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc.config.optOutOfWebrtcStatsTelemetry = true;
+
+    const spy1 = webrtc.flushStats = jest.fn();
+    const spy2 = webrtc['throttledSendStats'] = jest.fn();
+
+    const myObj = {} as any;
+    webrtc.addStatToQueue(myObj);
+
+    expect(spy1).not.toHaveBeenCalled();
+    expect(spy2).not.toHaveBeenCalled();
+  });
+});
+
+describe('proxyNRStat', () => {
+  it('should call addStatToQueue', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = webrtc.addStatToQueue = jest.fn();
+
+    const myObj = {} as any;
+    webrtc.proxyNRStat(myObj);
+    expect(spy).toHaveBeenCalled();
+  });
+});
+
+describe('onOnlineStatusChange()', () => {
+  it('should call addStatToQueue with online', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = webrtc.addStatToQueue = jest.fn();
+
+    const expectedDetails = expect.objectContaining({
+      _eventType: 'onlineStatus',
+      online: true
+    });
+
+    window.dispatchEvent(new Event('online'));
+    expect(spy).toHaveBeenCalledWith({ actionName: 'WebrtcStats', details: expectedDetails });
+  });
+  
+  it('should call addStatToQueue with offline', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const spy = webrtc.addStatToQueue = jest.fn();
+
+    
+    const expectedDetails = expect.objectContaining({
+      _eventType: 'onlineStatus',
+      online: false
+    });
+
+    window.dispatchEvent(new Event('offline'));
+    expect(spy).toHaveBeenCalledWith({ actionName: 'WebrtcStats', details: expectedDetails });
   });
 });

@@ -118,3 +118,50 @@ The following extensions are currently bundled with the client:
  - Reconnector (for automatic reconnecting)
  - [Notifications](notifications.md)
  - [WebRTC Sessions](webrtc-sessions.md)
+
+## Known Issues and work-arounds
+
+### Axios
+We recently updated axios in this library as well as in our dependencies. In the 1.x.x version of axios, they changed the 
+module type from CommonJS to ECMAScript. Since Jest runs in a node environment, we need to specify the node version
+of axios when testing. This can be done by adjusting the `moduleNameMapper` for jest. If your jest config is in your
+`package.json`:
+```
+"jest": {
+  ...
+  "moduleNameMapper": {
+    "axios": "axios/dist/node/axios.cjs"
+  }
+},
+```
+
+or if your config is in a jest.config.js:
+```
+module.exports = {
+  ...
+  moduleNameMapper: {
+    "axios": "axios/dist/node/axios.cjs"
+  },
+```
+  
+NOTE: if you have conflicting versions of axios, you will probably have to specify the axios version present *inside* the streaming-client repo:
+```
+"moduleNameMapper": {
+  "axios": "genesys-cloud-streaming-clinet/node_modules/axios/dist/node/axios.cjs"
+}
+```
+
+### crypto.getRandomValues()
+We recently updated UUID in our dependencies. Starting in V8 of UUID, crypto is required. This is native in the browser and in node, however
+Jest runs the *browser* code in *node* environments. Because of this we need to map node's crypto to window.crypto. You can do this by adding
+the following to your `setup-tests.ts` file for jest. Also, this is apparently fixed in jest V29 and later.
+```
+const nodeCrypto = require('crypto');
+Object.defineProperty(window, 'crypto', {
+  value: {
+    getRandomValues: function (buffer: any) {
+      return nodeCrypto.randomFillSync(buffer);
+    }
+  }
+});
+```

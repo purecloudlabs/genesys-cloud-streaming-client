@@ -9,6 +9,8 @@ import { HttpClient } from '../../src/http-client';
 import { EventEmitter } from 'stream';
 import { NamedAgent } from '../../src/types/named-agent';
 import { v4 } from 'uuid';
+import axios from 'axios';
+import AxiosMockAdapter from 'axios-mock-adapter';
 
 const exampleTopics = require('../helpers/example-topics.json');
 
@@ -195,24 +197,22 @@ describe('Notifications', () => {
     expect(handler2).toHaveBeenCalledTimes(1);
     expect(handler2).toHaveBeenCalledWith({ the: 'payload' });
 
-    const apiRequest = nock('https://api.example.com')
-      .post(`/api/v2/notifications/channels/${channelId}/subscriptions`, () => true)
-      .reply(200, { id: 'streaming-someid' });
+    const axiosMock = new AxiosMockAdapter(axios);
+    const url = `https://api.example.com/api/v2/notifications/channels/${channelId}/subscriptions`;
+    axiosMock
+      .onPost(url).reply(200, { id: 'streaming-someid' })
+      .onPut(url).reply(200, { id: 'streaming-someid' });
+
     await notification.expose.bulkSubscribe(['topic.test', 'topic.one', 'topic.two', 'topic.three']);
     // didn't subscribe via xmpp any more (was once previously)
     console.warn('subscribeToNode 4');
     expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(1);
-    apiRequest.done();
     expect(notification.bulkSubscriptions['topic.three']).toBe(true);
 
-    const apiRequest2 = nock('https://api.example.com')
-      .put(`/api/v2/notifications/channels/${channelId}/subscriptions`, () => true)
-      .reply(200, { id: 'streaming-someid' });
     await notification.expose.bulkSubscribe(['topic.test', 'topic.one', 'topic.two'], { replace: true });
     // didn't subscribe via xmpp any more (was once previously)
     console.warn('subscribeToNode 5');
     expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(1);
-    apiRequest2.done();
     expect(notification.bulkSubscriptions['topic.three']).toBe(undefined);
 
     // unsubscribing
@@ -432,7 +432,7 @@ describe('Notifications', () => {
     expect(notification.stanzaInstance!.subscribeToNode).toHaveBeenCalledTimes(3);
     await notification.expose.unsubscribe('test2', handler3, true);
     const errorEvent = new Promise<void>((resolve) => {
-      client.on('pubsub:error', err => {
+      (client as unknown as EventEmitter).on('pubsub:error', err => {
         expect(err.err.message).toBe('intentional test error');
         resolve();
       });

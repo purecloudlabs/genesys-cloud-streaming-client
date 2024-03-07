@@ -17,6 +17,12 @@ export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, de
   });
 }
 
+export function delay (ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 export function splitIntoIndividualTopics (topicString: string) {
   const topics: string[] = [];
 
@@ -36,11 +42,11 @@ export function splitIntoIndividualTopics (topicString: string) {
 }
 
 export const isAcdJid = function (jid: string): boolean {
-  return jid.startsWith('acd-');
+  return jid.startsWith('acd-') && !isSoftphoneJid(jid);
 };
 
 export const isScreenRecordingJid = function (jid: string): boolean {
-  return jid.startsWith('screenrecording-');
+  return jid.startsWith('screenrecording-') && !isSoftphoneJid(jid);
 };
 
 export const isSoftphoneJid = function (jid: string): boolean {
