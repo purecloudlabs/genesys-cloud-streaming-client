@@ -25,7 +25,8 @@ const proposeDefinition: DefinitionOptions = {
     originalRoomJid: attribute('inin-ofrom'),
     autoAnswer: booleanAttribute('inin-autoanswer'),
     fromUserId: attribute('inin-user-id'),
-    sessionId: attribute('id')
+    sessionId: attribute('id'),
+    meetingId: attribute('inin-meeting-id')
   },
   namespace: NS_JINGLE_SIGNALING
 };

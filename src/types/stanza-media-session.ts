@@ -46,6 +46,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
   peerConnection: RTCPeerConnection;
   id: string;
   fromUserId: string;
+  meetingId?: string;
   originalRoomJid?: string;
   sessionType: SessionTypes;
   ignoreHostCandidatesFromRemote: boolean;
@@ -61,6 +62,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
     this.conversationId = params.conversationId!;
     this.peerConnection = this.pc;
     this.fromUserId = params.fromUserId!;
+    this.meetingId = params.meetingId;
     this.id = this.sid;
     this.originalRoomJid = params.originalRoomJid;
     this.sessionType = SessionTypes[params.sessionType];
