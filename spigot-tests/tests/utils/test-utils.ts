@@ -152,6 +152,7 @@ export const getHeaders = function (includeIninOrg = false): Headers {
   const headers = new window.Headers();
   headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `bearer ${getAuthToken()}`);
+  headers.set('Genesys-App', 'developercenter-cdn--streaming-client-webui');
 
   if (includeIninOrg) {
     headers.set('InIn-Organization-Id', org.id);

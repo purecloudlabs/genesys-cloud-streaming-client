@@ -76,7 +76,8 @@ export class HttpClient {
       responseType: opts.responseType,
       timeout: opts.requestTimeout || 30000,
       headers: {
-        'content-type': opts.contentType || 'application/json'
+        'content-type': opts.contentType || 'application/json',
+        'genesys-app': 'developercenter-cdn--streaming-client-webui'
       }
     };
 
