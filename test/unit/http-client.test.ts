@@ -14,7 +14,8 @@ describe('HttpRequestClient', () => {
 
   beforeEach(() => {
     logger = {
-      debug: jest.fn()
+      debug: jest.fn(),
+      originAppName: '123appname'
     } as any;
     http = new HttpClient();
   });
@@ -80,6 +81,55 @@ describe('HttpRequestClient', () => {
       const req = axiosMock.history.get[0]!;
       expect((req.headers!.get as any)('authorization')).toBeUndefined();
     });
+
+    it('should make a request with genesys-app header - originAppName', async () => {
+      const host = 'example.com';
+      const path = 'users/me';
+
+      const url = `https://api.${host}/api/v2/${path}`;
+      axiosMock.onGet(url).reply(200, []);
+
+      const response = await http.requestApi(path, { host, method: 'get', authToken: '123', logger });
+
+      expect(response.data).toEqual([]);
+
+      expect(axiosMock.history.get.length).toBe(1);
+      const req = axiosMock.history.get[0]!;
+      expect((req.headers!.get as any)('genesys-app')).toEqual('123appname');
+    });
+
+      it('should make a request with genesys-app header - streaming-client-webui', async () => {
+        const host = 'example.com';
+        const path = 'users/me';
+        logger['originAppName'] = undefined;
+
+        const url = `https://api.${host}/api/v2/${path}`;
+        axiosMock.onGet(url).reply(200, []);
+
+        const response = await http.requestApi(path, { host, method: 'get', authToken: '123', logger});
+
+        expect(response.data).toEqual([]);
+
+        expect(axiosMock.history.get.length).toBe(1);
+        const req = axiosMock.history.get[0]!;
+        expect((req.headers!.get as any)('genesys-app')).toEqual('developercenter-cdn--streaming-client-webui');
+      });
+
+      it('should make a request with genesys-app header - no logger', async () => {
+        const host = 'example.com';
+        const path = 'users/me';
+
+        const url = `https://api.${host}/api/v2/${path}`;
+        axiosMock.onGet(url).reply(200, []);
+
+        const response = await http.requestApi(path, { host, method: 'get', authToken: '123' });
+
+        expect(response.data).toEqual([]);
+
+        expect(axiosMock.history.get.length).toBe(1);
+        const req = axiosMock.history.get[0]!;
+        expect((req.headers!.get as any)('genesys-app')).toEqual('developercenter-cdn--streaming-client-webui');
+      });
 
     it('should handle errors', async () => {
       const host = 'example.com';
