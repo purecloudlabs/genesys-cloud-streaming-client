@@ -84,7 +84,8 @@ export class Client extends EventEmitter {
       channelId: null as any, // created on connect
       appName: options.appName,
       appVersion: options.appVersion,
-      appId: options.appId
+      appId: options.appId,
+      customHeaders: options.customHeaders
     };
 
     this.backgroundAssistantMode = this.checkIsBackgroundAssistant();
@@ -111,7 +112,8 @@ export class Client extends EventEmitter {
       /* secondary/parent app info */
       originAppName: options.appName,
       originAppVersion: options.appVersion,
-      originAppId: options.appId
+      originAppId: options.appId,
+      customHeaders: options.customHeaders
     });
 
     this.connectionManager = new ConnectionManager(this.logger, this.config);
@@ -585,7 +587,8 @@ export class Client extends EventEmitter {
           method: 'get',
           host: this.config.apiHost,
           authToken: this.config.authToken,
-          logger: this.logger
+          logger: this.logger,
+          customHeaders: this.config.customHeaders
         };
         jidPromise = this.http.requestApi('users/me', jidRequestOpts)
           .then(res => res.data.chat.jabberId);
@@ -595,7 +598,8 @@ export class Client extends EventEmitter {
         method: 'post',
         host: this.config.apiHost,
         authToken: this.config.authToken,
-        logger: this.logger
+        logger: this.logger,
+        customHeaders: this.config.customHeaders
       };
       const channelPromise = this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
