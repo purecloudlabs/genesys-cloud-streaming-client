@@ -236,6 +236,7 @@ export class Client extends EventEmitter {
     this.connected = false;
     this.connecting = false;
     disconnectedInstance.pinger?.stop();
+    disconnectedInstance.serverPing?.stop();
 
     this.removeAllListeners(STANZA_DISCONNECTED);
     this.removeAllListeners(NO_LONGER_SUBSCRIBED);
@@ -257,6 +258,7 @@ export class Client extends EventEmitter {
   private handleNoLongerSubscribed (stanzaInstance: NamedAgent) {
     this.logger.warn('noLongerSubscribed event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
     stanzaInstance.pinger?.stop();
+    stanzaInstance.serverPing?.stop();
 
     this.hardReconnectRequired = true;
 
@@ -268,6 +270,7 @@ export class Client extends EventEmitter {
   private handleDuplicateId (stanzaInstance: NamedAgent) {
     this.logger.warn('duplicate_id event received, forcing hard reconnect', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
     stanzaInstance.pinger?.stop();
+    stanzaInstance.serverPing?.stop();
 
     this.hardReconnectRequired = true;
   }
@@ -544,6 +547,7 @@ export class Client extends EventEmitter {
         this.removeStanzaBoundEventHandlers();
 
         stanzaInstance.pinger?.stop();
+        stanzaInstance.serverPing?.stop();
         await (stanzaInstance as unknown as StanzaClient).disconnect();
 
         this.connected = false;

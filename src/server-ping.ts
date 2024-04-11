@@ -26,6 +26,27 @@ export class ServerPing {
     this.numberOfMissedPings = 0;
     this.timeoutId = undefined;
     console.log('Hjon: setting up ping timeout');
+
+    this.start();
+  }
+
+  start () {
+    this.client.on('connected', () => {
+      this.setupPingTimeout();
+    });
+
+    this.stanzaInstance.on('iq:get:ping', iq => {
+      clearTimeout(this.timeoutId);
+      this.setupPingTimeout();
+    });
+  }
+
+  stop () {
+    clearTimeout(this.timeoutId);
+    this.timeoutId = undefined;
+  }
+
+  private setupPingTimeout () {
     this.timeoutId = setTimeout(() => {
       console.log('Hjon: timeout fired');
 
