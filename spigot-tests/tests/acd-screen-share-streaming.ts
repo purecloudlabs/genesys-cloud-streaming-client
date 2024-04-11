@@ -71,6 +71,7 @@ describe('ACD Screen Share via streaming [assvs]', function () {
     const headers = new window.Headers();
     headers.set('Content-Type', 'application/json');
     headers.set('Accept', 'application/json');
+    headers.set('Genesys-App', 'developercenter-cdn--streaming-client-webui');
 
     const custData = await utils.fetchJson(`${config.apiUrl}/conversations/codes`, {
       headers,

@@ -68,6 +68,10 @@ export class HttpClient {
     const start = new Date().getTime();
 
     const url = this._buildUri(opts.host, path, opts.version);
+    const headers = {
+      'content-type': opts.contentType || 'application/json',
+      ...(opts.customHeaders || {}),
+    };
 
     const params: AxiosRequestConfig = {
       method: opts.method,
@@ -75,9 +79,7 @@ export class HttpClient {
       data: opts.data,
       responseType: opts.responseType,
       timeout: opts.requestTimeout || 30000,
-      headers: {
-        'content-type': opts.contentType || 'application/json'
-      }
+      headers
     };
 
     // default to include auth header

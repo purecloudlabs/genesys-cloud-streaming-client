@@ -14,7 +14,8 @@ describe('HttpRequestClient', () => {
 
   beforeEach(() => {
     logger = {
-      debug: jest.fn()
+      debug: jest.fn(),
+      originAppName: '123appname'
     } as any;
     http = new HttpClient();
   });
@@ -80,6 +81,38 @@ describe('HttpRequestClient', () => {
       const req = axiosMock.history.get[0]!;
       expect((req.headers!.get as any)('authorization')).toBeUndefined();
     });
+
+    it('should make a request with custom headers', async () => {
+      const host = 'example.com';
+      const path = 'users/me';
+
+      const url = `https://api.${host}/api/v2/${path}`;
+      axiosMock.onGet(url).reply(200, []);
+
+      const response = await http.requestApi(path, { host, method: 'get', authToken: '123', logger, customHeaders: { 'genesys-app': '123test'} });
+
+      expect(response.data).toEqual([]);
+
+      expect(axiosMock.history.get.length).toBe(1);
+      const req = axiosMock.history.get[0]!;
+      expect((req.headers!.get as any)('genesys-app')).toEqual('123test');
+    });
+
+      it('should make a request with genesys-app header - no logger', async () => {
+        const host = 'example.com';
+        const path = 'users/me';
+
+        const url = `https://api.${host}/api/v2/${path}`;
+        axiosMock.onGet(url).reply(200, []);
+
+        const response = await http.requestApi(path, { host, method: 'get', authToken: '123', customHeaders: { 'genesys-app': '123test' } });
+
+        expect(response.data).toEqual([]);
+
+        expect(axiosMock.history.get.length).toBe(1);
+        const req = axiosMock.history.get[0]!;
+        expect((req.headers!.get as any)('genesys-app')).toEqual('123test');
+      });
 
     it('should handle errors', async () => {
       const host = 'example.com';
