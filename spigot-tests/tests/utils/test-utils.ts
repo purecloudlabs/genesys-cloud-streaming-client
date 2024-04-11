@@ -149,10 +149,11 @@ export const getPersonDetails = async function (): Promise<IUser> {
 };
 
 export const getHeaders = function (includeIninOrg = false): Headers {
+  const { appName } = getConfig();
   const headers = new window.Headers();
   headers.set('Content-Type', 'application/json');
   headers.set('Authorization', `bearer ${getAuthToken()}`);
-  headers.set('Genesys-App', 'developercenter-cdn--streaming-client-webui');
+  headers.set('Genesys-App', `spigot-${appName}`);
 
   if (includeIninOrg) {
     headers.set('InIn-Organization-Id', org.id);
@@ -241,7 +242,8 @@ function initializeLogging () {
     appVersion,
     appName: `spigot-${appName}`,
     logLevel: 'debug',
-    uploadDebounceTime: 1000
+    uploadDebounceTime: 1000,
+    customHeaders: { 'Genesys-App': `spigot-${appName}` }
   });
 }
 

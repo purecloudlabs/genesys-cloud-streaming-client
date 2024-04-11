@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.0...HEAD)
 ### Added
-* [PCM-2344](https://inindca.atlassian.net/browse/PCM-2344) - Added Genesys-App to headers.
+* [PCM-2344](https://inindca.atlassian.net/browse/PCM-2344) - Added ability to pass in custom headers for telemetry purposes (internal use only).
 
 # [v17.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.0.3...v17.1.0)
 ### Added
