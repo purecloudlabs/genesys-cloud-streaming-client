@@ -23,6 +23,7 @@ export class ServerMonitor {
 
   start () {
     this.boundSetupStanzaTimeout = this.setupStanzaTimeout.bind(this);
+    this.client.on('connected', this.boundSetupStanzaTimeout);
     this.stanzaInstance.on('raw:incoming', this.boundSetupStanzaTimeout);
   }
 
@@ -31,6 +32,7 @@ export class ServerMonitor {
     this.timeoutId = undefined;
 
     if (this.boundSetupStanzaTimeout) {
+      this.client.off('connected', this.boundSetupStanzaTimeout);
       this.stanzaInstance.off('raw:incoming', this.boundSetupStanzaTimeout);
       this.boundSetupStanzaTimeout = undefined;
     }
