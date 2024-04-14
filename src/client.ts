@@ -43,6 +43,7 @@ export class Client extends EventEmitter {
   connecting = false;
   hardReconnectRequired = true;
   reconnectOnNoLongerSubscribed: boolean;
+  useServerSidePings: boolean;
   logger: Logger;
   config: IClientConfig;
   isGuest = false;
@@ -74,6 +75,7 @@ export class Client extends EventEmitter {
     this.http = new HttpClient();
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
+    this.useServerSidePings = options.useServerSidePings !== false;
 
     this.config = {
       host: options.host,
@@ -558,13 +560,22 @@ export class Client extends EventEmitter {
   }
 
   private async setupPinger (stanzaInstance: NamedAgent) {
-    try {
-      // if this fails, then hawk doesn't support serverside pinging and we need to do client side pings
-      await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');
-      stanzaInstance.serverMonitor = new ServerMonitor(this, stanzaInstance);
-    } catch (err) {
-      this.logger.warn('failed to establish server-side pinging, falling back to client-side pinging', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+    const setupClientPinger = (message: string) => {
+      const logMessage = `$(message), falling back to client-side pinging`;
+      this.logger.warn(message, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
       stanzaInstance.pinger = new Ping(this, stanzaInstance);
+    }
+
+    if (this.useServerSidePings) {
+      try {
+        // if this fails, then hawk doesn't support serverside pinging and we need to do client side pings
+        await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');
+        stanzaInstance.serverMonitor = new ServerMonitor(this, stanzaInstance);
+      } catch (err) {
+        setupClientPinger('failed to establish server-side pinging');
+      }
+    } else {
+      setupClientPinger('client configured to not use server-side pinging');
     }
   }
 

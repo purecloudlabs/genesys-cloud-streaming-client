@@ -18,6 +18,7 @@ export interface IClientOptions {
   logLevel?: LogLevel;
   logFormatters?: LogFormatterFn[];
   signalIceConnected?: boolean;
+  useServerSidePings?: boolean;
   /* secondary/parent app info */
   appName?: string;
   appVersion?: string;
