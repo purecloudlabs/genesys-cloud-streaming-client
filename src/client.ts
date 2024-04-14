@@ -564,7 +564,7 @@ export class Client extends EventEmitter {
       const logMessage = `$(message), falling back to client-side pinging`;
       this.logger.warn(message, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
       stanzaInstance.pinger = new Ping(this, stanzaInstance);
-    }
+    };
 
     if (this.useServerSidePings) {
       try {

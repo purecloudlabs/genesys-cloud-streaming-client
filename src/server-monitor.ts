@@ -14,14 +14,14 @@ export class ServerMonitor {
   private timeoutId?: number;
   private boundSetupStanzaTimeout?: () => void;
 
-  constructor (private client: Client, private stanzaInstance: NamedAgent, private options: ServerMonitorOptions = {}) {
+  constructor (private client: Client, private stanzaInstance: NamedAgent, options: ServerMonitorOptions = {}) {
     this.stanzaTimeout = options.stanzaTimeout || DEFAULT_STANZA_TIMEOUT;
     this.timeoutId = undefined;
 
     this.start();
   }
 
-  start () {
+  private start () {
     this.boundSetupStanzaTimeout = this.setupStanzaTimeout.bind(this);
     this.client.on('connected', this.boundSetupStanzaTimeout);
     this.stanzaInstance.on('raw:incoming', this.boundSetupStanzaTimeout);
