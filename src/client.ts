@@ -541,7 +541,7 @@ export class Client extends EventEmitter {
 
       this.activeStanzaInstance = stanzaInstance;
 
-      await this.setupPinger(stanzaInstance);
+      await this.setupConnectionMonitoring(stanzaInstance);
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {
@@ -559,7 +559,7 @@ export class Client extends EventEmitter {
     }
   }
 
-  private async setupPinger (stanzaInstance: NamedAgent) {
+  private async setupConnectionMonitoring (stanzaInstance: NamedAgent) {
     const setupClientPinger = (message: string) => {
       const logMessage = `$(message), falling back to client-side pinging`;
       this.logger.warn(message, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
