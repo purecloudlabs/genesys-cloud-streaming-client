@@ -5,9 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.0...HEAD)
+
+# [v17.1.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.0...v17.1.1)
 ### Fixed
 * [NO-JIRA] - Reverted PCM-2321, server-side pinging.
 * [PCM-2347](https://inindca.atlassian.net/browse/PCM-2347) - Updated client-logger to fix critical Snyk vulnerability.
+
 ### Added
 * [PCM-2344](https://inindca.atlassian.net/browse/PCM-2344) - Added ability to pass in custom headers for telemetry purposes (internal use only).
 
