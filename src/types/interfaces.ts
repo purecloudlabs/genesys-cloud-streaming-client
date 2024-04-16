@@ -22,6 +22,11 @@ export interface IClientOptions {
   appName?: string;
   appVersion?: string;
   appId?: string;
+  customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
+}
+
+export interface ICustomHeader {
+  [header: string]: string;
 }
 
 export interface IClientConfig {
@@ -36,6 +41,7 @@ export interface IClientConfig {
   appVersion?: string;
   appId?: string;
   logLevel?: LogLevel;
+  customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
 }
 export interface ExtendedRTCIceServer extends RTCIceServer {
   type: string;
@@ -52,6 +58,7 @@ export type RequestApiOptions = {
   logger?: any;
   noAuthHeader?: boolean;
   requestTimeout?: number;
+  customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
 };
 
 export interface IAxiosResponseError extends AxiosError {
