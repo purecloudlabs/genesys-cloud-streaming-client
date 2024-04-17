@@ -14,8 +14,12 @@ import EventEmitter from 'events';
 import { NamedAgent } from '../../src/types/named-agent';
 import { flushPromises } from '../helpers/testing-utils';
 import { SCConnectionData } from '../../src';
+import { Ping } from '../../src/ping';
+import { ServerMonitor } from '../../src/server-monitor';
 
 jest.mock('genesys-cloud-client-logger');
+jest.mock('../../src/ping');
+jest.mock('../../src/server-monitor');
 
 const defaultOptions = {
   jid: 'anon@example.mypurecloud.com',
@@ -675,6 +679,7 @@ describe('makeConnectionAttempt', () => {
   let client: Client;
   let prepareSpy: jest.SpyInstance;
   let getConnectionSpy: jest.SpyInstance;
+  let pingerMock: jest.Mock<Ping> = Ping as any;
 
   beforeEach(() => {
     client = new Client({
@@ -682,6 +687,8 @@ describe('makeConnectionAttempt', () => {
     });
     prepareSpy = client['prepareForConnect'] = jest.fn();
     getConnectionSpy = client['connectionManager'].getNewStanzaConnection = jest.fn();
+
+    pingerMock.mockClear();
   });
 
   it('should not attempt if offline', async () => {
@@ -724,7 +731,7 @@ describe('makeConnectionAttempt', () => {
     expect(client.connecting).toBeFalsy();
   });
 
-  it('should clean up connection an extension fails configureNewStanzaInstance', async () => {
+  it('should clean up connection if an extension fails configureNewStanzaInstance', async () => {
     const disconnectSpy = jest.fn();
     const fakeEmit = jest.fn();
     const fakeInstance = {
@@ -775,13 +782,20 @@ describe('makeConnectionAttempt', () => {
     expect(client['boundStanzaDuplicateId']).toBeUndefined();
   });
 
-  it('should clean up pinger', async () => {
+  it('should cleanup event handlers and connection monitors', async () => {
     const disconnectSpy = jest.fn();
     const fakeEmit = jest.fn();
     const fakeInstance = {
       disconnect: disconnectSpy,
       emit: null,
-      originalEmitter: fakeEmit
+      originalEmitter: fakeEmit,
+      subscribeToNode: jest.fn().mockResolvedValue({}),
+      pinger: {
+        stop: jest.fn()
+      },
+      serverMonitor: {
+        stop: jest.fn()
+      }
     };
     const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
     client['boundStanzaDisconnect'] = async () => {};
@@ -819,7 +833,74 @@ describe('makeConnectionAttempt', () => {
     expect(client.connected).toBeFalsy();
     expect(client.connecting).toBeTruthy();
     expect(cleanupSpy).toHaveBeenCalled();
+    expect(fakeInstance.pinger.stop).toHaveBeenCalled();
+    expect(fakeInstance.serverMonitor.stop).toHaveBeenCalled();
     expect(fakeInstance.disconnect).toHaveBeenCalled();
+  });
+});
+
+describe('setupConnectionMonitoring', () => {
+  let pingerMock: jest.Mock<Ping>;
+  let serverMonitorMock: jest.Mock<ServerMonitor>;
+
+  beforeEach(() => {
+    pingerMock = Ping as any;
+    pingerMock.mockClear();
+
+    serverMonitorMock = ServerMonitor as any;
+    serverMonitorMock.mockClear();
+  });
+
+  it('uses client-side pings if useServerSidePings is false', async () => {
+    const opts = {...getDefaultOptions(), useServerSidePings: false};
+    let client = new Client(opts);
+
+    client['prepareForConnect'] = jest.fn();
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({});
+    client['addInateEventHandlers'] = jest.fn();
+    client['proxyStanzaEvents'] = jest.fn();
+    client['extensions'] = [];
+
+    await client['makeConnectionAttempt']();
+    expect(pingerMock).toHaveBeenCalled();
+    expect(serverMonitorMock).not.toHaveBeenCalled();
+  });
+
+  it('uses client-side pings if server-side pings are\'t available', async () => {
+    let client = new Client(getDefaultOptions());
+
+    client['prepareForConnect'] = jest.fn();
+    const mockSubscribeToNode = () => {
+      throw new Error('pretending server-side pings don\'t work');
+    };
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
+      subscribeToNode: mockSubscribeToNode
+    });
+    client['addInateEventHandlers'] = jest.fn();
+    client['proxyStanzaEvents'] = jest.fn();
+    client['extensions'] = [];
+
+    await client['makeConnectionAttempt']();
+    expect(pingerMock).toHaveBeenCalled();
+    expect(serverMonitorMock).not.toHaveBeenCalled();
+  });
+
+  it('uses server-side pings if available', async () => {
+    let client = new Client(getDefaultOptions());
+
+    client['prepareForConnect'] = jest.fn();
+    const subscribeToNodeSpy = jest.fn().mockResolvedValue({});
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
+      subscribeToNode: subscribeToNodeSpy
+    });
+    client['addInateEventHandlers'] = jest.fn();
+    client['proxyStanzaEvents'] = jest.fn();
+    client['extensions'] = [];
+
+    await client['makeConnectionAttempt']();
+    expect(pingerMock).not.toHaveBeenCalled();
+    expect(serverMonitorMock).toHaveBeenCalled();
+    expect(subscribeToNodeSpy).toHaveBeenCalledWith(expect.any(String), 'enable.server.side.pings');
   });
 });
 
@@ -1025,7 +1106,8 @@ describe('handleStanzaDisconnectedEvent', () => {
 
     fakeStanza = {
       emit: jest.fn(),
-      pinger: { stop: jest.fn() }
+      pinger: { stop: jest.fn() },
+      serverMonitor: { stop: jest.fn() }
     } as any;
 
     client.connected = true;
@@ -1051,6 +1133,7 @@ describe('handleStanzaDisconnectedEvent', () => {
   it('should reconnect if autoReconnect', async () => {
     client['autoReconnect'] = true;
     fakeStanza.pinger = undefined;
+    fakeStanza.serverMonitor = undefined;
 
     const disconnectHandler = jest.fn();
     client.on('disconnected', disconnectHandler);
@@ -1082,7 +1165,8 @@ describe('handleNoLongerSubscribed', () => {
 
     fakeStanza = {
       emit: jest.fn(),
-      pinger: { stop: jest.fn() }
+      pinger: { stop: jest.fn() },
+      serverMonitor: { stop: jest.fn() }
     } as any;
 
     client.connected = true;
@@ -1105,6 +1189,7 @@ describe('handleNoLongerSubscribed', () => {
     client.reconnectOnNoLongerSubscribed = true;
     client['autoReconnect'] = true;
     fakeStanza.pinger = undefined;
+    fakeStanza.serverMonitor = undefined;
 
     client['handleNoLongerSubscribed'](fakeStanza);
 
@@ -1121,7 +1206,8 @@ describe('handleDuplicateId', () => {
 
     fakeStanza = {
       emit: jest.fn(),
-      pinger: { stop: jest.fn() }
+      pinger: { stop: jest.fn() },
+      serverMonitor: { stop: jest.fn() }
     } as any;
 
     client.connected = true;
@@ -1132,6 +1218,7 @@ describe('handleDuplicateId', () => {
   it('should set hardReconnect to true', () => {
     client.hardReconnectRequired = false;
     fakeStanza.pinger = undefined;
+    fakeStanza.serverMonitor = undefined;
 
     client['handleDuplicateId'](fakeStanza);
 
@@ -1142,11 +1229,12 @@ describe('handleDuplicateId', () => {
     client.hardReconnectRequired = false;
     const spy = jest.fn();
     fakeStanza.pinger = { stop: spy } as any;
+    fakeStanza.serverMonitor = { stop: spy } as any;
 
     client['handleDuplicateId'](fakeStanza);
 
     expect(client['hardReconnectRequired']).toBeTruthy();
-    expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledTimes(2);
   });
 });
 

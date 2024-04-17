@@ -562,7 +562,7 @@ export class Client extends EventEmitter {
   private async setupConnectionMonitoring (stanzaInstance: NamedAgent) {
     const setupClientPinger = (message: string) => {
       const logMessage = `$(message), falling back to client-side pinging`;
-      this.logger.warn(message, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+      this.logger.warn(logMessage, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
       stanzaInstance.pinger = new Ping(this, stanzaInstance);
     };
 
