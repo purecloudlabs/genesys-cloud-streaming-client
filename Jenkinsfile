@@ -58,7 +58,7 @@ def getDeployConfig = {
 }
 
 def getMailerAddresses = {
-  def mailer = 'genesyscloud-client-media@genesys.com'
+  def mailer = 'GcMediaStreamSignal@genesys.com'
 
   if (isMain()) {
     return mailer + ', joe.wilson@genesys.com'
@@ -77,7 +77,7 @@ def chatGroupId = 'adhoc-60e40c95-3d9c-458e-a48e-ca4b29cf486d'
 webappPipeline {
     nodeVersion = '14.x'
     projectName = 'developercenter-cdn/streaming-client'
-    team = 'Genesys Client Media (WebRTC)'
+    team = 'Client Streaming and Signaling'
 
     mailer = getMailerAddresses()
     chatGroupId = chatGroupId
