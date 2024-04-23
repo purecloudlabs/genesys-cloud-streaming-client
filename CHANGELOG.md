@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.3...HEAD)
+### Added
+* [WEBRTCS-1106](https://inindca.atlassian.net/browse/WEBRTCS-1106) - update client to support renegotiations between persistent connection calls and ice restarts
 
 # [v17.1.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.2...v17.1.3)
 ### Changed

@@ -2,6 +2,23 @@ import * as utils from '../../src/utils';
 import { retryPromise } from '../../src/utils';
 import { flushPromises } from '../helpers/testing-utils';
 
+const sdp: Readonly<String> = 
+`
+v=0\r\n
+o=- 2890844526 2890844526 IN IP4 192.0.2.1\r\n
+s=Softphone Call\r\n
+c=IN IP4 192.0.2.1\r\n
+t=0 0\r\n
+m=audio 49170 RTP/AVP 0 8 97\r\n
+a=rtpmap:0 PCMU/8000\r\n
+a=rtpmap:8 PCMA/8000\r\n
+a=rtpmap:97 iLBC/8000\r\n
+a=ptime:20\r\n
+a=sendrecv\r\n
+a=ice-ufrag:as34d\r\n
+a=ice-pwd:asf44fwerwe34f34s\r\n
+`;
+
 describe('Utils', () => {
   describe('jid utils', () => {
     it('isAcdJid', () => {
@@ -101,6 +118,34 @@ describe('Utils', () => {
       await flushPromises();
 
       expect(fn).toHaveBeenCalled();
+    });
+  });
+
+  describe('getUfragFromSdp', () => {
+    it('should return null if no sdp is provided', () => {
+      expect(utils.getUfragFromSdp(undefined)).toBeNull();
+    });
+    
+    it('should return null if ufrag is not found', () => {
+      expect(utils.getUfragFromSdp('sdllksdnflskdnflkasd')).toBeNull();
+    });
+
+    it('should return the ufrag', () => {
+      expect(utils.getUfragFromSdp(sdp as string)).toEqual('as34d');
+    });
+  });
+
+  describe('getIcePwdFromSdp', () => {
+    it('should return null if no sdp is provided', () => {
+      expect(utils.getIcePwdFromSdp(undefined)).toBeNull();
+    });
+    
+    it('should return null if icepwd is not found', () => {
+      expect(utils.getIcePwdFromSdp('lskdjfksnnsn')).toBeNull();
+    });
+
+    it('should return the icepwd', () => {
+      expect(utils.getIcePwdFromSdp(sdp as string)).toEqual('asf44fwerwe34f34s');
     });
   });
 });
