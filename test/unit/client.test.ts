@@ -866,7 +866,7 @@ describe('setupConnectionMonitoring', () => {
     expect(serverMonitorMock).not.toHaveBeenCalled();
   });
 
-  it('uses client-side pings if server-side pings are\'t available', async () => {
+  it('uses client-side pings if server-side pings aren\'t available', async () => {
     let client = new Client(getDefaultOptions());
 
     client['prepareForConnect'] = jest.fn();
