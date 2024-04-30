@@ -60,7 +60,7 @@ describe('ServerMonitor', () => {
       const fakeStanzaEmitter = new EventEmitter();
       const serverMonitor = new ServerMonitor(fakeClient as any, fakeStanzaEmitter as any);
 
-      // setupStanzaTimeout() will be called on every incoming stanza
+      // setupStanzaTimeout() should be called on every incoming stanza
       fakeStanzaEmitter.emit('raw:incoming');
 
       expect(clearTimeout).toHaveBeenCalled();
@@ -69,18 +69,49 @@ describe('ServerMonitor', () => {
       serverMonitor.stop();
     });
 
+    it('closes the connection after connecting when no new stanzas have arrived before the timeout', () => {
+      const fakeClientEmitter = new EventEmitter();
+      fakeClientEmitter['logger'] = { warn () { }, error () { } };
+      fakeClientEmitter['config'] = { channelId: 'testingChannel' };
+      const sendStreamErrorSpy = fakeStanzaInstance['sendStreamError'] = jest.fn();
+      const serverMonitor = new ServerMonitor(fakeClientEmitter as any, fakeStanzaInstance as any);
+      const stopSpy = jest.spyOn(serverMonitor, 'stop');
+
+      // setupStanzaTimeout() should be called on the 'connected' event
+      fakeClientEmitter.emit('connected');
+      jest.runAllTimers();
+
+      expect(sendStreamErrorSpy).toHaveBeenCalled();
+      expect(stopSpy).toHaveBeenCalled();
+    });
+
     it('closes the connection when no stanzas have arrived before the timeout', () => {
-      let fakeStanzaEmitter = new EventEmitter();
-      let sendStreamErrorSpy = fakeStanzaEmitter['sendStreamError'] = jest.fn();
+      const fakeStanzaEmitter = new EventEmitter();
+      const sendStreamErrorSpy = fakeStanzaEmitter['sendStreamError'] = jest.fn();
       const serverMonitor = new ServerMonitor(fakeClient as any, fakeStanzaEmitter as any);
       const stopSpy = jest.spyOn(serverMonitor, 'stop');
 
-      // setupStanzaTimeout() will be called on every incoming stanza
+      // setupStanzaTimeout() should be called on every incoming stanza
       fakeStanzaEmitter.emit('raw:incoming');
       jest.runAllTimers();
 
       expect(sendStreamErrorSpy).toHaveBeenCalled();
       expect(stopSpy).toHaveBeenCalled();
+    });
+  });
+
+  describe('integration', () => {
+    it('should not handle events after disconnect and reconnect', async () => {
+      let fakeStanzaEmitter = new EventEmitter();
+      const serverMonitor = new ServerMonitor(fakeClient as any, fakeStanzaEmitter as any);
+
+      const handlerSpy = serverMonitor['setupStanzaTimeout'] = jest.fn();
+
+      serverMonitor.stop();
+
+      fakeStanzaEmitter.emit('raw:incoming', 'sldkfnsd');
+
+      expect(handlerSpy).not.toHaveBeenCalled();
     });
   });
 });
