@@ -101,15 +101,17 @@ describe('ServerMonitor', () => {
   });
 
   describe('integration', () => {
-    it('should not handle events after disconnect and reconnect', async () => {
-      let fakeStanzaEmitter = new EventEmitter();
-      const serverMonitor = new ServerMonitor(fakeClient as any, fakeStanzaEmitter as any);
+    it('should not handle events after disconnect and reconnect', () => {
+      const fakeClientEmitter = new EventEmitter();
+      const fakeStanzaEmitter = new EventEmitter();
+      const serverMonitor = new ServerMonitor(fakeClientEmitter as any, fakeStanzaEmitter as any);
 
       const handlerSpy = serverMonitor['setupStanzaTimeout'] = jest.fn();
 
       serverMonitor.stop();
 
-      fakeStanzaEmitter.emit('raw:incoming', 'sldkfnsd');
+      fakeClientEmitter.emit('connected');
+      fakeStanzaEmitter.emit('raw:incoming');
 
       expect(handlerSpy).not.toHaveBeenCalled();
     });
