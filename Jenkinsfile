@@ -78,6 +78,7 @@ webappPipeline {
     nodeVersion = '14.x'
     projectName = 'developercenter-cdn/streaming-client'
     team = 'Client Streaming and Signaling'
+    jiraProjectKey = 'STREAM'
 
     mailer = getMailerAddresses()
     chatGroupId = chatGroupId
