@@ -83,6 +83,7 @@ client.on('requestReconnect', function (callback) {
     - `ILogger logger`: Optional; This is a secondary logger to be used in conjuction with the built-in logger for the streaming-client;
     - `LogLevel logLevel`: Optional; Specifies the minimum level of logs that will be sent to the server
     - `LogFormatterFn[] logFormatters`: Optional; see https://github.com/purecloudlabs/genesys-cloud-client-logger#how-formatters-work for more information.
+    - `Boolean useServerSidePings`: Optional; If true, streaming-client will request the server to send `ping` stanzas. If false (or unsupported by the server), streaming-client will send `ping` stanzas.
 
 #### Methods
 

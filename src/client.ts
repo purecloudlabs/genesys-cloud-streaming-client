@@ -7,6 +7,7 @@ import './polyfills';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Ping } from './ping';
+import { ServerMonitor } from './server-monitor';
 import { delay, parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
@@ -42,6 +43,7 @@ export class Client extends EventEmitter {
   connecting = false;
   hardReconnectRequired = true;
   reconnectOnNoLongerSubscribed: boolean;
+  useServerSidePings: boolean;
   logger: Logger;
   config: IClientConfig;
   isGuest = false;
@@ -73,6 +75,7 @@ export class Client extends EventEmitter {
     this.http = new HttpClient();
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
+    this.useServerSidePings = options.useServerSidePings !== false;
 
     this.config = {
       host: options.host,
@@ -235,6 +238,7 @@ export class Client extends EventEmitter {
     this.connected = false;
     this.connecting = false;
     disconnectedInstance.pinger?.stop();
+    disconnectedInstance.serverMonitor?.stop();
 
     this.removeAllListeners(STANZA_DISCONNECTED);
     this.removeAllListeners(NO_LONGER_SUBSCRIBED);
@@ -256,6 +260,7 @@ export class Client extends EventEmitter {
   private handleNoLongerSubscribed (stanzaInstance: NamedAgent) {
     this.logger.warn('noLongerSubscribed event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
     stanzaInstance.pinger?.stop();
+    stanzaInstance.serverMonitor?.stop();
 
     this.hardReconnectRequired = true;
 
@@ -267,6 +272,7 @@ export class Client extends EventEmitter {
   private handleDuplicateId (stanzaInstance: NamedAgent) {
     this.logger.warn('duplicate_id event received, forcing hard reconnect', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
     stanzaInstance.pinger?.stop();
+    stanzaInstance.serverMonitor?.stop();
 
     this.hardReconnectRequired = true;
   }
@@ -534,7 +540,8 @@ export class Client extends EventEmitter {
       }
 
       this.activeStanzaInstance = stanzaInstance;
-      stanzaInstance.pinger = new Ping(this, stanzaInstance);
+
+      await this.setupConnectionMonitoring(stanzaInstance);
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {
@@ -542,12 +549,33 @@ export class Client extends EventEmitter {
         this.removeStanzaBoundEventHandlers();
 
         stanzaInstance.pinger?.stop();
+        stanzaInstance.serverMonitor?.stop();
         await (stanzaInstance as unknown as StanzaClient).disconnect();
 
         this.connected = false;
         this.connecting = previousConnectingState;
       }
       throw err;
+    }
+  }
+
+  private async setupConnectionMonitoring (stanzaInstance: NamedAgent) {
+    const setupClientPinger = (message: string) => {
+      const logMessage = `$(message), falling back to client-side pinging`;
+      this.logger.warn(logMessage, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+      stanzaInstance.pinger = new Ping(this, stanzaInstance);
+    };
+
+    if (this.useServerSidePings) {
+      try {
+        // if this fails, then hawk doesn't support serverside pinging and we need to do client side pings
+        await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');
+        stanzaInstance.serverMonitor = new ServerMonitor(this, stanzaInstance);
+      } catch (err) {
+        setupClientPinger('failed to establish server-side pinging');
+      }
+    } else {
+      setupClientPinger('client configured to not use server-side pinging');
     }
   }
 

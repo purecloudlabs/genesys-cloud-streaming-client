@@ -4,7 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.2...HEAD)
+
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.3...HEAD)
+
+# [v17.1.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.2...v17.1.3)
+### Changed
+* [PCM-2352](https://inindca.atlassian.net/browse/PCM-2352) - Use a timeout when using server-side pinging to detect when a connection has dropped
 
 # [v17.1.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.1...v17.1.2)
 * [NO-JIRA] - Removed Spigot testing from Jenkins build step.
