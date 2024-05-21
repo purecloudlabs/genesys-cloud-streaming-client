@@ -1834,6 +1834,7 @@ describe('handleGenesysOffer', () => {
   it('should create and emit a session (no pending session)', async () => {
     const iq: IQ = {
       type: 'set',
+      from: '+155555555@org.gjoll.test',
       genesysWebrtc: {
         jsonrpc: '2.0',
         method: 'offer',
@@ -1849,9 +1850,71 @@ describe('handleGenesysOffer', () => {
       expect(session.setRemoteDescription).toHaveBeenCalled();
       expect(webrtc['webrtcSessions'].length).toEqual(1);
     });
+    const spy = webrtc['handleGenesysRenegotiate'] = jest.fn();
 
     await webrtc['handleGenesysOffer'](iq);
-    expect.assertions(2);
+    expect(spy).not.toHaveBeenCalled();
+    expect.assertions(3);
+  });
+
+  it('should renegotiate if there is an existing session', async () => {
+    const iq: IQ = {
+      type: 'set',
+      from: '+155555555@org.gjoll.test',
+      genesysWebrtc: {
+        jsonrpc: '2.0',
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          conversationId: 'cid',
+          sdp: 'a=ice-ufrag:asdfasdf\r\na=ice-pwd:fdsafdsa\r\n'
+        }
+      }
+    };
+
+    const peerConnection = { ...(new FakePeerConnection()), remoteDescription: { sdp: 'a=ice-ufrag:asdfasdf\r\na=ice-pwd:fdsafdsa\r\n' }};
+
+    const existingSession = { id: iq.genesysWebrtc?.params?.sessionId, peerConnection };
+
+    const spy = webrtc['handleGenesysRenegotiate'] = jest.fn();
+
+    webrtc['webrtcSessions'] = [existingSession as any];
+
+    await webrtc['handleGenesysOffer'](iq);
+    expect(spy).toHaveBeenCalledWith(existingSession, 'a=ice-ufrag:asdfasdf\r\na=ice-pwd:fdsafdsa\r\n');
+    expect(webrtc['webrtcSessions'].length).toEqual(1);
+  });
+
+  it('should emit a new session for a reinvite (existing session, different ice)', async () => {
+    const iq: IQ = {
+      type: 'set',
+      from: '+155555555@org.gjoll.test',
+      genesysWebrtc: {
+        jsonrpc: '2.0',
+        method: 'offer',
+        params: {
+          sessionId: 'session24',
+          conversationId: 'cid',
+          sdp: 'a=ice-ufrag:asdfasdf\r\na=ice-pwd:fdsafdsa\r\n'
+        }
+      }
+    };
+    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+      expect(session.setRemoteDescription).toHaveBeenCalled();
+      expect(webrtc['webrtcSessions'].length).toEqual(2);
+    });
+
+    const peerConnection = { ...(new FakePeerConnection()), remoteDescription: { sdp: 'a=ice-ufrag:qwerqwer\r\na=ice-pwd:rewqrewq\r\n' }};
+
+    const existingSession = { id: iq.genesysWebrtc?.params?.sessionId, peerConnection };
+
+    const spy = webrtc['handleGenesysRenegotiate'] = jest.fn();
+
+    webrtc['webrtcSessions'] = [existingSession as any];
+
+    await webrtc['handleGenesysOffer'](iq);
+    expect(spy).not.toHaveBeenCalled();
+    expect.assertions(3);
   });
   
   it('should set ignoreHostCandidatesForForceTurnFF', async () => {
@@ -1999,6 +2062,33 @@ describe('handleGenesysOffer', () => {
     };
 
     await webrtc['handleGenesysOffer'](iq);
+  });
+});
+
+describe('handleGenesysRenegotiate', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+  });
+
+  it('should set remoteDescription and accept session', async () => {
+    const setRemoteDescriptionSpy = jest.fn().mockResolvedValue(null);
+    const acceptSpy = jest.fn().mockResolvedValue(null);
+
+    const existingSession = {
+      peerConnection: {
+        setRemoteDescription: setRemoteDescriptionSpy
+      },
+      accept: acceptSpy
+    };
+
+    await webrtc['handleGenesysRenegotiate'](existingSession as any, 'i like cashews');
+
+    expect(setRemoteDescriptionSpy).toHaveBeenCalledWith({ sdp: 'i like cashews', type: 'offer' });
+    expect(acceptSpy).toHaveBeenCalled();
   });
 });
 
