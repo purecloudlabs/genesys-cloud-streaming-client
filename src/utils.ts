@@ -146,6 +146,30 @@ export function calculatePayloadSize (trace: any): number {
   return str.length + (m ? m.length : 0);
 }
 
+export function getUfragFromSdp (sdp: string | undefined) {
+  if (!sdp) {
+    return null;
+  }
+
+  const regex = /a=ice-ufrag:(\S+)/;
+  const match = sdp.match(regex);
+  return match ? match[1] : null;
+}
+
+export function getIcePwdFromSdp (sdp: string | undefined) {
+  if (!sdp) {
+    return null;
+  }
+
+  const regex = /a=ice-pwd:(\S+)/;
+  const match = sdp.match(regex);
+  return match ? match[1] : null;
+}
+
+export function iceIsDifferent (sdp1: string | undefined, sdp2: string | undefined): boolean {
+  return getUfragFromSdp(sdp1) !== getUfragFromSdp(sdp2) || getIcePwdFromSdp(sdp1) !== getIcePwdFromSdp(sdp2);
+}
+
 // unsed, but handy. no test coverage until used
 // function mergeOptions (destination, provided) {
 //   for (var key in provided) {
