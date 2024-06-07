@@ -91,12 +91,20 @@ describe('ServerMonitor', () => {
       const serverMonitor = new ServerMonitor(fakeClient as any, fakeStanzaEmitter as any);
       const stopSpy = jest.spyOn(serverMonitor, 'stop');
 
+      const disconnectSpy = jest.fn();
+      fakeStanzaEmitter['transport'] = {
+        disconnect: disconnectSpy,
+        hasStream: true
+      };
+
       // setupStanzaTimeout() should be called on every incoming stanza
       fakeStanzaEmitter.emit('raw:incoming');
       jest.runAllTimers();
 
       expect(sendStreamErrorSpy).toHaveBeenCalled();
       expect(stopSpy).toHaveBeenCalled();
+      expect(fakeStanzaEmitter['transport'].hasStream).toBeFalsy();
+      expect(disconnectSpy).toHaveBeenCalledWith(false);
     });
   });
 
