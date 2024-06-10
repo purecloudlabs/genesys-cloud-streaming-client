@@ -93,8 +93,7 @@ describe('ServerMonitor', () => {
 
       const disconnectSpy = jest.fn();
       fakeStanzaEmitter['transport'] = {
-        disconnect: disconnectSpy,
-        hasStream: true
+        disconnect: disconnectSpy
       };
 
       // setupStanzaTimeout() should be called on every incoming stanza
@@ -103,7 +102,6 @@ describe('ServerMonitor', () => {
 
       expect(sendStreamErrorSpy).toHaveBeenCalled();
       expect(stopSpy).toHaveBeenCalled();
-      expect(fakeStanzaEmitter['transport'].hasStream).toBeFalsy();
       expect(disconnectSpy).toHaveBeenCalledWith(false);
     });
   });

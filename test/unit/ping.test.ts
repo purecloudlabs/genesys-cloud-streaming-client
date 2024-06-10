@@ -91,8 +91,7 @@ describe('Ping', () => {
 
       const disconnectSpy = jest.fn();
       fakeStanzaInstance.transport = {
-        disconnect: disconnectSpy,
-        hasStream: true
+        disconnect: disconnectSpy
       };
 
       let ping = new Ping(client as any, fakeStanzaInstance, standardOptions);
@@ -119,7 +118,6 @@ describe('Ping', () => {
       expect(infoJid).toBe(jid);
 
       // verify it forcefully disconnects the transport
-      expect(fakeStanzaInstance.transport.hasStream).toBeFalsy();
       expect(disconnectSpy).toHaveBeenCalledWith(false);
     });
 

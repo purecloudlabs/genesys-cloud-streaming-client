@@ -52,10 +52,7 @@ export class ServerMonitor {
 
       this.stanzaInstance.sendStreamError({ text: 'time between stanzas exceeded timeout', condition: 'connection-timeout' });
       this.stop();
-      if (this.stanzaInstance.transport) {
-        this.stanzaInstance.transport.hasStream = false;
-        this.stanzaInstance.transport.disconnect(false);
-      }
+      this.stanzaInstance.transport?.disconnect(false);
     }, this.stanzaTimeout) as unknown as number;
   }
 }
