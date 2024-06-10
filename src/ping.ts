@@ -60,6 +60,7 @@ export class Ping {
         this.client.logger.error('Missed too many pings, disconnecting', Object.assign({ numberOfFailedPings: this.numberOfFailedPings }, info));
         this.stanzaInstance.sendStreamError({ text: 'too many missed pongs', condition: 'connection-timeout' });
         this.stop();
+        this.stanzaInstance.transport?.disconnect(false);
       } else {
         this.queueNextPing();
       }

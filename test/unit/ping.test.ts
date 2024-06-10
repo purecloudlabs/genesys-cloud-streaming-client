@@ -89,6 +89,11 @@ describe('Ping', () => {
       fakeStanzaInstance.ping = jest.fn().mockRejectedValue(new Error('missed ping'));
       fakeStanzaInstance.jid = jid;
 
+      const disconnectSpy = jest.fn();
+      fakeStanzaInstance.transport = {
+        disconnect: disconnectSpy
+      };
+
       let ping = new Ping(client as any, fakeStanzaInstance, standardOptions);
       ping.start();
 
@@ -111,6 +116,9 @@ describe('Ping', () => {
 
       expect(infoChannelId).toBe(channelId);
       expect(infoJid).toBe(jid);
+
+      // verify it forcefully disconnects the transport
+      expect(disconnectSpy).toHaveBeenCalledWith(false);
     });
 
     it('receiving a ping response resets the failure mechanism', () => {

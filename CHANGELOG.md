@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.0...HEAD)
+### Changed
+* [STREAM-96](https://inindca.atlassian.net/browse/STREAM-96) - Forcefully disconnect the WebSocket when missed pings are detected to help reconnect faster
+
 # [v17.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.1.3...v17.2.0)
 ### Added
 * [WEBRTCS-1106](https://inindca.atlassian.net/browse/WEBRTCS-1106) - update client to support renegotiations between persistent connection calls and ice restarts
