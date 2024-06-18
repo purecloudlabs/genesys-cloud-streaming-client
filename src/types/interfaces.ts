@@ -133,6 +133,7 @@ export interface IPendingSession {
   conversationId: string;
   originalRoomJid?: string;
   sdpOverXmpp?: boolean;
+  privAnswerMode?: 'Auto';
   fromUserId?: string;
   roomJid?: string;
   accepted?: boolean;
