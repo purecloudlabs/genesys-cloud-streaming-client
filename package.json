@@ -68,7 +68,8 @@
     "uuid": "^9.0.1",
     "webrtc-stats-gatherer": "^9.0.6",
     "whatwg-fetch": "^3.0.0",
-    "wildemitter": "^1.2.1"
+    "wildemitter": "^1.2.1",
+    "ws": "^8.17.1"
   },
   "devDependencies": {
     "@babel/core": "^7.12.0",
