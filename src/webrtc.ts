@@ -602,7 +602,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         sessionType,
         roomJid,
         id: sessionId,
-        sdpOverXmpp: msg.propose.sdpOverXmpp
+        sdpOverXmpp: msg.propose.sdpOverXmpp,
+        privAnswerMode: msg.propose.privAnswerMode
       };
 
       this.pendingSessions[sessionId] = sessionInfo;

@@ -4,7 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.2...HEAD)
+
+# [v17.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.1...v17.2.2)
+### Fixed
+* [STREAM-108](https://inindca.atlassian.net/browse/STREAM-108) Update ws to address Snyk vulnerability
+### Added
+* [STREAM-71](https://inindca.atlassian.net/browse/STREAM-71) - proxy the priv-answer-mode param on the propose to the pendingSession (used for internal purposes)
 
 # [v17.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.0...v17.2.1)
 ### Changed

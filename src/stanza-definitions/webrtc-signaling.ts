@@ -13,6 +13,7 @@ export interface Propose {
   originalRoomJid?: string;
   fromUserId?: string;
   sdpOverXmpp?: boolean;
+  privAnswerMode?: 'Auto';
 }
 
 const proposeDefinition: DefinitionOptions = {
@@ -22,6 +23,7 @@ const proposeDefinition: DefinitionOptions = {
     conversationId: attribute('inin-cid'),
     persistentConversationId: attribute('inin-persistent-cid'),
     sdpOverXmpp: booleanAttribute('inin-sdp-over-xmpp'),
+    privAnswerMode: attribute('inin-priv-answer-mode'),
     originalRoomJid: attribute('inin-ofrom'),
     autoAnswer: booleanAttribute('inin-autoanswer'),
     fromUserId: attribute('inin-user-id'),
