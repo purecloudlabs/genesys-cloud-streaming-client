@@ -292,8 +292,14 @@ export class Client extends EventEmitter {
     }, 5000, 'disconnecting streaming service');
   }
 
+  private getSessionStoreKey (): string {
+    const differentiator = this.config.appName || this.logger.clientId;
+
+    return `${SESSION_STORE_KEY}_${differentiator}`;
+  }
+
   private getConnectionData (): SCConnectionData {
-    const connectionDataStr = sessionStorage.getItem(SESSION_STORE_KEY);
+    const connectionDataStr = sessionStorage.getItem(this.getSessionStoreKey());
 
     const defaultValue = {
       currentDelayMs: 0,
@@ -312,19 +318,22 @@ export class Client extends EventEmitter {
   }
 
   private setConnectionData (data: SCConnectionData) {
-    sessionStorage.setItem(SESSION_STORE_KEY, JSON.stringify(data));
+    sessionStorage.setItem(this.getSessionStoreKey(), JSON.stringify(data));
   }
 
-  private increaseBackoff () {
+  private increaseBackoff (): SCConnectionData {
     const connectionData = this.getConnectionData();
 
-    const currentDelay = Math.max(connectionData.currentDelayMs * 2, INITIAL_DELAY);
-    this.setConnectionData({
+    const currentDelay = Math.max(connectionData.currentDelayMs * 2, INITIAL_DELAY * 2);
+    const newConnectionData: SCConnectionData = {
       currentDelayMs: currentDelay,
       delayMsAfterNextReduction: currentDelay / 2,
       nextDelayReductionTime: new Date().getTime() + (currentDelay * BACKOFF_DECREASE_DELAY_MULTIPLIER),
       timeOfTotalReset: new Date().getTime() + 1000 * 60 * 60 // one hour in the future
-    });
+    };
+    this.setConnectionData(newConnectionData);
+
+    return newConnectionData;
   }
 
   private decreaseBackoff (newAmountMs: number) {
@@ -385,12 +394,19 @@ export class Client extends EventEmitter {
     const connectionData = this.getConnectionData();
 
     const startingDelay = this.getStartingDelay(connectionData, maxDelay);
+
     const delayFirstAttempt = this.hasMadeInitialAttempt;
     this.hasMadeInitialAttempt = true;
+
+    if (connectionData.currentDelayMs) {
+      this.logger.debug('streamingClient.connect was called, but backoff is remembered',
+        { currentDelayMs: connectionData.currentDelayMs, delayingThisAttempt: delayFirstAttempt, clientId: this.logger.clientId, appName: this.config.appName });
+    }
 
     try {
       await backOff(
         async () => {
+
           const connectionData = this.getConnectionData();
           await this.makeConnectionAttempt();
           if (connectionData.nextDelayReductionTime) {
@@ -508,8 +524,9 @@ export class Client extends EventEmitter {
       }
     }
 
+    const connectionData = this.increaseBackoff();
     this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
-    this.increaseBackoff();
+    this.logger.debug('debug: retry info', { expectedRetryInMs: connectionData.currentDelayMs, appName: this.config.appName, clientId: this.logger.clientId });
     return true;
   }
 
