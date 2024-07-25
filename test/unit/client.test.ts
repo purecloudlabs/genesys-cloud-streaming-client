@@ -118,9 +118,22 @@ describe('getConnectionData', () => {
   });
 
   it('should return default on parse error', () => {
-    window.sessionStorage.setItem('sc_connectionData', '{"lsdkn":');
+    window.sessionStorage.setItem('sc_connectionData_123', '{"lsdkn":');
+
+    (client.logger as any)['clientId'] = '123'
+    const warnSpy = client.logger.warn = jest.fn();
 
     expect(client['getConnectionData']()).toEqual({ currentDelayMs: 0 } as SCConnectionData);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('failed to parse'));
+  });
+
+  it('should get data based on app name', () => {
+    window.sessionStorage.setItem('sc_connectionData_myApp', '{"currentDelayMs": 44}');
+
+    (client.logger as any)['clientId'] = '123';
+    client.config.appName = 'myApp';
+
+    expect(client['getConnectionData']()).toEqual({ currentDelayMs: 44 } as SCConnectionData);
   });
 });
 
@@ -142,13 +155,13 @@ describe('increaseBackoff', () => {
     });
 
     client['increaseBackoff']();
-    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 2000 }));
-
-    client['increaseBackoff']();
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 4000 }));
 
     client['increaseBackoff']();
     expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 8000 }));
+
+    client['increaseBackoff']();
+    expect(spy).toHaveBeenCalledWith(expect.objectContaining({ currentDelayMs: 16000 }));
   });
 });
 
