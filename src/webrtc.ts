@@ -106,10 +106,12 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     );
 
     this.client.on('jingle:outgoing', (session: JingleSession) => {
+      this.logger.info('Emitting jingle media-session (session-init)', session);
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
     this.client.on('jingle:incoming', (session: JingleSession) => {
+      this.logger.info('Emitting jingle media-session (session-init)', session);
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
@@ -732,9 +734,9 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     session.accepted = true;
 
     const details = this.getLogDetailsForPendingSessionId(sessionId);
-    this.logger.info('sending jingle proceed', details);
+    this.logger.info('sending jingle session-accept', details);
     await this.stanzaInstance!.send('message', proceed); // send as Message
-    this.logger.info('sent jingle proceed', details);
+    this.logger.info('sent jingle session-accept', details);
   }
 
   async rejectRtcSession (sessionId: string, ignore = false): Promise<void> {
