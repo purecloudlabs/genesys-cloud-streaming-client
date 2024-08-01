@@ -264,6 +264,7 @@ export class GenesysCloudMediaSession {
     if (this.peerConnection) {
       this.peerConnection.close();
     }
+    this.logger.info('emitting sdp media-session (terminate)');
     this.emit('terminated', { condition: reason || 'success' });
   }
 
@@ -324,6 +325,7 @@ export class GenesysCloudMediaSession {
       sessionId: this.id
     };
 
+    this.logger.info('sending jingle session-accept', params);
     return this.sendGenesysWebrtc({
       jsonrpc: '2.0',
       method: 'answer',
