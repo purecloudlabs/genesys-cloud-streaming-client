@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.3...HEAD)
+* [STREAM-146](https://inindca.atlassian.net/browse/STREAM-146) - Update logging for new JSON-RPC commands.
+
 # [v17.2.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.2...v17.2.3)
 ### Fixed
 * [STREAM-134](https://inindca.atlassian.net/browse/STREAM-134) Isolate streaming client backoff delays by app name
