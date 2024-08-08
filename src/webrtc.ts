@@ -460,6 +460,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   async sendStats () {
+    if (!navigator.onLine) {
+      return;
+    }
+
     const statsToSend: InsightActionDetails<any>[] = [];
     let currentSize = 0;
 
