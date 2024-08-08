@@ -1582,17 +1582,51 @@ describe('sendStats', () => {
     expect(logSpy).toHaveBeenCalled();
   });
 
-  it('should re-add failed stats if offline', async () => {
+  it('should not try to send stats if browser is offline', async () => {
+    const client = new Client({ authToken: '123' });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const sendSpy = jest.spyOn(client.http, 'requestApi');
+
+    isOnline = false;
+
+    expect(webrtc['statsArr'].length).toBe(0);
+    webrtc['statsArr'].push({} as any);
+    expect(webrtc['statsArr'].length).toBe(1);
+
+    await webrtc.sendStats();
+    expect(sendSpy).not.toHaveBeenCalled();
+    expect(webrtc['statsArr'].length).toBe(1);
+  });
+
+  it('should re-add failed stats if the failure is due to the browser being offline', async () => {
     const client = new Client({ authToken: '123' });
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
       const err: any = new Error('error');
       err.response = undefined;
+      isOnline = false;
       throw err;
     });
 
-    isOnline = false;
+    expect(webrtc['statsArr'].length).toBe(0);
+    webrtc['statsArr'].push({} as any);
+    expect(webrtc['statsArr'].length).toBe(1);
+
+    await webrtc.sendStats();
+    expect(sendSpy).toHaveBeenCalled();
+    expect(webrtc['statsArr'].length).toBe(1);
+  });
+
+  it('should re-add failed stats if status code is considered retryable', async () => {
+    const client = new Client({ authtoken: '123' });
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    const sendSpy = jest.spyOn(client.http, 'requestApi').mockImplementation(() => {
+      const err: any = new Error('error');
+      err.response = { status: 429 };
+      throw err;
+    });
 
     expect(webrtc['statsArr'].length).toBe(0);
     webrtc['statsArr'].push({} as any);
@@ -2121,7 +2155,7 @@ describe('addStatToQueue', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.config.optOutOfWebrtcStatsTelemetry = true;
 
-    const spy1 = webrtc.flushStats = jest.fn();
+    const spy1 = webrtc.sendStatsImmediately = jest.fn();
     const spy2 = webrtc['throttledSendStats'] = jest.fn();
 
     const myObj = {} as any;

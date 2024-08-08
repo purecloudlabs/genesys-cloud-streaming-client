@@ -651,7 +651,7 @@ export class Client extends EventEmitter {
   stopServerLogging () {
     /* flush all pending logs and webrtc stats – then turn off the logger */
     this.logger.sendAllLogsInstantly();
-    this._webrtcSessions.flushStats();
+    this._webrtcSessions.sendStatsImmediately();
     this.logger.stopServerLogging();
   }
 
