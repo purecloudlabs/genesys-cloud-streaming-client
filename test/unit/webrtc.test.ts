@@ -2121,7 +2121,7 @@ describe('addStatToQueue', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     webrtc.config.optOutOfWebrtcStatsTelemetry = true;
 
-    const spy1 = webrtc.flushStats = jest.fn();
+    const spy1 = webrtc.sendStatsImmediately = jest.fn();
     const spy2 = webrtc['throttledSendStats'] = jest.fn();
 
     const myObj = {} as any;

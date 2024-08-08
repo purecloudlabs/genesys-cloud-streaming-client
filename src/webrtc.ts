@@ -433,7 +433,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     // If it exceeds max size, don't append just send current payload.
     if (exceedsMaxStatSize) {
-      this.flushStats();
+      this.sendStatsImmediately();
     } else {
       this.throttledSendStats();
     }
@@ -453,7 +453,9 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     return logDetails;
   }
 
-  flushStats () {
+  sendStatsImmediately () {
+    // `throttledSendStats` needs to have a scheduled exeuction for `flush` to invoke the throttled function
+    this.throttledSendStats();
     this.throttledSendStats.flush();
   }
 
