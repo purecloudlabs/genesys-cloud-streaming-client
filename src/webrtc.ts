@@ -105,13 +105,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       { leading: false, trailing: true }
     );
 
-    this.client.on('jingle:outgoing', (session: JingleSession) => {
-      this.logger.info('Emitting jingle:outgoing media-session (session-init)', session);
+    this.client.on('jingle:outgoing', (session: StanzaMediaSession) => {
+      this.logger.info('Emitting jingle:outgoing media-session (session-init)', { ...this.client._getAppInfoLoggerParams(), sessionId: session.id, sessionType: session.sessionType });
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
-    this.client.on('jingle:incoming', (session: JingleSession) => {
-      this.logger.info('Emitting jingle:incoming media-session (session-init)', session);
+    this.client.on('jingle:incoming', (session: StanzaMediaSession) => {
+      this.logger.info('Emitting jingle:incoming media-session (session-init)', { ...this.client._getAppInfoLoggerParams(), sessionId: session.id, sessionType: session.sessionType });
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
@@ -265,7 +265,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.webrtcSessions.push(session);
-    this.logger.info('emitting sdp media-session (offer');
+    this.logger.info('emitting sdp media-session (offer)', { ...this.client._getAppInfoLoggerParams(), sessionId: session.id, sessionType: session.sessionType });
     return this.emit(events.INCOMING_RTCSESSION, session);
   }
 
@@ -574,7 +574,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const isDuplicatePropose = !!sessionInfo;
 
     const sessionType = this.getSessionTypeByJid(msg.from);
-    const loggingParams = { sessionId: sessionId, conversationId: msg.propose.conversationId, sessionType, isDuplicatePropose };
+    const loggingParams = { ...this.client._getAppInfoLoggerParams(), ...this.client._getStanzaConnectionInfo(), sessionId: sessionId, conversationId: msg.propose.conversationId, sessionType, isDuplicatePropose };
     this.logger.info('propose received', loggingParams);
 
     if (!isDuplicatePropose) {
@@ -625,7 +625,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   private handleRetract (sessionId: string) {
-    this.logger.info('retract received', this.getLogDetailsForPendingSessionId(sessionId));
+    this.logger.info('retract received', { ...this.getLogDetailsForPendingSessionId(sessionId), ...this.client._getAppInfoLoggerParams(), ...this.client._getStanzaConnectionInfo() });
     delete this.pendingSessions[sessionId];
     return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
   }
@@ -734,14 +734,14 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     session.accepted = true;
 
-    const details = this.getLogDetailsForPendingSessionId(sessionId);
+    const details = { ...this.getLogDetailsForPendingSessionId(sessionId), ...this.client._getAppInfoLoggerParams(), ...this.client._getStanzaConnectionInfo() };
     this.logger.info('sending jingle proceed', details);
     await this.stanzaInstance!.send('message', proceed); // send as Message
     this.logger.info('sent jingle proceed', details);
   }
 
   async rejectRtcSession (sessionId: string, ignore = false): Promise<void> {
-    const logDetails = this.getLogDetailsForPendingSessionId(sessionId);
+    const logDetails = { ...this.getLogDetailsForPendingSessionId(sessionId), ...this.client._getAppInfoLoggerParams(), ...this.client._getStanzaConnectionInfo() };
     const session = this.pendingSessions[sessionId];
 
     if (!session) {
@@ -779,7 +779,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   async rtcSessionAccepted (sessionId: string): Promise<void> {
     const pendingSession = this.pendingSessions[sessionId];
-    const logDetails = this.getLogDetailsForPendingSessionId(sessionId);
+    const logDetails = { ...this.getLogDetailsForPendingSessionId(sessionId), ...this.client._getAppInfoLoggerParams(), ...this.client._getStanzaConnectionInfo() };
 
     const accept = {
       to: toBare(this.jid),

@@ -55,7 +55,7 @@ export class ConnectionManager {
 
       stanza.updateConfig(options);
       stanza.connect();
-    }, 15 * 1000, 'connecting to streaming service', { channelId, stanzaInstanceId: stanza.id });
+    }, 15 * 1000, 'connecting to streaming service', { ...this.getAppInfoLoggerParams(), channelId, stanzaInstanceId: stanza.id });
 
     connectionAttemptPromise.catch(() => stanza.disconnect());
 
@@ -68,7 +68,7 @@ export class ConnectionManager {
   }
 
   private handleSessionStarted (stanza: NamedAgent, resolve: (instance: NamedAgent) => void): void {
-    this.logger.info('new stanza instance connected', { stanzaInstanceId: stanza.id, channelId: stanza.channelId });
+    this.logger.info('new stanza instance connected', { ...this.getAppInfoLoggerParams(), stanzaInstanceId: stanza.id, channelId: stanza.channelId });
     resolve(stanza);
   }
 
@@ -79,7 +79,7 @@ export class ConnectionManager {
   }
 
   private handleSessionDisconnected (stanza: NamedAgent, reject: () => void): void {
-    this.logger.error('stanza disconnected', { stanzaInstanceId: stanza.id, channelId: stanza.channelId });
+    this.logger.error('stanza disconnected', { ...this.getAppInfoLoggerParams(), stanzaInstanceId: stanza.id, channelId: stanza.channelId });
     reject();
   }
 
@@ -129,6 +129,15 @@ export class ConnectionManager {
       transports: {
         websocket: `${wsHost}/stream/channels/${config.channelId}`
       }
+    };
+  }
+
+  private getAppInfoLoggerParams () {
+    return {
+      appId: this.logger.clientId,
+      originAppName: this.config.appName || 'unknown',
+      originAppVersion: this.config.appVersion || 'unknown',
+      originAppId: this.config.appId || 'unknown',
     };
   }
 }

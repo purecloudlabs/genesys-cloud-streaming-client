@@ -108,7 +108,8 @@ export class Client extends EventEmitter {
       initializeServerLogging: !this.isGuest && !options.optOutOfWebrtcStatsTelemetry,
       /* streaming-client logging info */
       appVersion: Client.version,
-      appName: 'streaming-client',
+      /* istanbul ignore next */
+      appName: (options.appName ? `${options.appName}:` : '') + 'streaming-client',
       logLevel: this.config.logLevel || 'info',
       logger: options.logger || console,
       formatters: options.logFormatters,
@@ -143,6 +144,26 @@ export class Client extends EventEmitter {
       this[extensionName] = extension.expose;
       this[`_${extensionName}`] = extension;
     });
+
+    this.logger.info('streaming-client instantiated', this._getAppInfoLoggerParams());
+  }
+
+  _getAppInfoLoggerParams () {
+    return {
+      appId: this.logger.clientId,
+      originAppName: this.config.appName || 'unknown',
+      originAppVersion: this.config.appVersion || 'unknown',
+      originAppId: this.config.appId || 'unknown',
+      version: this.version,
+    };
+  }
+
+  /* istanbul ignore next */
+  _getStanzaConnectionInfo () {
+    return {
+      stanzaInstancaId: this.activeStanzaInstance?.id,
+      channelId: this.activeStanzaInstance?.channelId
+    };
   }
 
   private handleSendEventFromExtension (extension: StreamingClientExtension, data: any, message = false) {
@@ -234,7 +255,7 @@ export class Client extends EventEmitter {
   }
 
   private async handleStanzaDisconnectedEvent (disconnectedInstance: NamedAgent): Promise<any> {
-    this.logger.info('stanzaDisconnected event received', { stanzaInstanceId: disconnectedInstance.id, channelId: disconnectedInstance.channelId });
+    this.logger.info('stanzaDisconnected event received', { ...this._getAppInfoLoggerParams(), stanzaInstanceId: disconnectedInstance.id, channelId: disconnectedInstance.channelId });
     this.connected = false;
     this.connecting = false;
     disconnectedInstance.pinger?.stop();
@@ -258,7 +279,7 @@ export class Client extends EventEmitter {
   }
 
   private handleNoLongerSubscribed (stanzaInstance: NamedAgent) {
-    this.logger.warn('noLongerSubscribed event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+    this.logger.warn('noLongerSubscribed event received', { ...this._getAppInfoLoggerParams(), stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
     stanzaInstance.pinger?.stop();
     stanzaInstance.serverMonitor?.stop();
 
@@ -278,7 +299,7 @@ export class Client extends EventEmitter {
   }
 
   async disconnect () {
-    this.logger.info('streamingClient.disconnect was called');
+    this.logger.info('streamingClient.disconnect was called', { ...this._getAppInfoLoggerParams() });
 
     if (!this.activeStanzaInstance) {
       return;
@@ -357,7 +378,7 @@ export class Client extends EventEmitter {
     this.setConnectionData(newConnectionData);
 
     clearTimeout(this.backoffReductionTimer);
-    this.logger.debug('Setting timer for next backoff reduction since we haven\'t reached total reset', { msUntilReduction: msUntilNextReduction, delayMsAfterNextReduction: newConnectionData.delayMsAfterNextReduction });
+    this.logger.debug('Setting timer for next backoff reduction since we haven\'t reached total reset', { ...this._getAppInfoLoggerParams(), msUntilReduction: msUntilNextReduction, delayMsAfterNextReduction: newConnectionData.delayMsAfterNextReduction });
     this.backoffReductionTimer = setTimeout(() => this.decreaseBackoff(newConnectionData.delayMsAfterNextReduction!), msUntilNextReduction);
   }
 
@@ -448,7 +469,7 @@ export class Client extends EventEmitter {
         };
       }
 
-      this.logger.error('Failed to connect streaming client', { error });
+      this.logger.error('Failed to connect streaming client', { ...this._getAppInfoLoggerParams(), error });
       if (!err) {
         throw error;
       }
@@ -484,7 +505,7 @@ export class Client extends EventEmitter {
       additionalErrorDetails.error = sanitizedError;
 
       if ([401, 403].includes(err.response?.status || 0)) {
-        this.logger.error('Streaming client received an error that it can\'t recover from and will not attempt to reconnect', additionalErrorDetails);
+        this.logger.error('Streaming client received an error that it can\'t recover from and will not attempt to reconnect', { ...additionalErrorDetails, ...this._getAppInfoLoggerParams() });
         return false;
       }
     }
@@ -494,7 +515,7 @@ export class Client extends EventEmitter {
     if (err instanceof SaslError) {
       this.logger.info('hardReconnectRequired set to true due to sasl error');
       this.hardReconnectRequired = true;
-      Object.assign(additionalErrorDetails, { channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
+      Object.assign(additionalErrorDetails, { ...this._getAppInfoLoggerParams(), channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
     }
 
     // we don't need to log the stack for a timeout message
@@ -525,7 +546,7 @@ export class Client extends EventEmitter {
     }
 
     const connectionData = this.increaseBackoff();
-    this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+    this.logger.error('Failed streaming client connection attempt, retrying', { ...additionalErrorDetails, ...this._getAppInfoLoggerParams() }, { skipServer: err instanceof OfflineError });
     this.logger.debug('debug: retry info', { expectedRetryInMs: connectionData.currentDelayMs, appName: this.config.appName, clientId: this.logger.clientId });
     return true;
   }
@@ -562,7 +583,7 @@ export class Client extends EventEmitter {
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {
-        this.logger.error('Error occurred in connection attempt, but after websocket connected. Cleaning up connection so backoff is respected', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+        this.logger.error('Error occurred in connection attempt, but after websocket connected. Cleaning up connection so backoff is respected', { ...this._getAppInfoLoggerParams(), stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
         this.removeStanzaBoundEventHandlers();
 
         stanzaInstance.pinger?.stop();
@@ -579,7 +600,7 @@ export class Client extends EventEmitter {
   private async setupConnectionMonitoring (stanzaInstance: NamedAgent) {
     const setupClientPinger = (message: string) => {
       const logMessage = `${message}, falling back to client-side pinging`;
-      this.logger.warn(logMessage, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+      this.logger.warn(logMessage, { ...this._getAppInfoLoggerParams(), stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
       stanzaInstance.pinger = new Ping(this, stanzaInstance);
     };
 
@@ -587,6 +608,7 @@ export class Client extends EventEmitter {
       try {
         // if this fails, then hawk doesn't support serverside pinging and we need to do client side pings
         await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');
+        this.logger.info('using server-side pinging', { ...this._getAppInfoLoggerParams() });
         stanzaInstance.serverMonitor = new ServerMonitor(this, stanzaInstance);
       } catch (err) {
         setupClientPinger('failed to establish server-side pinging');
@@ -642,7 +664,7 @@ export class Client extends EventEmitter {
       this.config.jid = jid;
       this.config.channelId = channelId;
       this.autoReconnect = true;
-      this.logger.info('attempting to connect streaming client on channel', { channelId });
+      this.logger.info('attempting to connect streaming client on channel', { ...this._getAppInfoLoggerParams(), channelId });
       this.connectionManager.setConfig(this.config);
       this.hardReconnectRequired = false;
     }

@@ -29,6 +29,8 @@ function getFakeStanzaClient (): NamedAgent {
   return Object.assign(
     instance,
     {
+      _getAppInfoLoggerParams: () => ({}),
+      _getStanzaConnectionInfo: () => ({}),
       config: {},
       id: v4(),
       getServices: jest.fn(),
@@ -54,6 +56,9 @@ class Client extends EventEmitter {
     warn () { },
     error () { }
   };
+
+  _getAppInfoLoggerParams () { return {} };
+  _getStanzaConnectionInfo () { return {} };
 
   _stanzaio: Agent;
   http: HttpClient;

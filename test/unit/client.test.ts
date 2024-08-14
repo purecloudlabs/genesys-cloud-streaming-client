@@ -80,6 +80,12 @@ describe('constructor', () => {
     expect(typeof client.connect).toBe('function');
     expect(client.notifications).toBeTruthy();
   });
+  it('client creation', () => {
+    const client = new Client({...getDefaultOptions() as any, appName: 'test'});
+    expect(typeof client.on).toBe('function');
+    expect(typeof client.connect).toBe('function');
+    expect(client.notifications).toBeTruthy();
+  });
 
   it('logger should get the backgroundassistant url', () => {
     const loggerMock: jest.Mock<Logger> = Logger as any;
@@ -355,7 +361,7 @@ describe('connect', () => {
     const errorSpy = jest.spyOn(client.logger, 'error');
 
     await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
-    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
+    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', expect.objectContaining({
       error: {
         config: {
           url: undefined,
@@ -366,7 +372,7 @@ describe('connect', () => {
         name: error.name,
         message: error.message
       }
-    });
+    }));
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
   });
 
@@ -394,7 +400,7 @@ describe('connect', () => {
     const errorSpy = jest.spyOn(client.logger, 'error');
 
     await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
-    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
+    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', expect.objectContaining({
       error: {
         config: {
           url: error.config!.url,
@@ -405,7 +411,7 @@ describe('connect', () => {
         name: error.name,
         message: error.message
       }
-    });
+    }));
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
   });
   
@@ -420,7 +426,7 @@ describe('connect', () => {
     const errorSpy = jest.spyOn(client.logger, 'error');
 
     await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
-    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
+    expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', expect.objectContaining({
       error: {
         config: {
           url: error.config!.url,
@@ -431,7 +437,7 @@ describe('connect', () => {
         name: error.name,
         message: error.message
       }
-    });
+    }));
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
   });
 });
