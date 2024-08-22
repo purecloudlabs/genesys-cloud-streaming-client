@@ -51,7 +51,7 @@
   "author": "",
   "dependencies": {
     "@babel/runtime-corejs3": "^7.10.4",
-    "axios": "^1.6.5",
+    "axios": "^1.7.4",
     "backoff-web": "^1.0.1",
     "browserama": "^3.2.0",
     "core-js": "^3.6.5",
