@@ -374,11 +374,6 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: IMediaSession) {
     session.on('stats', (statsEvent: StatsEvent) => {
-      /* if our logger was stopped, we need to stop stats logging too */
-      if (this.client.logger['stopReason']) {
-        return;
-      }
-
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
         conversationId: (session as any).conversationId,
