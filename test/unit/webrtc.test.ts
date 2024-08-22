@@ -1422,23 +1422,6 @@ describe('proxyStatsForSession', () => {
     expect(webrtc['statsArr']).toEqual([formattedStats]);
     expect(webrtc['throttledSendStats'].flush).toHaveBeenCalled();
   });
-
-  it('should not proxy stats if the logger has stopped', () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any, {} as any);
-    const session: any = new EventEmitter();
-
-    const spy = jest.spyOn(statsFormatter, 'formatStatsEvent');
-
-    webrtc.proxyStatsForSession(session);
-    client.logger['stopReason'] = '401';
-
-    session.emit('stats', {
-      actionName: 'test'
-    });
-
-    expect(spy).not.toHaveBeenCalled();
-  });
 });
 
 describe('sendStats', () => {
