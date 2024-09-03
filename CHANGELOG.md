@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.4...HEAD)
+### Changed
+* [NO-JIRA] - Bump stats-gatherer and client-logger to pick up fixes
 
 # [v17.2.4](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.3...v17.2.4)
 ### Fixed
