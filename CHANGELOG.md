@@ -4,7 +4,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.3...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.4...HEAD)
+
+# [v17.2.4](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.3...v17.2.4)
+### Fixed
+* [STREAM-69](https://inindca.atlassian.net/browse/STREAM-69) - Don't send stats when offline and start sending stats again when online.
+
+### Changed
+* [STREAM-146](https://inindca.atlassian.net/browse/STREAM-146) - Update logging for new JSON-RPC commands.
+* [STREAM-172](https://inindca.atlassian.net/browse/STREAM-172) - Update axios to address Snyk vulnerability
+* [STREAM-153](https://inindca.atlassian.net/browse/STREAM-153) - Don't stop sending stats when stopping server logging.
+
 # [v17.2.3](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.2...v17.2.3)
 ### Fixed
 * [STREAM-134](https://inindca.atlassian.net/browse/STREAM-134) Isolate streaming client backoff delays by app name

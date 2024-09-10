@@ -106,10 +106,12 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     );
 
     this.client.on('jingle:outgoing', (session: JingleSession) => {
+      this.logger.info('Emitting jingle:outgoing media-session (session-init)', session);
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
     this.client.on('jingle:incoming', (session: JingleSession) => {
+      this.logger.info('Emitting jingle:incoming media-session (session-init)', session);
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
@@ -263,6 +265,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.webrtcSessions.push(session);
+    this.logger.info('emitting sdp media-session (offer');
     return this.emit(events.INCOMING_RTCSESSION, session);
   }
 
@@ -371,11 +374,6 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   // This should be moved when the sdk is the primary consumer
   proxyStatsForSession (session: IMediaSession) {
     session.on('stats', (statsEvent: StatsEvent) => {
-      /* if our logger was stopped, we need to stop stats logging too */
-      if (this.client.logger['stopReason']) {
-        return;
-      }
-
       const statsCopy = JSON.parse(JSON.stringify(statsEvent));
       const extraDetails = {
         conversationId: (session as any).conversationId,
@@ -430,7 +428,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     // If it exceeds max size, don't append just send current payload.
     if (exceedsMaxStatSize) {
-      this.flushStats();
+      this.sendStatsImmediately();
     } else {
       this.throttledSendStats();
     }
@@ -450,11 +448,17 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     return logDetails;
   }
 
-  flushStats () {
+  sendStatsImmediately () {
+    // `throttledSendStats` needs to have a scheduled exeuction for `flush` to invoke the throttled function
+    this.throttledSendStats();
     this.throttledSendStats.flush();
   }
 
   async sendStats () {
+    if (!navigator.onLine) {
+      return;
+    }
+
     const statsToSend: InsightActionDetails<any>[] = [];
     let currentSize = 0;
 

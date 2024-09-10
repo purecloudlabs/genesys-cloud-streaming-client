@@ -153,6 +153,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
     }
 
     if (!silent) {
+      this._log('info', 'sending jingle session-terminate');
       this.send('session-terminate', { reason });
     }
 

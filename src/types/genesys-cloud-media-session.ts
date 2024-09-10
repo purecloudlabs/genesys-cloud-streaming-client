@@ -116,7 +116,10 @@ export class GenesysCloudMediaSession {
 
     if (!silent) {
       await timeoutPromise(
-        (resolve: (params: any) => any, reject: (params: any) => any) => this.sendGenesysWebrtc({ jsonrpc: '2.0', method: 'terminate', params }).then(resolve, reject),
+        (resolve: (params: any) => any, reject: (params: any) => any) => {
+          this.log('info', 'sending sdp terminate');
+          this.sendGenesysWebrtc({ jsonrpc: '2.0', method: 'terminate', params }).then(resolve, reject);
+        },
         2000,
         'Timeout waiting for response to termination request',
         { sessionId: this.id, conversationId: this.conversationId, sessionType: this.sessionType }
@@ -264,6 +267,7 @@ export class GenesysCloudMediaSession {
     if (this.peerConnection) {
       this.peerConnection.close();
     }
+    this.logger.info('emitting sdp media-session (terminate)');
     this.emit('terminated', { condition: reason || 'success' });
   }
 
@@ -324,6 +328,7 @@ export class GenesysCloudMediaSession {
       sessionId: this.id
     };
 
+    this.logger.info('sending sdp answer', params);
     return this.sendGenesysWebrtc({
       jsonrpc: '2.0',
       method: 'answer',
