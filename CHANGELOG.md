@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [NO-JIRA] - Bump stats-gatherer and client-logger to pick up fixes
 
+### Fixed
+* [STREAM-178](https://inindca.atlassian.net/browse/STREAM-178) - Clean up session with dead peerConnections on them after system wake.
+
 # [v17.2.4](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.3...v17.2.4)
 ### Fixed
 * [STREAM-69](https://inindca.atlassian.net/browse/STREAM-69) - Don't send stats when offline and start sending stats again when online.

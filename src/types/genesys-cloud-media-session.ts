@@ -21,6 +21,7 @@ export class GenesysCloudMediaSession {
   private iceCandidatesReceivedFromPeer = 0;
   private interruptionStart?: Date;
   private logger: Logger;
+  private stateSyncTimeout?: any;
 
   conversationId: string;
   id: string;
@@ -69,6 +70,39 @@ export class GenesysCloudMediaSession {
     this.peerConnection.addEventListener('iceconnectionstatechange', this.onIceStateChange.bind(this));
     this.peerConnection.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
     this.peerConnection.addEventListener('icecandidateerror', this.onIceCandidateError.bind(this));
+      // sync the session state after a silent disconnect, like putting the system to sleep.
+  }
+
+  private keepStateInSyncWithPeerConnection () {
+    if (this.stateSyncTimeout) {
+      clearTimeout(this.stateSyncTimeout);
+      this.stateSyncTimeout = undefined;
+    }
+
+    const lastTime = Date.now();
+
+    const checkInterval = 2000;
+    const threshold = 2000;
+
+    this.stateSyncTimeout = setTimeout(() => {
+      const currentTime = Date.now();
+      const timeDiff = currentTime - lastTime;
+
+      if (timeDiff > checkInterval + threshold) {
+        this.log('warn', 'MediaSession detected timer anomally. Reasons include taxed resources or system sleep.');
+
+        // if we have a state mismatch
+        if (this.state !== 'ended' && ['failed', 'closed'].includes(this.peerConnection.connectionState)) {
+          this.log('warn', 'state mismatch between session.state and peerConnection.connectionState, manually terminating the session', { sessionId: this.id, conversationId: this.conversationId, sessionType: this.sessionType });
+          this.state = 'ended';
+          this.onSessionTerminate();
+        }
+      }
+
+      if (this.state !== 'ended') {
+        this.keepStateInSyncWithPeerConnection();
+      }
+    }, checkInterval);
   }
 
   async setRemoteDescription (sdp: string): Promise<void> {
@@ -177,6 +211,9 @@ export class GenesysCloudMediaSession {
     const conversationId = this.conversationId;
     const sessionType = this.sessionType;
 
+    if (connectionState === 'connected') {
+      this.keepStateInSyncWithPeerConnection();
+    }
     this.log('info', 'Connection state changed: ', { connectionState, sessionId, conversationId, sessionType });
     if (this.interruptionStart) {
       if (connectionState === 'connected') {
@@ -184,7 +221,9 @@ export class GenesysCloudMediaSession {
         this.log('info', 'Connection was interrupted but was successfully recovered/connected', { sessionId, conversationId, sessionType, timeToRecover: diff });
         this.interruptionStart = undefined;
       } else if (connectionState === 'failed') {
-        this.log('info', 'Connection was interrupted and failed to recover', { sessionId, conversationId, sessionType });
+        this.log('info', 'Connection was interrupted and failed to recover, cleaning up', { sessionId, conversationId, sessionType });
+        this.state = 'ended';
+        this.onSessionTerminate();
       }
     }
   }
