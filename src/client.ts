@@ -490,11 +490,19 @@ export class Client extends EventEmitter {
     }
 
     // if we get a sasl error, that means we made it all the way to the point of trying to open a websocket and
-    // it was rejected for some reason. At this point we should do a hard reconnect then try again.
+    // it was rejected for some reason. Some errors need re-authentication to solve. Others might resolve if we
+    // try connecting again.
     if (err instanceof SaslError) {
-      this.logger.info('hardReconnectRequired set to true due to sasl error');
-      this.hardReconnectRequired = true;
-      Object.assign(additionalErrorDetails, { channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
+      const retryConditions: SASLFailureCondition[] = ['encryption-required', 'incorrect-encoding', 'invalid-mechanism', 'malformed-request', 'mechanism-too-weak'];
+      if (retryConditions.includes(err.condition)) {
+        this.logger.info('hardReconnectRequired set to true due to sasl error');
+        this.hardReconnectRequired = true;
+        Object.assign(additionalErrorDetails, { channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
+      } else {
+        additionalErrorDetails.error = err.condition;
+        this.logger.error('Streaming-client received a SASL error that it can\'t recover from and will not attempt to reconnect', additionalErrorDetails);
+        return false;
+      }
     }
 
     // we don't need to log the stack for a timeout message
