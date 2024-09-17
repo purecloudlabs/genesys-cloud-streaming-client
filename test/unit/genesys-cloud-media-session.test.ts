@@ -660,3 +660,90 @@ describe('setRemoteDescription()', () => {
     expect(spy).toHaveBeenCalledWith({ sdp: 'here', type: 'offer' });
   });
 });
+
+describe('keepStateInSyncWithPeerConnection', () => {
+  let session;
+
+  beforeEach(() => {
+    // Create an session of the class containing keepStateInSyncWithPeerConnection
+    session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+
+    // Mock state, peerConnection, log, and onSessionTerminate
+    session.state = 'active';
+    session.peerConnection = {
+      connectionState: 'connected',
+    };
+    session.log = jest.fn();
+    session.onSessionTerminate = jest.fn();
+
+    // Mock time-related functions
+    jest.useFakeTimers();
+    jest.spyOn(global.Date, 'now').mockReturnValue(10000);
+
+    // Ensure the timeout is cleared between tests
+    session.stateSyncTimeout = undefined;
+  });
+
+  afterEach(() => {
+    jest.clearAllTimers();
+    jest.clearAllMocks();
+  });
+
+  it('should clear the existing timeout if stateSyncTimeout is defined', () => {
+    const initialTimer = session.stateSyncTimeout = setTimeout(() => {}, 1000); // Set a dummy timeout
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+
+    session.keepStateInSyncWithPeerConnection();
+
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(initialTimer);
+    expect(session.stateSyncTimeout).toBeDefined();
+  });
+
+  it('should set a new timeout when no mismatch or sleep is detected', () => {
+    const spy = jest.spyOn(session, 'keepStateInSyncWithPeerConnection');
+
+    session.keepStateInSyncWithPeerConnection();
+
+    expect(session.stateSyncTimeout).toBeDefined();
+    jest.advanceTimersByTime(2000); // Simulate the timeout interval
+
+    expect(session.log).not.toHaveBeenCalled();
+    expect(session.onSessionTerminate).not.toHaveBeenCalled();
+    expect(spy).toBeCalledTimes(2); // Recursively called
+  });
+
+  it('should detect a time anomaly and log a warning', () => {
+    jest.spyOn(Date, 'now')
+      .mockReturnValueOnce(10000)  // Initial time
+      .mockReturnValueOnce(15000); // After a simulated delay
+
+    session.keepStateInSyncWithPeerConnection();
+    jest.advanceTimersByTime(2000); // Move time forward by 2000ms
+
+    expect(session.log).toHaveBeenCalledWith('warn', expect.stringContaining('MediaSession detected timer anomally'));
+  });
+
+  it('should detect a state mismatch and manually terminate the session', () => {
+    // Set peerConnection connectionState to a mismatching state
+    session.peerConnection.connectionState = 'failed';
+
+    jest.spyOn(Date, 'now')
+      .mockReturnValueOnce(10000)  // Initial time
+      .mockReturnValueOnce(15000); // After a simulated delay
+
+    session.keepStateInSyncWithPeerConnection();
+    jest.advanceTimersByTime(2000); // Move time forward by 2000ms
+
+    expect(session.log).toHaveBeenCalledWith('warn', expect.stringContaining('state mismatch'), expect.anything());
+    expect(session.onSessionTerminate).toHaveBeenCalled();
+  });
+
+  it('should not terminate session if the state is ended', () => {
+    session.state = 'ended';
+
+    session.keepStateInSyncWithPeerConnection();
+    jest.advanceTimersByTime(2000);
+
+    expect(session.onSessionTerminate).not.toHaveBeenCalled();
+  });
+});
