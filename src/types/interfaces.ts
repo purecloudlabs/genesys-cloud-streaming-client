@@ -107,40 +107,9 @@ export interface IResponseError extends IError {
   url: string;
 }
 
-export class InvalidTokenError extends Error {
-  type: 'http' | 'sasl';
-  details: any;
-
-  constructor(type: 'http' | 'sasl', message: string, details?: any) {
-    super(message);
-
-    this.type = type;
-    this.details = details;
-  }
-}
-
 export enum StreamingClientErrorTypes {
   generic = 'generic',
   invalid_token = 'invalid_token'
-}
-
-export class StreamingClientError extends Error {
-  type: StreamingClientErrorTypes;
-  details: any;
-
-  constructor(type: StreamingClientErrorTypes | null, messageOrError: string | Error, details?: unknown) {
-    let message;
-    if (messageOrError instanceof Error) {
-      message = messageOrError.message;
-    } else {
-      message = messageOrError;
-    }
-
-    super(message);
-
-    this.type = type ?? StreamingClientErrorTypes.generic;
-    this.details = details;
-  }
 }
 
 export interface IError {
