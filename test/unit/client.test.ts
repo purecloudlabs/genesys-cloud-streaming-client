@@ -1,6 +1,5 @@
 import WildEmitter from 'wildemitter';
 import { TokenBucket } from 'limiter';
-import nock from 'nock';
 
 import { Client } from '../../src/client';
 import { Logger } from 'genesys-cloud-client-logger';
@@ -13,7 +12,7 @@ import { reject } from 'lodash';
 import EventEmitter from 'events';
 import { NamedAgent } from '../../src/types/named-agent';
 import { flushPromises } from '../helpers/testing-utils';
-import { SCConnectionData } from '../../src';
+import { SCConnectionData, StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Ping } from '../../src/ping';
 import { ServerMonitor } from '../../src/server-monitor';
 
@@ -328,15 +327,29 @@ describe('connect', () => {
     const error = new Error('fake error');
     connectionAttemptSpy.mockRejectedValue(error);
 
-    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
+    try {
+      await client.connect({ keepTryingOnFailure: true })
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
+    }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+    expect.assertions(4);
   });
 
   it('should handle undefined error', async () => {
     connectionAttemptSpy.mockRejectedValue(undefined);
 
-    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow('Streaming client connection attempted received and undefined error');
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBeFalsy();
+    }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+    expect.assertions(4);
   });
 
   it('should handle error with no config property', async () => {
@@ -354,7 +367,13 @@ describe('connect', () => {
 
     const errorSpy = jest.spyOn(client.logger, 'error');
 
-    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.invalid_token);
+    }
+
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
       error: {
         config: {
@@ -368,6 +387,8 @@ describe('connect', () => {
       }
     });
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+
+    expect.assertions(4);
   });
 
   it('should throw if connection attempt fails and retry handler returns false', async () => {
@@ -375,9 +396,16 @@ describe('connect', () => {
     connectionAttemptSpy.mockRejectedValue(error);
     backoffRetrySpy.mockReturnValue(false);
 
-    await expect(client.connect({ keepTryingOnFailure: true })).rejects.toThrow(error);
+    try {
+      await client.connect({ keepTryingOnFailure: true })
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
+    }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
     expect(backoffRetrySpy).toHaveBeenCalledTimes(1);
+    expect.assertions(5);
   });
 
   it('should massage AxiosError on failure', async () => {
@@ -393,7 +421,13 @@ describe('connect', () => {
 
     const errorSpy = jest.spyOn(client.logger, 'error');
 
-    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.invalid_token);
+    }
+
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
       error: {
         config: {
@@ -407,6 +441,8 @@ describe('connect', () => {
       }
     });
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+
+    expect.assertions(4);
   });
   
   it('should massage AxiosError (no response object) on failure', async () => {
@@ -419,7 +455,14 @@ describe('connect', () => {
 
     const errorSpy = jest.spyOn(client.logger, 'error');
 
-    await expect(client.connect({ keepTryingOnFailure: false })).rejects.toThrow(error);
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
+    }
+
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
       error: {
         config: {
@@ -433,6 +476,39 @@ describe('connect', () => {
       }
     });
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+
+    expect.assertions(5);
+  });
+
+  it('should throw an invalid_token error if SASL error is not one we deem to be retryable', async () => {
+    // Ref: https://www.rfc-editor.org/rfc/rfc6120.html#section-6.5
+    const error = new SaslError('not-authorized', 'channelId', 'instanceId');
+    connectionAttemptSpy.mockRejectedValue(error);
+
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.invalid_token);
+      expect(err['details']).toBe(error);
+    }
+    expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+    expect.assertions(4);
+  });
+
+  it('should throw a generic error if we deem a SASL error to be retryable', async () => {
+    const error = new SaslError('incorrect-encoding', 'channelId', 'instanceId');
+    connectionAttemptSpy.mockRejectedValue(error);
+
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
+    }
+    expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+    expect.assertions(4);
   });
 });
 
@@ -647,8 +723,19 @@ describe('backoffConnectRetryHandler', () => {
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
   });
 
-  it('should set hardReconnectRequired if SaslError', async () => {
+  it('should return false if SaslError will need re-authentication', async () => {
     const error = new SaslError('not-authorized', 'channelId', 'instanceId');
+    expect (await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
+  });
+
+  it('should return false if SaslError is unknown', async () => {
+    // Ref: https://www.rfc-editor.org/rfc/rfc6120.html#section-6.5
+    const error = new SaslError('new-unknown-error' as any, 'channelId', 'instanceId');
+    expect (await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
+  });
+
+  it('should set hardReconnectRequired if SaslError can\'t be solved with re-authenticating', async () => {
+    const error = new SaslError('incorrect-encoding', 'channelId', 'instanceId');
     client.hardReconnectRequired = false;
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(client.hardReconnectRequired).toBeTruthy();

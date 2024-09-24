@@ -7,6 +7,6 @@ export * from './types/media-session';
 export * from './types/interfaces';
 export * from './messenger';
 export { HttpClient } from './http-client';
-export { parseJwt } from './utils';
+export { StreamingClientError, parseJwt } from './utils';
 
 export default Client;
