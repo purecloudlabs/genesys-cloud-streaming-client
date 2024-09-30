@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.5...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.6...HEAD)
+
+# [v17.2.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.5..v17.2.6)
 ### Fixed
 * [STREAM-212](https://inindca.atlassian.net/browse/STREAM-212) - Log the session id rather than the whole session to prevent logging a large object
 
