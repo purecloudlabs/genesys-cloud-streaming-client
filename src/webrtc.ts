@@ -106,12 +106,12 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     );
 
     this.client.on('jingle:outgoing', (session: JingleSession) => {
-      this.logger.info('Emitting jingle:outgoing media-session (session-init)', session);
+      this.logger.info('Emitting jingle:outgoing media-session (session-init)', session.sid);
       return this.emit(events.OUTGOING_RTCSESSION, session);
     });
 
     this.client.on('jingle:incoming', (session: JingleSession) => {
-      this.logger.info('Emitting jingle:incoming media-session (session-init)', session);
+      this.logger.info('Emitting jingle:incoming media-session (session-init)', session.sid);
       return this.emit(events.INCOMING_RTCSESSION, session);
     });
 
