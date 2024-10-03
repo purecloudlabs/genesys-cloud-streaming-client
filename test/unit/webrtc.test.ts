@@ -1809,20 +1809,13 @@ describe('handleGenesysTerminate', () => {
 describe('handleGenesysIceCandidate', () => {
   let client: Client;
   let webrtc: WebrtcExtension;
+  let iq: IQ;
 
   beforeEach(() => {
     client = new Client({});
     webrtc = new WebrtcExtension(client as any, {} as any);
-  });
 
-  it('should call onSessionTerminate on the session', async () => {
-    const session = {
-      addRemoteIceCandidate: jest.fn()
-    };
-
-    webrtc['getSessionById'] = jest.fn().mockReturnValue(session);
-
-    const iq: IQ = {
+    iq = {
       type: 'set',
       genesysWebrtc: {
         jsonrpc: '2.0',
@@ -1833,9 +1826,34 @@ describe('handleGenesysIceCandidate', () => {
         } as GenesysWebrtcSdpParams
       }
     };
+  });
+
+  it('should call onSessionTerminate on the session', async () => {
+    const session = {
+      addRemoteIceCandidate: jest.fn()
+    };
+
+    webrtc['getSessionById'] = jest.fn().mockReturnValue(session);
 
     await webrtc['handleGenesysIceCandidate'](iq);
     expect(session.addRemoteIceCandidate).toHaveBeenCalledWith('my-candidate');
+  });
+
+  it('should add ICE candidate to earlyIceCandidates when session does not exist', async () => {
+    webrtc['getSessionById'] = jest.fn().mockReturnValue(undefined);
+
+    await webrtc['handleGenesysIceCandidate'](iq);
+
+    expect(webrtc['earlyIceCandidates'].get('session24')).toEqual(['my-candidate']);
+  });
+
+  it('should append ICE candidate to earlyIceCandidates when it already exists', async () => {
+    webrtc['getSessionById'] = jest.fn().mockReturnValue(undefined);
+    webrtc['earlyIceCandidates'].set('session24', ['existing-sdp']);
+
+    await webrtc['handleGenesysIceCandidate'](iq);
+
+    expect(webrtc['earlyIceCandidates'].get('session24')).toEqual(['existing-sdp', 'my-candidate']);
   });
 });
 
@@ -2079,6 +2097,57 @@ describe('handleGenesysOffer', () => {
     };
 
     await webrtc['handleGenesysOffer'](iq);
+  });
+});
+
+describe('applyEarlyIceCandidates', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+  let mockSession: GenesysCloudMediaSession;
+  
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+    mockSession = {
+      id: 'session-id-1',
+      addRemoteIceCandidate: jest.fn(),
+    } as unknown as GenesysCloudMediaSession;
+  });
+
+  it('should apply early ICE candidates if they exist and delete them from earlyIceCandidates', () => {
+    // Set up early ICE candidates for the session
+    webrtc['earlyIceCandidates'].set('session-id-1', ['candidate-1', 'candidate-2']);
+
+    webrtc['applyEarlyIceCandidates'](mockSession);
+
+    // Check that addRemoteIceCandidate is called for each candidate
+    expect(mockSession.addRemoteIceCandidate).toHaveBeenCalledTimes(2);
+    expect(mockSession.addRemoteIceCandidate).toHaveBeenNthCalledWith(1, 'candidate-1');
+    expect(mockSession.addRemoteIceCandidate).toHaveBeenNthCalledWith(2, 'candidate-2');
+
+    // Check that early candidates are deleted after being applied
+    expect(webrtc['earlyIceCandidates'].has('session-id-1')).toBe(false);
+  });
+
+  it('should not attempt to apply ICE candidates if none exist for the session', () => {
+    // No candidates are set for this session
+    webrtc['applyEarlyIceCandidates'](mockSession);
+
+    // Check that addRemoteIceCandidate is not called
+    expect(mockSession.addRemoteIceCandidate).not.toHaveBeenCalled();
+
+    // Ensure that no deletion is attempted on the map
+    expect(webrtc['earlyIceCandidates'].has('session-id-1')).toBe(false);
+  });
+
+  it('should not fail if earlyIceCandidates is empty', () => {
+    // Empty the earlyIceCandidates map
+    webrtc['earlyIceCandidates'].clear();
+
+    webrtc['applyEarlyIceCandidates'](mockSession);
+
+    // Ensure addRemoteIceCandidate is not called since there are no early candidates
+    expect(mockSession.addRemoteIceCandidate).not.toHaveBeenCalled();
   });
 });
 
