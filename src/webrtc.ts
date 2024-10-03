@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { ExternalService, ExternalServiceList, IQ, ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
-import LRU from 'lru-cache';
+import { LRUCache } from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
@@ -64,7 +64,12 @@ export interface InitRtcSessionOptions {
 
 export class WebrtcExtension extends EventEmitter implements StreamingClientExtension {
   client: Client;
-  ignoredSessions = new LRU({ max: 10, maxAge: 10 * 60 * 60 * 6 });
+  // sessionId maps to boolean where `true` means the sessionId is ignored
+  ignoredSessions = new LRUCache<string, boolean>({ max: 10, ttl: 10 * 60 * 60 * 6 });
+
+  // sessionId maps to a list of sdp ice candidates
+  // hold onto early candidates for 1 minute
+  private earlyIceCandidates = new LRUCache<string, string[]>({ max: 10, ttl: 1000 * 60, ttlAutopurge: true });
 
   logger: any;
   pendingSessions: { [sessionId: string]: IPendingSession } = {};
@@ -266,7 +271,20 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     this.webrtcSessions.push(session);
     this.logger.info('emitting sdp media-session (offer');
+
+    this.applyEarlyIceCandidates(session);
+
     return this.emit(events.INCOMING_RTCSESSION, session);
+  }
+
+  private applyEarlyIceCandidates (session: GenesysCloudMediaSession) {
+    const earlyCandidates = this.earlyIceCandidates.get(session.id);
+    if (earlyCandidates) {
+      this.earlyIceCandidates.delete(session.id);
+      for (const candidate of earlyCandidates) {
+        void session.addRemoteIceCandidate(candidate);
+      }
+    }
   }
 
   private async handleGenesysRenegotiate (existingSession: GenesysCloudMediaSession, newSdp: string) {
@@ -278,8 +296,18 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const message = iq.genesysWebrtc!;
     const params: GenesysWebrtcSdpParams = message.params as GenesysWebrtcSdpParams;
 
-    const session = this.getSessionById(params.sessionId);
-    await (session as GenesysCloudMediaSession).addRemoteIceCandidate(params.sdp);
+    const session = this.getSessionById(params.sessionId, true);
+
+    if (session) {
+      await (session as GenesysCloudMediaSession).addRemoteIceCandidate(params.sdp);
+    } else {
+      const earlyCandidates = this.earlyIceCandidates.get(params.sessionId);
+      if (earlyCandidates) {
+        this.earlyIceCandidates.set(params.sessionId, [...earlyCandidates, params.sdp]);
+      } else {
+        this.earlyIceCandidates.set(params.sessionId, [params.sdp]);
+      }
+    }
   }
 
   private async handleGenesysTerminate (iq: IQ) {
@@ -290,10 +318,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     (session as GenesysCloudMediaSession).onSessionTerminate(params.reason);
   }
 
-  private getSessionById (id: string): IMediaSession {
+  private getSessionById (id: string, nullIfNotFound = false): IMediaSession | undefined {
     const session = this.getAllSessions().find(session => session.id === id);
 
-    if (!session) {
+    if (!session && !nullIfNotFound) {
       const error = new Error('Failed to find session by id');
       this.logger.error(error, { sessionId: id });
       throw error;
