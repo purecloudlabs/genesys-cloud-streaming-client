@@ -37,6 +37,7 @@ export class GenesysCloudMediaSession {
   dataChannel?: RTCDataChannel;
   state: SessionState = 'pending';
   connectionState: ConnectionState = 'starting';
+  privAnswerMode?: 'Auto';
 
   constructor (private webrtcExtension: WebrtcExtension, params: IGenesysCloudMediaSessionParams) {
     this.id = params.id;
@@ -55,6 +56,7 @@ export class GenesysCloudMediaSession {
     this.allowIPv6 = !!params.allowIPv6;
     this.allowTCP = !!params.allowTCP;
     this.reinvite = !!params.reinvite;
+    this.privAnswerMode = params.privAnswerMode;
 
     // babel does not like the typescript recipe for multiple extends so we are hacking this one
     // referencing https://github.com/babel/babel/issues/798
