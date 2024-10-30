@@ -4,7 +4,7 @@ import { StreamingClientErrorTypes } from './types/interfaces';
 
 export class StreamingClientError extends Error {
   type: StreamingClientErrorTypes;
-  details: any;
+  details?: unknown;
 
   constructor (type: StreamingClientErrorTypes | null, messageOrError: string | Error, details?: unknown) {
     let message;
@@ -17,7 +17,7 @@ export class StreamingClientError extends Error {
     super(message);
 
     if (messageOrError instanceof Error) {
-      this.name = (messageOrError as any).name;
+      this.name = messageOrError.name;
     }
 
     this.type = type ?? StreamingClientErrorTypes.generic;
