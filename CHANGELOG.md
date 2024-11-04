@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 * [STREAM-207](https://inindca.atlassian.net/browse/STREAM-207) - [STREAM-207] handle ice candidates received before the offer (sdpOverXmpp only)
 
+# [v17.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.6..v17.2.7)
+### Fixed
+* [STREAM-218](https://inindca.atlassian.net/browse/STREAM-218) - update the conversationId on sessions with reinvites
+
 # [v17.2.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.5..v17.2.6)
 ### Fixed
 * [STREAM-212](https://inindca.atlassian.net/browse/STREAM-212) - Log the session id rather than the whole session to prevent logging a large object

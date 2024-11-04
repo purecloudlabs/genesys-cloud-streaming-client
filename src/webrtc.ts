@@ -242,6 +242,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         meetingId: pendingSession.meetingId,
         fromUserId: pendingSession.fromUserId,
         originalRoomJid: pendingSession.originalRoomJid,
+        privAnswerMode: pendingSession.privAnswerMode
       };
     } else {
       mediaSessionParams = commonParams;
@@ -250,8 +251,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     // if we receive an offer for an existing session and the ice info has not changed, this is
     // a renogotiate. If the ice has changed, it's a re-invite and we need to create a new session.
     const existingSession = this.webrtcSessions.find(s => s.id === mediaSessionParams.id);
+    this.logger.info('offer received', { existingSession: !!existingSession, mediaSessionParams });
 
     if (existingSession) {
+      existingSession.conversationId = params.conversationId;
       // renego
       if (!iceIsDifferent(existingSession.peerConnection.remoteDescription!.sdp, params.sdp)) {
         return this.handleGenesysRenegotiate(existingSession, params.sdp);
