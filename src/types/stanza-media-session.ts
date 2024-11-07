@@ -54,6 +54,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
   allowTCP: boolean;
   dataChannel?: RTCDataChannel;
   reinvite = false;
+  privAnswerMode?: 'Auto';
 
   constructor (params: IStanzaMediaSessionParams) {
     super(params.options);
@@ -69,6 +70,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
     this.ignoreHostCandidatesFromRemote = !!params.ignoreHostCandidatesFromRemote;
     this.allowIPv6 = !!params.allowIPv6;
     this.allowTCP = !!params.allowTCP;
+    this.privAnswerMode = params.privAnswerMode;
 
     // babel does not like the typescript recipe for multiple extends so we are hacking this one
     // referencing https://github.com/babel/babel/issues/798

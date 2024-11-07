@@ -4,12 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.5...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.7...HEAD)
 ### Breaking Changes
 * The `connnect` method will now throw a StreamingClientError with a type indicated, rather than the passing through the underlying error. The error that was previously thrown will still be available via the `details` property.
 
 ### Changed
 * [STREAM-162](https://inindca.atlassian.net/browse/STREAM-162) - Streaming-client should trigger re-auth for some SASL errors (and 401s) - this will be indicated by a StreamingClientError of type `.invalid-token`.
+
+# [v17.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.6..v17.2.7)
+### Fixed
+* [STREAM-218](https://inindca.atlassian.net/browse/STREAM-218) - update the conversationId on sessions with reinvites
+
+# [v17.2.6](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.5..v17.2.6)
+### Fixed
+* [STREAM-212](https://inindca.atlassian.net/browse/STREAM-212) - Log the session id rather than the whole session to prevent logging a large object
 
 # [v17.2.5](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.4..v17.2.5)
 ### Changed
