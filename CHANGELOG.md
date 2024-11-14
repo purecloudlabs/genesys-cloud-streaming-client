@@ -48,6 +48,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-162](https://inindca.atlassian.net/browse/STREAM-162) - Streaming-client should trigger re-auth for some SASL errors (and 401s) - this will be indicated by a StreamingClientError of type `.invalid-token`.
 
+### Fixed
+* [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
+
 # [v17.2.7](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.6..v17.2.7)
 ### Fixed
 * [STREAM-218](https://inindca.atlassian.net/browse/STREAM-218) - update the conversationId on sessions with reinvites
