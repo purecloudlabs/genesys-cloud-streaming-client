@@ -458,6 +458,13 @@ describe('unmute()', () => {
 });
 
 describe('onSessionTerminate()', () => {
+  it('should set the state to `ended`', () => {
+    const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+
+    session.onSessionTerminate();
+    expect(session.state).toEqual('ended');
+  });
+
   it('should emit a terminated event with default condition', () => {
     const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
 
@@ -601,6 +608,12 @@ describe('end()', () => {
 
   beforeEach(() => {
     session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+  });
+
+  it('should set state to `ended`', () => {
+    session.end();
+
+    expect(session.state).toEqual('ended');
   });
 
   it('should not send message if silent', () => {
