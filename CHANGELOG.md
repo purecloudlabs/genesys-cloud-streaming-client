@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.7...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.6...HEAD)
+
 ### Breaking Changes
 * The `connnect` method will now throw a StreamingClientError with a type indicated, rather than the passing through the underlying error. The error that was previously thrown will still be available via the `details` property.
+
+### Fixed
+* [STREAM-207](https://inindca.atlassian.net/browse/STREAM-207) - [STREAM-207] handle ice candidates received before the offer (sdpOverXmpp only)
 
 ### Changed
 * [STREAM-162](https://inindca.atlassian.net/browse/STREAM-162) - Streaming-client should trigger re-auth for some SASL errors (and 401s) - this will be indicated by a StreamingClientError of type `.invalid-token`.
