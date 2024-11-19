@@ -37,7 +37,8 @@ module.exports = (env = {}) => {
         plugins: [
           ['@babel/plugin-proposal-decorators', { decoratorsBeforeExport: true }],
           ['@babel/plugin-proposal-class-properties'],
-          ['@babel/transform-runtime']
+          ['@babel/transform-runtime'],
+          ['@babel/plugin-transform-private-methods']
         ],
         presets: [
           ['@babel/preset-env', {
@@ -50,6 +51,23 @@ module.exports = (env = {}) => {
               'not dead'
             ]
           }]
+        ]
+      }
+    };
+  } else {
+    babelLoader = {
+      test: /\.(cjs|mjs|js)$/,
+      loader: 'babel-loader',
+      exclude: [
+        /@babel\//,
+        /\bcore-js\b/,
+        /\bwebpack\/buildin\b/
+      ],
+      options: {
+        sourceType: 'unambiguous',
+        plugins: [
+          ['@babel/plugin-proposal-class-properties'],
+          ['@babel/plugin-transform-private-methods']
         ]
       }
     };
