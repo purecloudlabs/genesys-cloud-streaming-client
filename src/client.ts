@@ -8,10 +8,10 @@ import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Ping } from './ping';
 import { ServerMonitor } from './server-monitor';
-import { delay, parseJwt, timeoutPromise } from './utils';
+import { StreamingClientError, delay, parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
-import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions, SCConnectionData } from './types/interfaces';
+import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions, SCConnectionData, StreamingClientErrorTypes } from './types/interfaces';
 import { AxiosError } from 'axios';
 import { NamedAgent } from './types/named-agent';
 import { Client as StanzaClient } from 'stanza';
@@ -22,6 +22,7 @@ import OfflineError from './types/offline-error';
 import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
+import { SASLFailureCondition } from 'stanza/Constants';
 
 let extensions = {
   notifications: Notifications,
@@ -428,15 +429,17 @@ export class Client extends EventEmitter {
         }
       );
     } catch (err: any) {
-      let error = err;
+      let errorForThrowing: StreamingClientError;
+      let errorForLogging = err;
       if (!err) {
-        error = new Error('Streaming client connection attempted received and undefined error');
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Streaming client connection attempted and received an undefined error');
+        errorForLogging = errorForThrowing;
       } else if (err.name === 'AxiosError') {
         const axiosError = err as AxiosError;
         const config = axiosError.config || { url: undefined, method: undefined };
 
         // sanitized error for logging
-        error = {
+        errorForLogging = {
           config: {
             url: config.url,
             method: config.method
@@ -446,13 +449,24 @@ export class Client extends EventEmitter {
           name: axiosError.name,
           message: axiosError.message
         };
+
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Failed to connect streaming client due to network error', err);
+
+        if (this.networkErrorNeedsAuth(err)) {
+          errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'Failed to connect streaming client due to invalid token', err);
+        }
+      } else if (err instanceof SaslError) {
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'Failed to connect streaming client due to invalid token', err);
+
+        if (this.saslErrorIsRetryable(err)) {
+          errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Streaming client connection attempted and received a SASL error', err);
+        }
+      } else {
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Streaming client connection attempted and received an unknown error', err);
       }
 
-      this.logger.error('Failed to connect streaming client', { error });
-      if (!err) {
-        throw error;
-      }
-      throw err;
+      this.logger.error('Failed to connect streaming client', { error: errorForLogging });
+      throw errorForThrowing;
     }
   }
 
@@ -483,18 +497,25 @@ export class Client extends EventEmitter {
 
       additionalErrorDetails.error = sanitizedError;
 
-      if ([401, 403].includes(err.response?.status || 0)) {
+      if (this.networkErrorNeedsAuth(err)) {
         this.logger.error('Streaming client received an error that it can\'t recover from and will not attempt to reconnect', additionalErrorDetails);
         return false;
       }
     }
 
-    // if we get a sasl error, that means we made it all the way to the point of trying to open a websocket and
-    // it was rejected for some reason. At this point we should do a hard reconnect then try again.
+    // If we get a sasl error, that means we made it all the way to the point of trying to open a websocket and
+    // it was rejected for some reason. Some errors might resolve if we try connecting again. Others need
+    // re-authentication.
     if (err instanceof SaslError) {
-      this.logger.info('hardReconnectRequired set to true due to sasl error');
-      this.hardReconnectRequired = true;
-      Object.assign(additionalErrorDetails, { channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
+      if (this.saslErrorIsRetryable(err)) {
+        this.logger.info('hardReconnectRequired set to true due to sasl error');
+        this.hardReconnectRequired = true;
+        Object.assign(additionalErrorDetails, { channelId: err.channelId, stanzaInstanceId: err.stanzaInstanceId });
+      } else {
+        additionalErrorDetails.error = err.condition;
+        this.logger.error('Streaming-client received a SASL error that it can\'t recover from and will not attempt to reconnect', additionalErrorDetails);
+        return false;
+      }
     }
 
     // we don't need to log the stack for a timeout message
@@ -528,6 +549,15 @@ export class Client extends EventEmitter {
     this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
     this.logger.debug('debug: retry info', { expectedRetryInMs: connectionData.currentDelayMs, appName: this.config.appName, clientId: this.logger.clientId });
     return true;
+  }
+
+  private networkErrorNeedsAuth (error: AxiosError) {
+    return [401, 403].includes(error.response?.status || 0);
+  }
+
+  private saslErrorIsRetryable (error: SaslError) {
+    const retryConditions: SASLFailureCondition[] = ['encryption-required', 'incorrect-encoding', 'invalid-mechanism', 'malformed-request', 'mechanism-too-weak'];
+    return retryConditions.includes(error.condition);
   }
 
   private async makeConnectionAttempt () {

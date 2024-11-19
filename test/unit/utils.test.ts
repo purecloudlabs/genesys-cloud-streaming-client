@@ -1,3 +1,4 @@
+import { StreamingClientErrorTypes } from '../../src';
 import * as utils from '../../src/utils';
 import { retryPromise } from '../../src/utils';
 import { flushPromises } from '../helpers/testing-utils';
@@ -20,6 +21,27 @@ a=ice-pwd:asf44fwerwe34f34s\r\n
 `;
 
 describe('Utils', () => {
+  describe('StreamingClientError', () => {
+    it('should create with defaults', () => {
+      const streamingClientError = new utils.StreamingClientError(null, 'erroring');
+      expect(streamingClientError.name).toBe('Error');
+      expect(streamingClientError.type).toBe(StreamingClientErrorTypes.generic);
+      expect(streamingClientError.message).toBe('erroring');
+      expect(streamingClientError.details).toBe(undefined);
+    });
+
+    it('should "extend" any base error passed in', () => {
+      const origError = new TypeError('Cannot use array here');
+      const details = { sessionId: '123' };
+      const streamingClientError = new utils.StreamingClientError(StreamingClientErrorTypes.invalid_token, origError, details);
+
+      expect(streamingClientError.name).toBe('TypeError');
+      expect(streamingClientError.type).toBe('invalid_token');
+      expect(streamingClientError.message).toBe('Cannot use array here');
+      expect(streamingClientError.details).toBe(details);
+    });
+  });
+
   describe('jid utils', () => {
     it('isAcdJid', () => {
       expect(utils.isAcdJid('acd-sdkfjk@test.com')).toBeTruthy();

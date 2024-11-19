@@ -1,5 +1,29 @@
 import { v4 } from 'uuid';
 import { TimeoutError } from './types/timeout-error';
+import { StreamingClientErrorTypes } from './types/interfaces';
+
+export class StreamingClientError extends Error {
+  type: StreamingClientErrorTypes;
+  details?: unknown;
+
+  constructor (type: StreamingClientErrorTypes | null, messageOrError: string | Error, details?: unknown) {
+    let message;
+    if (messageOrError instanceof Error) {
+      message = messageOrError.message;
+    } else {
+      message = messageOrError;
+    }
+
+    super(message);
+
+    if (messageOrError instanceof Error) {
+      this.name = messageOrError.name;
+    }
+
+    this.type = type ?? StreamingClientErrorTypes.generic;
+    this.details = details;
+  }
+}
 
 /* istanbul ignore next */
 export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, details?: any) {
