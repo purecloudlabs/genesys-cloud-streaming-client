@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v18.0.0...HEAD)
+### Fixed
+* [STREAM-207](https://inindca.atlassian.net/browse/STREAM-207) - [STREAM-207] handle ice candidates received before the offer (sdpOverXmpp only)
 
 # [v18.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.7...v18.0.0)
 ### Breaking Changes
