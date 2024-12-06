@@ -4,13 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.6...HEAD)
-
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v18.0.0...HEAD)
 ### Breaking Changes
-* The `connnect` method will now throw a StreamingClientError with a type indicated, rather than the passing through the underlying error. The error that was previously thrown will still be available via the `details` property.
+* Lru-cache was upgraded from v6 to v11, which uses newer language features. Depending on your language target version, you may need to configure a transpiler accordingly. For example, we added `plugin-proposal-class-properties` and `plugin-transform-private-methods` to our Babel config for streaming-client.
 
 ### Fixed
 * [STREAM-207](https://inindca.atlassian.net/browse/STREAM-207) - [STREAM-207] handle ice candidates received before the offer (sdpOverXmpp only)
+
+# [v18.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.7...v18.0.0)
+### Breaking Changes
+* The `connnect` method will now throw a StreamingClientError with a type indicated, rather than the passing through the underlying error. The error that was previously thrown will still be available via the `details` property.
 
 ### Changed
 * [STREAM-162](https://inindca.atlassian.net/browse/STREAM-162) - Streaming-client should trigger re-auth for some SASL errors (and 401s) - this will be indicated by a StreamingClientError of type `.invalid-token`.
@@ -302,7 +305,7 @@ const users = response.data;
   But can still be opt-in. Generally, if this is needed, consumers should be utilizing the SDK's bundled es modules.
 * [PCM-1770](https://inindca.atlassian.net/browse/PCM-1770) – Converted `SessionTypes` to an `enum` but still left the union type as to not break consumers' typings.
 * Renamed `ISessionInfo` to `IPendingSession` (but kept `ISessionInfo` for backwards compatibility).
-# [v13.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.7...v13.4.0
+# [v13.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.7...v13.4.0)
 ### Added
 * [PCM-1753](https://inindca.atlassian.net/browse/PCM-1753) – Add an option for log formatters
 
