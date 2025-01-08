@@ -217,7 +217,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const params = message.params as GenesysWebrtcOfferParams;
 
      // XMPP-SIP-Gateway will repeat reinvite offers until the client has responded.
-     // We don't want to process the duplicate reinvites and intead will ignore them.
+     // We don't want to process the duplicate reinvites and instead will ignore them.
     if (params.reinvite && this.previousReinvite && (message.id === this.previousReinvite)) {
       this.logger.info('Ignoring duplicate reinvite offer', message.id);
       return;
