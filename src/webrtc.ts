@@ -89,6 +89,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private iceServers: RTCIceServer[] = [];
   private stanzaInstance?: NamedAgent;
   private webrtcSessions: GenesysCloudMediaSession[] = [];
+  private previousReinvite: string | undefined = '';
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -214,6 +215,18 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private async handleGenesysOffer (iq: IQ) {
     const message = iq.genesysWebrtc!;
     const params = message.params as GenesysWebrtcOfferParams;
+
+     // XMPP-SIP-Gateway will repeat reinvite offers until the client has responded.
+     // We don't want to process the duplicate reinvites and intead will ignore them.
+    if (params.reinvite && this.previousReinvite && (message.id === this.previousReinvite)) {
+      this.logger.info('Ignoring duplicate reinvite offer', message.id);
+      return;
+    }
+
+    // If the reinvite isn't a duplicate, we should store it so we can check against new offers.
+    if (params.reinvite) {
+      this.previousReinvite = message.id;
+    }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
 
