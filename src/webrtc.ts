@@ -89,7 +89,12 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private iceServers: RTCIceServer[] = [];
   private stanzaInstance?: NamedAgent;
   private webrtcSessions: GenesysCloudMediaSession[] = [];
-  private previousReinvite: string | undefined = '';
+  // Store a maximum of 5 previous non-duplicate reinvites.
+  // These will automatically be purged after three minutes.
+  private reinviteCache = new LRUCache<string, boolean>({
+    max: 5,
+    ttl: 1000 * 60 * 3
+  });
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -218,14 +223,14 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
      // XMPP-SIP-Gateway will repeat reinvite offers until the client has responded.
      // We don't want to process the duplicate reinvites and instead will ignore them.
-    if (params.reinvite && this.previousReinvite && (message.id === this.previousReinvite)) {
+    if (params.reinvite && this.reinviteCache.get(message.id!)) {
       this.logger.info('Ignoring duplicate reinvite offer', message.id);
       return;
     }
 
-    // If the reinvite isn't a duplicate, we should store it so we can check against new offers.
+    // If the reinvite isn't a duplicate, we should cache it so we can check against new offers.
     if (params.reinvite) {
-      this.previousReinvite = message.id;
+      this.reinviteCache.set(message.id!, true);
     }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
