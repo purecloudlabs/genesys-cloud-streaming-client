@@ -110,7 +110,7 @@ describe('getIceTransportPolicy', () => {
 
     expect(webrtc.getIceTransportPolicy()).toBeUndefined();
   });
-  
+
   it('should return iceConfig', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -502,7 +502,7 @@ describe('configureNewStanzaInstance', () => {
 
     expect.assertions(events.length);
   });
-  
+
   it('should not emit sessionEvents if not a StanzaMediaSession', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -1149,7 +1149,7 @@ describe('refreshIceServers', () => {
   it('should set jingle iceServers', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    
+
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
@@ -1951,7 +1951,52 @@ describe('handleGenesysOffer', () => {
     expect(spy).not.toHaveBeenCalled();
     expect.assertions(3);
   });
-  
+
+  it('should NOT emit a new session for a reinvite if it is a duplicate offer.', async () => {
+    const iq: IQ = {
+      type: 'set',
+      from: '+155555555@org.gjoll.test',
+      genesysWebrtc: {
+        jsonrpc: '2.0',
+        method: 'offer',
+        id: '123testid',
+        params: {
+          sessionId: 'session24',
+          conversationId: 'cid',
+          sdp: 'a=ice-ufrag:asdfasdf\r\na=ice-pwd:fdsafdsa\r\n',
+          reinvite: true
+        }
+      }
+    };
+    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+      expect(session.setRemoteDescription).toHaveBeenCalled();
+      expect(webrtc['webrtcSessions'].length).toEqual(2);
+    });
+
+    const peerConnection = { ...(new FakePeerConnection()), remoteDescription: { sdp: 'a=ice-ufrag:qwerqwer\r\na=ice-pwd:rewqrewq\r\n' }};
+    const existingSession = { id: iq.genesysWebrtc?.params?.sessionId, peerConnection };
+
+    const spy = webrtc['handleGenesysRenegotiate'] = jest.fn();
+    const loggerSpy = jest.spyOn(webrtc['logger'], 'info');
+
+
+    // Start with one session.
+    webrtc['webrtcSessions'] = [existingSession as any];
+
+    // Second session (reinvite).
+    await webrtc['handleGenesysOffer'](iq);
+    expect(spy).not.toHaveBeenCalled();
+    expect(webrtc['webrtcSessions'].length).toEqual(2);
+    expect(loggerSpy).not.toHaveBeenCalledWith('Ignoring duplicate reinvite offer', expect.any(String));
+
+    // Second identical reinvite that should be ignored.
+    await webrtc['handleGenesysOffer'](iq);
+    expect(loggerSpy).toHaveBeenCalledWith('Ignoring duplicate reinvite offer', iq.genesysWebrtc?.id);
+    expect(webrtc['webrtcSessions'].length).toEqual(2);
+
+    expect.assertions(7);
+  });
+
   it('should set ignoreHostCandidatesForForceTurnFF', async () => {
     Object.defineProperty(browserama, 'isFirefox', { get: () => true });
     jest.spyOn(webrtc as any, 'getIceTransportPolicy').mockReturnValue('relay');
@@ -1977,14 +2022,14 @@ describe('handleGenesysOffer', () => {
     await webrtc['handleGenesysOffer'](iq);
     expect.assertions(2);
   });
-  
+
   it('should register and handle sendIq from the session', async () => {
     const emitter = new EventEmitter();
     (emitter as any).setRemoteDescription = jest.fn();
     (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
 
     const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
-   
+
     const iq: IQ = {
       type: 'set',
       from: 'fromJid25@gjoll.com',
@@ -2011,7 +2056,7 @@ describe('handleGenesysOffer', () => {
     (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
 
     const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
-   
+
     const iq: IQ = {
       type: 'set',
       from: 'fromJid25@gjoll.com',
@@ -2031,7 +2076,7 @@ describe('handleGenesysOffer', () => {
     emitter.emit('terminated');
     expect(webrtc.getAllSessions().length).toBe(0);
   });
-  
+
   it('should register and handle sendIq from the session and not blow up if not stanzaInstance', async () => {
     const emitter = new EventEmitter();
     (emitter as any).setRemoteDescription = jest.fn();
@@ -2058,7 +2103,7 @@ describe('handleGenesysOffer', () => {
 
   it('should create and emit a session (from pending session)', async () => {
     webrtc['stanzaInstance'] = getFakeStanzaClient();
-    
+
     const iq: IQ = {
       type: 'set',
       from: 'fromJid25@gjoll.com',
@@ -2076,7 +2121,7 @@ describe('handleGenesysOffer', () => {
     webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
       expect(session.setRemoteDescription).toHaveBeenCalled();
       expect(webrtc['webrtcSessions'].length).toEqual(1);
-      expect(GenesysCloudMediaSession).toHaveBeenCalledWith(expect.anything(), 
+      expect(GenesysCloudMediaSession).toHaveBeenCalledWith(expect.anything(),
         expect.objectContaining({
           fromUserId: 'fromUserId26',
           originalRoomJid: 'originalRoomJid26'
@@ -2104,7 +2149,7 @@ describe('applyEarlyIceCandidates', () => {
   let client: Client;
   let webrtc: WebrtcExtension;
   let mockSession: GenesysCloudMediaSession;
-  
+
   beforeEach(() => {
     client = new Client({});
     webrtc = new WebrtcExtension(client as any, {} as any);
@@ -2246,14 +2291,14 @@ describe('onOnlineStatusChange()', () => {
     window.dispatchEvent(new Event('online'));
     expect(spy).toHaveBeenCalledWith({ actionName: 'WebrtcStats', details: expectedDetails });
   });
-  
+
   it('should call addStatToQueue with offline', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
     const spy = webrtc.addStatToQueue = jest.fn();
 
-    
+
     const expectedDetails = expect.objectContaining({
       _eventType: 'onlineStatus',
       online: false
