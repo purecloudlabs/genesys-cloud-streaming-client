@@ -57,6 +57,7 @@ export class GenesysCloudMediaSession {
     this.allowTCP = !!params.allowTCP;
     this.reinvite = !!params.reinvite;
     this.privAnswerMode = params.privAnswerMode;
+    this.meetingId = params.meetingId;
 
     // babel does not like the typescript recipe for multiple extends so we are hacking this one
     // referencing https://github.com/babel/babel/issues/798
