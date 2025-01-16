@@ -263,6 +263,28 @@ describe('prepareSession', () => {
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
   });
 
+  it('should not delete pending session if sdpOverXmpp', () => {
+    (StanzaMediaSession as jest.Mock).mockReset();
+    StanzaMediaSession.prototype.on = jest.fn();
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+
+    webrtc.pendingSessions['mysid'] = {
+      sessionId: 'mysid',
+      sdpOverXmpp: true,
+      autoAnswer: false,
+      id: 'myid',
+      toJid: 'tojid',
+      fromJid: 'fromjid',
+      conversationId: 'myconvo',
+      sessionType: SessionTypes.collaborateVideo
+    };
+
+    expect(Object.values(webrtc.pendingSessions).length).toBe(1);
+    const session = webrtc.prepareSession({ sid: 'mysid' } as any);
+    expect(Object.values(webrtc.pendingSessions).length).toBe(1);
+  });
+
   it('should use sessionType from pendingSession', () => {
     (StanzaMediaSession as jest.Mock).mockReset();
     StanzaMediaSession.prototype.on = jest.fn();
@@ -2142,6 +2164,37 @@ describe('handleGenesysOffer', () => {
     };
 
     await webrtc['handleGenesysOffer'](iq);
+  });
+
+  it('should delete pending session', async () => {
+    const iq: IQ = {
+      type: 'set',
+      from: 'fromJid25@gjoll.com',
+      genesysWebrtc: {
+        jsonrpc: '2.0',
+        method: 'offer',
+        params: {
+          conversationId: 'convo25',
+          sessionId: 'session25',
+          sdp: 'my-offer'
+        }
+      }
+    };
+
+    webrtc.pendingSessions['session25'] = {
+      autoAnswer: true,
+      conversationId: 'convo25',
+      fromJid: 'fromJid25@gjoll.com',
+      id: 'session25',
+      sessionId: 'session25',
+      sessionType: 'softphone',
+      toJid: 'tojid25',
+      fromUserId: 'fromUserId26'
+    };
+
+    expect(Object.values(webrtc.pendingSessions).length).toBe(1);
+    await webrtc['handleGenesysOffer'](iq);
+    expect(Object.values(webrtc.pendingSessions).length).toBe(0);
   });
 });
 
