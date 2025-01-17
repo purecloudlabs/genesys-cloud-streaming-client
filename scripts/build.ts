@@ -31,7 +31,6 @@ Child('cp dist/es/index.js dist/npm/module.js');
 // Child('cp dist/es/index.module.js dist/npm/module.js');
 Child(`cp ${__dirname}/../*.md dist/npm`);
 Child('npm run compile:webpack');
-Child('npm run compile:webpack:ie');
 
 /* create our major version folder */
 if (!FS.existsSync(majorVersionDir)) {
