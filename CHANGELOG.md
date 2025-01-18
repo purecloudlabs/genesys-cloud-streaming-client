@@ -4,7 +4,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v18.0.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.0.0...HEAD)
+
+# [v19.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v18.0.0...v19.0.0)
 ### Breaking Changes
 * Lru-cache was upgraded from v6 to v11, which uses newer language features. Depending on your language target version, you may need to configure a transpiler accordingly. For example, we added `plugin-proposal-class-properties` and `plugin-transform-private-methods` to our Babel config for streaming-client.
 * Support for IE has been removed.
