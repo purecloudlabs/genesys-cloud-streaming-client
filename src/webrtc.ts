@@ -263,6 +263,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         originalRoomJid: pendingSession.originalRoomJid,
         privAnswerMode: pendingSession.privAnswerMode
       };
+      delete this.pendingSessions[pendingSession.sessionId];
     } else {
       mediaSessionParams = commonParams;
     }
@@ -384,17 +385,14 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   prepareSession (options: SessionOpts): StanzaMediaSession | undefined {
-    const pendingSession = this.pendingSessions[options.sid!];
-
-    // TODO: when we can safely remove the jingle session handling, this pending session
-    // will need to be deleted in the `handleGenesysOffer` fn.
-    if (pendingSession) {
-      delete this.pendingSessions[pendingSession.sessionId];
+    if (this.sdpOverXmpp) {
+      this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp');
+      return;
     }
 
-    if (pendingSession?.sdpOverXmpp) {
-      this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp on the pendingSession');
-      return;
+    const pendingSession = this.pendingSessions[options.sid!];
+    if (pendingSession) {
+      delete this.pendingSessions[pendingSession.sessionId];
     }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
