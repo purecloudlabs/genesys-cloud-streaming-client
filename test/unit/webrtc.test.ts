@@ -640,6 +640,22 @@ describe('handlePropose', () => {
 
     expect(spy).toHaveBeenCalled();
   });
+
+  it('should track sdpOverXmpp', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc['stanzaInstance'] = getFakeStanzaClient();
+
+    webrtc['sdpOverXmpp'] = false;
+    const propose1 = { autoAnswer: false, conversationId: v4(), sessionId: v4(), sdpOverXmpp: true };
+    await webrtc['handlePropose']({ from: 'someJid', to: 'myJid', propose: propose1 });
+    expect(webrtc['sdpOverXmpp']).toBeTruthy();
+
+    webrtc['sdpOverXmpp'] = true;
+    const propose2 = { autoAnswer: false, conversationId: v4(), sessionId: v4() };
+    await webrtc['handlePropose']({ from: 'someJid', to: 'myJid', propose: propose2 });
+    expect(webrtc['sdpOverXmpp']).toBeFalsy();
+  });
 });
 
 describe('handleRetract', () => {
