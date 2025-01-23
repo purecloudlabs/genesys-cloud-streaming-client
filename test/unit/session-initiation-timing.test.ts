@@ -65,7 +65,7 @@ function getFakeStanzaClient (): NamedAgent {
   ) as unknown as NamedAgent;
 }
 
-describe('softphone session-initiate', () => {
+describe('handling of Jingle session-initiate and SDP offer with different ordering', () => {
   let client: Client;
   let webrtc: WebrtcExtension;
   const iq: IQ = {
