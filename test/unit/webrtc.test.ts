@@ -3,6 +3,7 @@
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { JingleAction } from 'stanza/Constants';
+import { SessionOpts } from 'stanza/jingle/Session';
 import { v4 } from 'uuid';
 import { EventEmitter } from 'events';
 import browserama from 'browserama';
@@ -200,6 +201,7 @@ describe('prepareSession', () => {
     (StanzaMediaSession as jest.Mock).mockReset();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc['sdpOverXmpp'] = true;
 
     const sessionId = 'abc';
     const pendingSession = {
@@ -268,6 +270,7 @@ describe('prepareSession', () => {
     StanzaMediaSession.prototype.on = jest.fn();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc['sdpOverXmpp'] = true;
 
     webrtc.pendingSessions['mysid'] = {
       sessionId: 'mysid',
@@ -281,7 +284,7 @@ describe('prepareSession', () => {
     };
 
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
-    const session = webrtc.prepareSession({ sid: 'mysid' } as any);
+    const session = webrtc.prepareSession({ sid: 'mysid' } as SessionOpts);
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
   });
 
@@ -661,6 +664,22 @@ describe('handlePropose', () => {
     });
 
     expect(spy).toHaveBeenCalled();
+  });
+
+  it('should track sdpOverXmpp', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc['stanzaInstance'] = getFakeStanzaClient();
+
+    webrtc['sdpOverXmpp'] = false;
+    const propose1 = { autoAnswer: false, conversationId: v4(), sessionId: v4(), sdpOverXmpp: true };
+    await webrtc['handlePropose']({ from: 'someJid', to: 'myJid', propose: propose1 });
+    expect(webrtc['sdpOverXmpp']).toBeTruthy();
+
+    webrtc['sdpOverXmpp'] = true;
+    const propose2 = { autoAnswer: false, conversationId: v4(), sessionId: v4() };
+    await webrtc['handlePropose']({ from: 'someJid', to: 'myJid', propose: propose2 });
+    expect(webrtc['sdpOverXmpp']).toBeFalsy();
   });
 });
 
@@ -1886,6 +1905,7 @@ describe('handleGenesysOffer', () => {
   beforeEach(() => {
     client = new Client({});
     webrtc = new WebrtcExtension(client as any, {} as any);
+    webrtc['sdpOverXmpp'] = true;
   });
 
   it('should create and emit a session (no pending session)', async () => {

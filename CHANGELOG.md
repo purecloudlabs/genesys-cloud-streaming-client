@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 * [STREAM-207](https://inindca.atlassian.net/browse/STREAM-207) - [STREAM-207] handle ice candidates received before the offer (sdpOverXmpp only)
+* [STREAM-326](https://inindca.atlassian.net/browse/STREAM-326) - Track SDP over XMPP differently so we can handle Jingle session-initiate and SDP offers in any order.
 
 # [v18.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.7...v18.0.0)
 ### Breaking Changes
