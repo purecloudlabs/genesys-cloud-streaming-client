@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v18.0.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.0.0...HEAD)
+
+# [v19.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v18.0.0...v19.0.0)
+### Breaking Changes
+* Lru-cache was upgraded from v6 to v11, which uses newer language features. Depending on your language target version, you may need to configure a transpiler accordingly. For example, we added `plugin-proposal-class-properties` and `plugin-transform-private-methods` to our Babel config for streaming-client.
+* Support for IE has been removed.
+
+### Changed
+* [STREAM-313](https://inindca.atlassian.net/browse/STREAM-313) - Streaming-client will ignore duplicate reinvite offers.
+* [PCM-2081](https://inindca.atlassian.net/browse/PCM-2081) - Set meetingId when initializing GenesysCloudMediaSessions and only delete pending sessions when processed for the right session type.
+* [STREAM-324](https://inindca.atlassian.net/browse/STREAM-324) - Support for IE has been removed.
+
+### Fixed
+* [STREAM-207](https://inindca.atlassian.net/browse/STREAM-207) - [STREAM-207] handle ice candidates received before the offer (sdpOverXmpp only)
+* [STREAM-326](https://inindca.atlassian.net/browse/STREAM-326) - Track SDP over XMPP differently so we can handle Jingle session-initiate and SDP offers in any order.
 
 # [v18.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v17.2.7...v18.0.0)
 ### Breaking Changes
@@ -300,7 +314,7 @@ const users = response.data;
   But can still be opt-in. Generally, if this is needed, consumers should be utilizing the SDK's bundled es modules.
 * [PCM-1770](https://inindca.atlassian.net/browse/PCM-1770) – Converted `SessionTypes` to an `enum` but still left the union type as to not break consumers' typings.
 * Renamed `ISessionInfo` to `IPendingSession` (but kept `ISessionInfo` for backwards compatibility).
-# [v13.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.7...v13.4.0
+# [v13.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v13.3.7...v13.4.0)
 ### Added
 * [PCM-1753](https://inindca.atlassian.net/browse/PCM-1753) – Add an option for log formatters
 

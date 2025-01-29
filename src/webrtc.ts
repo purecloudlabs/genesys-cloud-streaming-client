@@ -1,7 +1,7 @@
 import { EventEmitter } from 'events';
 import { ExternalService, ExternalServiceList, IQ, ReceivedMessage } from 'stanza/protocol';
 import { toBare } from 'stanza/JID';
-import LRU from 'lru-cache';
+import { LRUCache } from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
 import { v4 } from 'uuid';
@@ -64,7 +64,12 @@ export interface InitRtcSessionOptions {
 
 export class WebrtcExtension extends EventEmitter implements StreamingClientExtension {
   client: Client;
-  ignoredSessions = new LRU({ max: 10, maxAge: 10 * 60 * 60 * 6 });
+  // sessionId maps to boolean where `true` means the sessionId is ignored
+  ignoredSessions = new LRUCache<string, boolean>({ max: 10, ttl: 10 * 60 * 60 * 6 });
+
+  // sessionId maps to a list of sdp ice candidates
+  // hold onto early candidates for 1 minute
+  private earlyIceCandidates = new LRUCache<string, string[]>({ max: 10, ttl: 1000 * 60, ttlAutopurge: true });
 
   logger: any;
   pendingSessions: { [sessionId: string]: IPendingSession } = {};
@@ -84,6 +89,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private iceServers: RTCIceServer[] = [];
   private stanzaInstance?: NamedAgent;
   private webrtcSessions: GenesysCloudMediaSession[] = [];
+  // Store a maximum of 5 previous non-duplicate reinvites.
+  // These will automatically be purged after three minutes.
+  private reinviteCache = new LRUCache<string, boolean>({
+    max: 5,
+    ttl: 1000 * 60 * 3
+  });
+  private sdpOverXmpp = false;
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -210,6 +222,18 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const message = iq.genesysWebrtc!;
     const params = message.params as GenesysWebrtcOfferParams;
 
+     // XMPP-SIP-Gateway will repeat reinvite offers until the client has responded.
+     // We don't want to process the duplicate reinvites and instead will ignore them.
+    if (params.reinvite && this.reinviteCache.get(message.id!)) {
+      this.logger.info('Ignoring duplicate reinvite offer', message.id);
+      return;
+    }
+
+    // If the reinvite isn't a duplicate, we should cache it so we can check against new offers.
+    if (params.reinvite) {
+      this.reinviteCache.set(message.id!, true);
+    }
+
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
 
     const commonParams = {
@@ -239,6 +263,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         originalRoomJid: pendingSession.originalRoomJid,
         privAnswerMode: pendingSession.privAnswerMode
       };
+      delete this.pendingSessions[pendingSession.sessionId];
     } else {
       mediaSessionParams = commonParams;
     }
@@ -268,8 +293,21 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.webrtcSessions.push(session);
-    this.logger.info('emitting sdp media-session (offer)');
+    this.logger.info('emitting sdp media-session (offer');
+
+    this.applyEarlyIceCandidates(session);
+
     return this.emit(events.INCOMING_RTCSESSION, session);
+  }
+
+  private applyEarlyIceCandidates (session: GenesysCloudMediaSession) {
+    const earlyCandidates = this.earlyIceCandidates.get(session.id);
+    if (earlyCandidates) {
+      this.earlyIceCandidates.delete(session.id);
+      for (const candidate of earlyCandidates) {
+        void session.addRemoteIceCandidate(candidate);
+      }
+    }
   }
 
   private async handleGenesysRenegotiate (existingSession: GenesysCloudMediaSession, newSdp: string) {
@@ -281,8 +319,18 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const message = iq.genesysWebrtc!;
     const params: GenesysWebrtcSdpParams = message.params as GenesysWebrtcSdpParams;
 
-    const session = this.getSessionById(params.sessionId);
-    await (session as GenesysCloudMediaSession).addRemoteIceCandidate(params.sdp);
+    const session = this.getSessionById(params.sessionId, true);
+
+    if (session) {
+      await (session as GenesysCloudMediaSession).addRemoteIceCandidate(params.sdp);
+    } else {
+      const earlyCandidates = this.earlyIceCandidates.get(params.sessionId);
+      if (earlyCandidates) {
+        this.earlyIceCandidates.set(params.sessionId, [...earlyCandidates, params.sdp]);
+      } else {
+        this.earlyIceCandidates.set(params.sessionId, [params.sdp]);
+      }
+    }
   }
 
   private async handleGenesysTerminate (iq: IQ) {
@@ -293,10 +341,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     (session as GenesysCloudMediaSession).onSessionTerminate(params.reason);
   }
 
-  private getSessionById (id: string): IMediaSession {
+  private getSessionById (id: string, nullIfNotFound = false): IMediaSession | undefined {
     const session = this.getAllSessions().find(session => session.id === id);
 
-    if (!session) {
+    if (!session && !nullIfNotFound) {
       const error = new Error('Failed to find session by id');
       this.logger.error(error, { sessionId: id });
       throw error;
@@ -336,18 +384,15 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     }
   }
 
-  prepareSession (options: SessionOpts) {
-    const pendingSession = this.pendingSessions[options.sid!];
-
-    // TODO: when we can safely remove the jingle session handling, this pending session
-    // will need to be deleted in the `handleGenesysOffer` fn.
-    if (pendingSession) {
-      delete this.pendingSessions[pendingSession.sessionId];
+  prepareSession (options: SessionOpts): StanzaMediaSession | undefined {
+    if (this.sdpOverXmpp) {
+      this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp');
+      return;
     }
 
-    if (pendingSession?.sdpOverXmpp) {
-      this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp on the pendingSession');
-      return;
+    const pendingSession = this.pendingSessions[options.sid!];
+    if (pendingSession) {
+      delete this.pendingSessions[pendingSession.sessionId];
     }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
@@ -613,6 +658,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         privAnswerMode: msg.propose.privAnswerMode
       };
 
+      this.sdpOverXmpp = !!sessionInfo.sdpOverXmpp;
       this.pendingSessions[sessionId] = sessionInfo;
     }
 
