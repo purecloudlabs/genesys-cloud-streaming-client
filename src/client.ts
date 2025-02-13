@@ -56,6 +56,7 @@ export class Client extends EventEmitter {
   private channelReuses = 0;
   private backoffReductionTimer: any;
   private hasMadeInitialAttempt = false;
+  private initialJid?: string;
 
   private boundStanzaDisconnect?: () => Promise<any>;
   private boundStanzaNoLongerSubscribed?: () => void;
@@ -280,6 +281,8 @@ export class Client extends EventEmitter {
 
   async disconnect () {
     this.logger.info('streamingClient.disconnect was called');
+    // Clear stored JID on client disconnect.
+    this.initialJid = undefined;
 
     if (!this.activeStanzaInstance) {
       return;
@@ -643,19 +646,21 @@ export class Client extends EventEmitter {
     }
 
     if (this.hardReconnectRequired) {
-      let jidPromise: Promise<any>;
-      if (this.config.jid) {
-        jidPromise = Promise.resolve(this.config.jid);
-      } else {
-        const jidRequestOpts: RequestApiOptions = {
-          method: 'get',
-          host: this.config.apiHost,
-          authToken: this.config.authToken,
-          logger: this.logger,
-          customHeaders: this.config.customHeaders
-        };
-        jidPromise = this.http.requestApi('users/me', jidRequestOpts)
-          .then(res => res.data.chat.jabberId);
+      // Use stored JID if we have one, otherwise use the provided JID or grab one.
+      if (!this.initialJid) {
+        if (this.config.jid) {
+          this.initialJid = this.config.jid;
+        } else {
+          const jidRequestOpts: RequestApiOptions = {
+            method: 'get',
+            host: this.config.apiHost,
+            authToken: this.config.authToken,
+            logger: this.logger,
+            customHeaders: this.config.customHeaders
+          };
+          this.initialJid = await this.http.requestApi('users/me', jidRequestOpts)
+            .then(res => res.data.chat.jabberId);
+        }
       }
 
       const channelRequestOpts: RequestApiOptions = {
@@ -665,11 +670,10 @@ export class Client extends EventEmitter {
         logger: this.logger,
         customHeaders: this.config.customHeaders
       };
-      const channelPromise = this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
+      const channelId = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 
-      const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);
-      this.config.jid = jid;
+      this.config.jid = this.initialJid;
       this.config.channelId = channelId;
       this.autoReconnect = true;
       this.logger.info('attempting to connect streaming client on channel', { channelId });
