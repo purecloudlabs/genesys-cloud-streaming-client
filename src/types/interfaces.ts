@@ -26,6 +26,12 @@ export interface IClientOptions {
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
 }
 
+export interface IJidConfig {
+  baseJid?: string;
+  jidResource?: string;
+  fullJid?: string;
+}
+
 export interface ICustomHeader {
   [header: string]: string;
 }
