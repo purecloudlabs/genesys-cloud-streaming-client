@@ -648,7 +648,7 @@ export class Client extends EventEmitter {
 
     if (this.hardReconnectRequired) {
       // Use stored JID if we have one, otherwise use the provided JID or grab one.
-      if (!this.jidConfig?.baseJid) {
+      if (!this.jidConfig.baseJid) {
         if (this.config.jid) {
           this.jidConfig.baseJid = this.config.jid;
         } else {

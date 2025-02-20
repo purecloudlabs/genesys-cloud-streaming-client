@@ -1523,6 +1523,7 @@ describe('JID maintenance', () => {
   });
 
   it('should maintain same JID across hard reconnects', async () => {
+    client['jidConfig'] = {};
     await client['prepareForConnect']();
     expect(httpSpy).toHaveBeenCalledWith('users/me', expect.any(Object));
     expect(client['jidConfig'].baseJid).toBe('test-jid');
