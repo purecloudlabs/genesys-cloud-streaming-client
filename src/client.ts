@@ -11,7 +11,7 @@ import { ServerMonitor } from './server-monitor';
 import { StreamingClientError, delay, parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
 import { HttpClient } from './http-client';
-import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions, SCConnectionData, StreamingClientErrorTypes } from './types/interfaces';
+import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnectOptions, SCConnectionData, StreamingClientErrorTypes, IJidConfig } from './types/interfaces';
 import { AxiosError } from 'axios';
 import { NamedAgent } from './types/named-agent';
 import { Client as StanzaClient } from 'stanza';
@@ -23,6 +23,7 @@ import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
+import { v4 } from 'uuid';
 
 let extensions = {
   notifications: Notifications,
@@ -56,6 +57,7 @@ export class Client extends EventEmitter {
   private channelReuses = 0;
   private backoffReductionTimer: any;
   private hasMadeInitialAttempt = false;
+  private jidConfig: IJidConfig = {};
 
   private boundStanzaDisconnect?: () => Promise<any>;
   private boundStanzaNoLongerSubscribed?: () => void;
@@ -280,6 +282,8 @@ export class Client extends EventEmitter {
 
   async disconnect () {
     this.logger.info('streamingClient.disconnect was called');
+    // Clear stored JID on client disconnect.
+    this.jidConfig = {};
 
     if (!this.activeStanzaInstance) {
       return;
@@ -643,20 +647,25 @@ export class Client extends EventEmitter {
     }
 
     if (this.hardReconnectRequired) {
-      let jidPromise: Promise<any>;
-      if (this.config.jid) {
-        jidPromise = Promise.resolve(this.config.jid);
-      } else {
-        const jidRequestOpts: RequestApiOptions = {
-          method: 'get',
-          host: this.config.apiHost,
-          authToken: this.config.authToken,
-          logger: this.logger,
-          customHeaders: this.config.customHeaders
-        };
-        jidPromise = this.http.requestApi('users/me', jidRequestOpts)
-          .then(res => res.data.chat.jabberId);
+      // Use stored JID if we have one, otherwise use the provided JID or grab one.
+      if (!this.jidConfig.baseJid) {
+        if (this.config.jid) {
+          this.jidConfig.baseJid = this.config.jid;
+        } else {
+          const jidRequestOpts: RequestApiOptions = {
+            method: 'get',
+            host: this.config.apiHost,
+            authToken: this.config.authToken,
+            logger: this.logger,
+            customHeaders: this.config.customHeaders
+          };
+          this.jidConfig.baseJid = await this.http.requestApi('users/me', jidRequestOpts)
+            .then(res => res.data.chat.jabberId);
+        }
       }
+      // If no jidResource is provided, generate a random one to maintain ourselves.
+      this.jidConfig.jidResource = this.config.jidResource || v4();
+      this.jidConfig.fullJid = `${this.jidConfig.baseJid}/${this.jidConfig.jidResource}`;
 
       const channelRequestOpts: RequestApiOptions = {
         method: 'post',
@@ -665,11 +674,11 @@ export class Client extends EventEmitter {
         logger: this.logger,
         customHeaders: this.config.customHeaders
       };
-      const channelPromise = this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
+      const channelId = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 
-      const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);
-      this.config.jid = jid;
+      this.config.jid = this.jidConfig.baseJid;
+      this.config.jidResource = this.jidConfig.jidResource;
       this.config.channelId = channelId;
       this.autoReconnect = true;
       this.logger.info('attempting to connect streaming client on channel', { channelId });
