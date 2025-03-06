@@ -144,7 +144,7 @@ describe('peerConnection event listeners', () => {
         method: 'iceCandidate',
         params: {
           sessionId: 'sessionId',
-          sdp: `m=${event.candidate.sdpMid} 9 RTP/AVP 0\r\na=${event.candidate.candidate}`
+          sdp: `m=${event.candidate.sdpMid} 9 RTP/AVP 0\r\na=${event.candidate.candidate}\r\n`
         }
       });
     });
@@ -165,7 +165,7 @@ describe('peerConnection event listeners', () => {
         method: 'iceCandidate',
         params: {
           sessionId: 'sessionId',
-          sdp: 'a=end-of-candidates'
+          sdp: 'a=end-of-candidates\r\n'
         }
       });
     });
