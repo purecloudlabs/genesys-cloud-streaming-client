@@ -289,9 +289,9 @@ export class GenesysCloudMediaSession {
       this.iceCandidatesDiscovered++;
 
       // media team asked us to send the mline and prefix the candidate with "a="
-      sdpStr = `m=${sdpMid} 9 RTP/AVP 0\r\na=${candidateString}`;
+      sdpStr = `m=${sdpMid} 9 RTP/AVP 0\r\na=${candidateString}\r\n`;
     } else {
-      sdpStr = 'a=end-of-candidates';
+      sdpStr = 'a=end-of-candidates\r\n';
       this.emit('endOfCandidates');
     }
 
