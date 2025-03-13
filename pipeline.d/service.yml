@@ -3,7 +3,7 @@ service:
   family:
     - core
     - webui
-  name: developercenter-cdn/streaming-client-webui
+  name: developercenter-cdn--streaming-client-webui
   blueprint: webUi
   team: Client Streaming and Signaling
   jiraProjectKey: STREAM
