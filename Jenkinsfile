@@ -151,9 +151,11 @@ VERSION      : ${env.VERSION}
 
         // Run PureScale when we have a new `next` version
         if (isRelease()) {
-          catchError(buildResult: 'SUCCESS') {
-            build job: "build-purescale-zombie-conscript/master", wait: false
-          }
+            stage('Run PureScale job') {
+                catchError(buildResult: 'SUCCESS') {
+                  build job: "build-purescale-zombie-conscript/master", wait: false
+                }
+            }
         }
 
         if (isMain()) {
