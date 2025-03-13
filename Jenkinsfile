@@ -75,15 +75,14 @@ def notifications = new com.genesys.jenkins.Notifications()
 def chatGroupId = 'adhoc-60e40c95-3d9c-458e-a48e-ca4b29cf486d'
 
 webappPipeline {
-    nodeVersion = '14.x'
     projectName = 'developercenter-cdn/streaming-client'
+    nodeVersion = '20.x multiarch'
     team = 'Client Streaming and Signaling'
     jiraProjectKey = 'STREAM'
 
     mailer = getMailerAddresses()
     chatGroupId = chatGroupId
 
-    nodeVersion = '14.x'
     buildType = getBranchType
 
     manifest = customManifest('dist') {
