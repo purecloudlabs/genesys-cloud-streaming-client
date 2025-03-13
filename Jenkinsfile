@@ -16,47 +16,6 @@ def isDevelop = {
   env.BRANCH_NAME == DEVELOP_BRANCH
 }
 
-def isMainline = {
-  isMain() || isDevelop() || isRelease()
-}
-
-def getBranchType = {
-  isMainline() ? 'MAINLINE' : 'FEATURE'
-}
-
-def hasRunSpigotTests = false
-def testSpigotByEnv = { environment, branch ->
-   stage("Spigot test '${environment}'") {
-        script {
-            println("Scheduling spigot test for: { env: '${environment}', branch: '${branch}' }")
-            build(job: 'spigot-tests-streaming-client-entry',
-                    parameters: [
-                        string(name: 'ENVIRONMENT', value: environment),
-                        string(name: 'BRANCH_TO_TEST', value: branch)
-                    ],
-                    propagate: true,
-                    wait: true // wait for the test job to finish
-            )
-        }
-    }
-}
-
-def getDeployConfig = {
-  def deployConfig = [:]
-
-  if (isMainline()) {
-    deployConfig['dev'] = 'always'
-    deployConfig['test'] = 'always'
-  }
-
-  if (isMain()) {
-    deployConfig['prod'] = 'always'
-    deployConfig['fedramp-use2-core'] = 'always'
-  }
-
-  return deployConfig;
-}
-
 def getMailerAddresses = {
   def mailer = 'GcMediaStreamSignal@genesys.com'
 
@@ -74,22 +33,16 @@ def notifications = new com.genesys.jenkins.Notifications()
 // PCM – Just Send It
 def chatGroupId = 'adhoc-60e40c95-3d9c-458e-a48e-ca4b29cf486d'
 
-webappPipeline {
-    projectName = 'developercenter-cdn/streaming-client'
+webappPipelineV2 {
+    urlPrefix = 'developercenter-cdn/streaming-client'
     nodeVersion = '20.x multiarch'
-    team = 'Client Streaming and Signaling'
-    jiraProjectKey = 'STREAM'
-
     mailer = getMailerAddresses()
     chatGroupId = chatGroupId
-
-    buildType = getBranchType
 
     manifest = customManifest('dist') {
         sh('node ./create-manifest.js')
         readJSON(file: 'dist/manifest.json')
     }
-    testJob = 'no-tests' // see buildStep to spigot tests
 
     snykConfig = {
         return [
@@ -97,10 +50,6 @@ webappPipeline {
             wait: true
         ]
     }
-
-    autoSubmitCm = true
-
-    deployConfig = getDeployConfig()
 
     ciTests = {
         println("""
@@ -130,7 +79,7 @@ VERSION      : ${env.VERSION}
     }
 
     onSuccess = {
-       sh("""
+        sh("""
             echo "=== root folder ==="
             ls -als ./
 
