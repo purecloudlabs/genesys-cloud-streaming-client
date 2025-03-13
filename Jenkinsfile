@@ -64,7 +64,6 @@ VERSION      : ${env.VERSION}
       """)
 
       sh("""
-        npm i -g npm@7
         npm ci
         npm run test
       """)
@@ -149,6 +148,13 @@ VERSION      : ${env.VERSION}
                 notifications.requestToGenericWebhooksWithMessage(chatGroupId, message);
             }
         } // end publish to npm
+
+        // Run PureScale when we have a new `next` version
+        if (isRelease()) {
+          catchError(buildResult: 'SUCCESS') {
+            build job: "build-purescale-zombie-conscript/master", wait: false
+          }
+        }
 
         if (isMain()) {
             stage('Tag commit and merge back') {
