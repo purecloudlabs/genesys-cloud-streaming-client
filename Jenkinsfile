@@ -32,9 +32,10 @@ def notifications = new com.genesys.jenkins.Notifications()
 
 // PCM – Just Send It
 def chatGroupId = 'adhoc-60e40c95-3d9c-458e-a48e-ca4b29cf486d'
+def name = 'developercenter-cdn/streaming-client'
 
 webappPipelineV2 {
-    urlPrefix = 'developercenter-cdn/streaming-client'
+    urlPrefix = name
     nodeVersion = '20.x multiarch'
     mailer = getMailerAddresses()
     chatGroupId = chatGroupId
@@ -58,7 +59,6 @@ ENVIRONMENT  : ${env.ENVIRONMENT}
 BUILD_NUMBER : ${env.BUILD_NUMBER}
 BUILD_ID     : ${env.BUILD_ID}
 BRANCH_NAME  : ${env.BRANCH_NAME}
-APP_NAME     : ${env.APP_NAME}
 VERSION      : ${env.VERSION}
 ===================================
       """)
@@ -139,7 +139,7 @@ VERSION      : ${env.VERSION}
                     ])
                 }
 
-                def message = "**${env.APP_NAME}** ${version} (Build [#${env.BUILD_NUMBER}](${env.BUILD_URL})) has been published to **npm**"
+                def message = "**${name}** ${version} (Build [#${env.BUILD_NUMBER}](${env.BUILD_URL})) has been published to **npm**"
 
                 if (!tag) {
                   message = ":loudspeaker: ${message}"
