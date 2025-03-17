@@ -149,9 +149,9 @@ VERSION      : ${env.VERSION}
             }
         } // end publish to npm
 
-        // Run PureScale when we have a new `next` version
+        // Initiate PureScale tests when we have a new `next` version
         if (isRelease()) {
-            stage('Kick off PureScale job') {
+            stage('Kick off PureScale tests') {
                 catchError(buildResult: 'SUCCESS') {
                   build job: "build-purescale-zombie-conscript/master", wait: false
                 }
