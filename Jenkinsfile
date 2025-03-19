@@ -16,47 +16,6 @@ def isDevelop = {
   env.BRANCH_NAME == DEVELOP_BRANCH
 }
 
-def isMainline = {
-  isMain() || isDevelop() || isRelease()
-}
-
-def getBranchType = {
-  isMainline() ? 'MAINLINE' : 'FEATURE'
-}
-
-def hasRunSpigotTests = false
-def testSpigotByEnv = { environment, branch ->
-   stage("Spigot test '${environment}'") {
-        script {
-            println("Scheduling spigot test for: { env: '${environment}', branch: '${branch}' }")
-            build(job: 'spigot-tests-streaming-client-entry',
-                    parameters: [
-                        string(name: 'ENVIRONMENT', value: environment),
-                        string(name: 'BRANCH_TO_TEST', value: branch)
-                    ],
-                    propagate: true,
-                    wait: true // wait for the test job to finish
-            )
-        }
-    }
-}
-
-def getDeployConfig = {
-  def deployConfig = [:]
-
-  if (isMainline()) {
-    deployConfig['dev'] = 'always'
-    deployConfig['test'] = 'always'
-  }
-
-  if (isMain()) {
-    deployConfig['prod'] = 'always'
-    deployConfig['fedramp-use2-core'] = 'always'
-  }
-
-  return deployConfig;
-}
-
 def getMailerAddresses = {
   def mailer = 'GcMediaStreamSignal@genesys.com'
 
@@ -73,24 +32,18 @@ def notifications = new com.genesys.jenkins.Notifications()
 
 // PCM – Just Send It
 def chatGroupId = 'adhoc-60e40c95-3d9c-458e-a48e-ca4b29cf486d'
+def name = 'developercenter-cdn/streaming-client'
 
-webappPipeline {
-    nodeVersion = '14.x'
-    projectName = 'developercenter-cdn/streaming-client'
-    team = 'Client Streaming and Signaling'
-    jiraProjectKey = 'STREAM'
-
+webappPipelineV2 {
+    urlPrefix = name
+    nodeVersion = '20.x multiarch'
     mailer = getMailerAddresses()
     chatGroupId = chatGroupId
-
-    nodeVersion = '14.x'
-    buildType = getBranchType
 
     manifest = customManifest('dist') {
         sh('node ./create-manifest.js')
         readJSON(file: 'dist/manifest.json')
     }
-    testJob = 'no-tests' // see buildStep to spigot tests
 
     snykConfig = {
         return [
@@ -99,10 +52,6 @@ webappPipeline {
         ]
     }
 
-    autoSubmitCm = true
-
-    deployConfig = getDeployConfig()
-
     ciTests = {
         println("""
 ========= BUILD VARIABLES =========
@@ -110,13 +59,11 @@ ENVIRONMENT  : ${env.ENVIRONMENT}
 BUILD_NUMBER : ${env.BUILD_NUMBER}
 BUILD_ID     : ${env.BUILD_ID}
 BRANCH_NAME  : ${env.BRANCH_NAME}
-APP_NAME     : ${env.APP_NAME}
 VERSION      : ${env.VERSION}
 ===================================
       """)
 
       sh("""
-        npm i -g npm@7
         npm ci
         npm run test
       """)
@@ -131,7 +78,7 @@ VERSION      : ${env.VERSION}
     }
 
     onSuccess = {
-       sh("""
+        sh("""
             echo "=== root folder ==="
             ls -als ./
 
@@ -192,7 +139,7 @@ VERSION      : ${env.VERSION}
                     ])
                 }
 
-                def message = "**${env.APP_NAME}** ${version} (Build [#${env.BUILD_NUMBER}](${env.BUILD_URL})) has been published to **npm**"
+                def message = "**${name}** ${version} (Build [#${env.BUILD_NUMBER}](${env.BUILD_URL})) has been published to **npm**"
 
                 if (!tag) {
                   message = ":loudspeaker: ${message}"
@@ -201,6 +148,15 @@ VERSION      : ${env.VERSION}
                 notifications.requestToGenericWebhooksWithMessage(chatGroupId, message);
             }
         } // end publish to npm
+
+        // Initiate PureScale tests when we have a new `next` version
+        if (isRelease()) {
+            stage('Kick off PureScale tests') {
+                catchError(buildResult: 'SUCCESS') {
+                  build job: "build-purescale-zombie-conscript/master", wait: false
+                }
+            }
+        }
 
         if (isMain()) {
             stage('Tag commit and merge back') {
