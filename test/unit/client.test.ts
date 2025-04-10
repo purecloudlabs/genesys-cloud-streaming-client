@@ -1522,11 +1522,10 @@ describe('JID maintenance', () => {
     jest.clearAllMocks();
   });
 
-  it('should maintain same JID across hard reconnects', async () => {
-    client['jidConfig'] = {};
+  it('should maintain same JID resource across hard reconnects', async () => {
+    client['jidResource'] = 'mocked-uuid';
     await client['prepareForConnect']();
     expect(httpSpy).toHaveBeenCalledWith('users/me', expect.any(Object));
-    expect(client['jidConfig'].baseJid).toBe('test-jid');
     expect(client.config.jid).toBe('test-jid');
     expect(client.config.jidResource).toBe('mocked-uuid');
 
@@ -1536,12 +1535,11 @@ describe('JID maintenance', () => {
 
     await client['prepareForConnect']();
     expect(httpSpy).not.toHaveBeenCalledWith('users/me', expect.any(Object));
-    expect(client['jidConfig'].baseJid).toBe('test-jid');
     expect(client.config.jid).toBe('test-jid');
     expect(client.config.jidResource).toBe('mocked-uuid');
   });
 
-  it('should use provided JID if available', async () => {
+  it('should use provided JID resource if available', async () => {
     client = new Client({
       host: 'wss://streaming.example.com',
       apiHost: 'api.example.com',
@@ -1568,22 +1566,18 @@ describe('JID maintenance', () => {
     await client['prepareForConnect']();
 
     expect(httpSpy).not.toHaveBeenCalledWith('users/me', expect.any(Object));
-    expect(client['jidConfig'].baseJid).toBe('provided-jid');
-    expect(client['jidConfig'].jidResource).toBe('provided-jid-resource');
+    expect(client['jidResource']).toBe('provided-jid-resource');
     expect(client.config.jid).toBe('provided-jid');
     expect(client.config.jidResource).toBe('provided-jid-resource');
   });
 
-  it('should pass maintained JID to new stanza instances', async () => {
+  it('should pass maintained JID resource to new stanza instances', async () => {
     await client['prepareForConnect']();
-    const baseJid = client['jidConfig'].baseJid;
-    const jidResource = client['jidConfig'].jidResource;
+    const jidResource = client['jidResource'];
 
     const connectionManager = client['connectionManager'];
     const stanzaOptions = connectionManager['getStandardOptions']();
 
-    expect(stanzaOptions.jid).toBe(baseJid);
     expect(stanzaOptions.resource).toBe(jidResource);
-    expect(stanzaOptions.credentials!.username).toBe(baseJid);
   });
 });
