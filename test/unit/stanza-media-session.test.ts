@@ -204,7 +204,7 @@ describe('StanzaMediaSession', () => {
       } as any);
 
       const spy = session['_log'] = jest.fn();
-      session['pc'] = { 
+      session['pc'] = {
         iceConnectionState: 'disconnected',
         signalingState: 'stable'
       } as any;
@@ -230,7 +230,7 @@ describe('StanzaMediaSession', () => {
       session['interruptionStart'] = new Date();
 
       const spy = session['_log'] = jest.fn();
-      session['pc'] = { 
+      session['pc'] = {
         connectionState: 'connected',
       } as any;
 
@@ -250,7 +250,7 @@ describe('StanzaMediaSession', () => {
       session['interruptionStart'] = new Date();
 
       const spy = session['_log'] = jest.fn();
-      session['pc'] = { 
+      session['pc'] = {
         connectionState: 'failed',
       } as any;
 
@@ -619,7 +619,7 @@ describe('StanzaMediaSession', () => {
       beforeEach(() => {
         session.pc.createDataChannel = () => new EventTarget() as any;
         (session.pc as any).localDescription = { sdp: 'm=application webrtc-datachannel' };
-  
+
         session._setupDataChannel();
       });
 
@@ -631,7 +631,7 @@ describe('StanzaMediaSession', () => {
 
         expect(spy).toHaveBeenCalledWith('info', 'data channel opened');
       });
-  
+
       it('close', () => {
         const spy = jest.spyOn(session as any, '_log');
 
@@ -640,7 +640,7 @@ describe('StanzaMediaSession', () => {
 
         expect(spy).toHaveBeenCalledWith('info', 'closing data channel');
       });
-      
+
       it('error', () => {
         const spy = jest.spyOn(session as any, '_log');
 
@@ -649,13 +649,13 @@ describe('StanzaMediaSession', () => {
 
         expect(spy).toHaveBeenCalledWith('error', 'Error occurred with the data channel', event);
       });
-      
+
       it('message', () => {
         const spy = jest.spyOn(session as any, '_handleDataChannelMessage');
         session.dataChannel = undefined;
         session._setupDataChannel();
 
-        const event = new Event('message');
+        const event = new MessageEvent('message', { data: '{"test": "data"}' });
         session.dataChannel!.dispatchEvent(event);
 
         expect(spy).toHaveBeenCalledWith(event);
@@ -683,7 +683,7 @@ describe('StanzaMediaSession', () => {
         });
 
         const logSpy = jest.spyOn(session as any, '_log');
-        
+
         const event = new MessageEvent('message', { data: JSON.stringify(data) });
         session._handleDataChannelMessage(event);
 
@@ -701,7 +701,7 @@ describe('StanzaMediaSession', () => {
         } as any);
 
         const logSpy = jest.spyOn(session as any, '_log');
-        
+
         const event = new MessageEvent('message', { data: '{sldkfj,}' });
         session._handleDataChannelMessage(event);
 
