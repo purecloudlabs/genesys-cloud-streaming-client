@@ -4,7 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.0.1...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.1.0...HEAD)
+
+# [v19.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.0.1...v19.1.0)
+* [STREAM-357](https://inindca.atlassian.net/browse/STREAM-357) - Maintain the same JID resource across hard reconnects/websockets/stanza instances so that reinvites can be sent to the new WS/stanza instance.
 
 # [v19.0.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.0.0...v19.0.1)
 ### Fixed

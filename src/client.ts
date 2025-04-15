@@ -23,6 +23,7 @@ import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
+import { v4 } from 'uuid';
 
 let extensions = {
   notifications: Notifications,
@@ -56,6 +57,7 @@ export class Client extends EventEmitter {
   private channelReuses = 0;
   private backoffReductionTimer: any;
   private hasMadeInitialAttempt = false;
+  private jidResource: string = '';
 
   private boundStanzaDisconnect?: () => Promise<any>;
   private boundStanzaNoLongerSubscribed?: () => void;
@@ -284,6 +286,9 @@ export class Client extends EventEmitter {
     if (!this.activeStanzaInstance) {
       return;
     }
+
+    // Clear stored JID on client disconnect.
+    this.jidResource = '';
 
     return timeoutPromise(resolve => {
       this.autoReconnect = false;
@@ -644,6 +649,7 @@ export class Client extends EventEmitter {
 
     if (this.hardReconnectRequired) {
       let jidPromise: Promise<any>;
+
       if (this.config.jid) {
         jidPromise = Promise.resolve(this.config.jid);
       } else {
@@ -654,9 +660,12 @@ export class Client extends EventEmitter {
           logger: this.logger,
           customHeaders: this.config.customHeaders
         };
-        jidPromise = this.http.requestApi('users/me', jidRequestOpts)
+        jidPromise = await this.http.requestApi('users/me', jidRequestOpts)
           .then(res => res.data.chat.jabberId);
       }
+
+      // If no jidResource is provided, generate a random one to maintain ourselves.
+      this.jidResource = this.config.jidResource || v4();
 
       const channelRequestOpts: RequestApiOptions = {
         method: 'post',
@@ -665,11 +674,12 @@ export class Client extends EventEmitter {
         logger: this.logger,
         customHeaders: this.config.customHeaders
       };
-      const channelPromise = this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
+      const channelPromise = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 
       const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);
       this.config.jid = jid;
+      this.config.jidResource = this.jidResource;
       this.config.channelId = channelId;
       this.autoReconnect = true;
       this.logger.info('attempting to connect streaming client on channel', { channelId });

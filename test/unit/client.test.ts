@@ -19,6 +19,9 @@ import { ServerMonitor } from '../../src/server-monitor';
 jest.mock('genesys-cloud-client-logger');
 jest.mock('../../src/ping');
 jest.mock('../../src/server-monitor');
+jest.mock('uuid', () => ({
+  v4: jest.fn(() => 'mocked-uuid'),
+}));
 
 const defaultOptions = {
   jid: 'anon@example.mypurecloud.com',
@@ -111,7 +114,7 @@ describe('constructor', () => {
 
 describe('getConnectionData', () => {
   let client: Client;
-  
+
   beforeEach(() => {
     client = new Client(getDefaultOptions());
   });
@@ -138,7 +141,7 @@ describe('getConnectionData', () => {
 
 describe('increaseBackoff', () => {
   let client: Client;
-  
+
   beforeEach(() => {
     client = new Client(getDefaultOptions());
   });
@@ -166,7 +169,7 @@ describe('increaseBackoff', () => {
 
 describe('descreaseBackoff', () => {
   let client: Client;
-  
+
   beforeEach(() => {
     client = new Client(getDefaultOptions());
   });
@@ -207,11 +210,11 @@ describe('descreaseBackoff', () => {
       delayMsAfterNextReduction: 2500,
       nextDelayReductionTime: expect.any(Number),
     }));
-  
+
     const calls = spy.mock.calls;
-  
+
     const spyCallArg = calls[0][0];
-  
+
     const expectedNextReductionTime = new Date().getTime() + (5000 * 5);
     expect(spyCallArg.nextDelayReductionTime).toBeGreaterThanOrEqual(expectedNextReductionTime - 1000);
     expect(spyCallArg.nextDelayReductionTime).toBeLessThanOrEqual(expectedNextReductionTime + 1000);
@@ -224,7 +227,7 @@ describe('descreaseBackoff', () => {
 
 describe('getStartingDelay', () => {
   let client: Client;
-  
+
   beforeEach(() => {
     client = new Client(getDefaultOptions());
   });
@@ -444,7 +447,7 @@ describe('connect', () => {
 
     expect.assertions(4);
   });
-  
+
   it('should massage AxiosError (no response object) on failure', async () => {
     const error = new AxiosError('fake error', 'FAKE_ERROR', {
       url: 'fakeUrl',
@@ -606,7 +609,7 @@ describe('backoffConnectRetryHandler', () => {
     delete (error as any).config;
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1)).toBeFalsy();
   });
-  
+
   it('should wait until retryAfter has elapsed (axiosError)', async () => {
     jest.useFakeTimers();
 
@@ -648,7 +651,7 @@ describe('backoffConnectRetryHandler', () => {
     await expect(promise).resolves.toBeTruthy();
     jest.useRealTimers();
   });
-  
+
   it('should wait until retryAfter has elapsed (xmlhttperror)', async () => {
     jest.useFakeTimers();
 
@@ -680,7 +683,7 @@ describe('backoffConnectRetryHandler', () => {
     await expect(promise).resolves.toBeTruthy();
     jest.useRealTimers();
   });
-  
+
   it('should handle response with no headers', async () => {
     const error = {
       response: {
@@ -748,7 +751,7 @@ describe('backoffConnectRetryHandler', () => {
       error: error.message
     }), { skipServer: false });
   });
-  
+
   it('should handle undefined error', async () => {
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, undefined, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
@@ -1025,7 +1028,7 @@ describe('prepareForConnect', () => {
 
         reject('unknown path');
       });
-      
+
       return promise;
     })
   });
@@ -1169,7 +1172,7 @@ describe('addInateEventHandlers', () => {
     expect(ext1.handleMessage).not.toHaveBeenCalled();
     expect(ext2.handleMessage).not.toHaveBeenCalled();
   });
-  
+
   it('should proxy message stanzas to all extensions', () => {
     const client = new Client(getDefaultOptions());
 
@@ -1229,7 +1232,7 @@ describe('handleStanzaDisconnectedEvent', () => {
     expect(connectSpy).not.toHaveBeenCalled();
     expect(disconnectHandler).toHaveBeenCalled();
   });
-  
+
   it('should reconnect if autoReconnect', async () => {
     client['autoReconnect'] = true;
     fakeStanza.pinger = undefined;
@@ -1247,9 +1250,9 @@ describe('handleStanzaDisconnectedEvent', () => {
 
   it('should unproxy events', async () => {
     client['autoReconnect'] = false;
-    
+
     fakeStanza.originalEmitter = {} as any;
-    
+
     await client['handleStanzaDisconnectedEvent'](fakeStanza);
 
     expect(fakeStanza.emit).toBe(fakeStanza.originalEmitter);
@@ -1273,7 +1276,7 @@ describe('handleNoLongerSubscribed', () => {
 
     client.activeStanzaInstance = fakeStanza;
   });
-  
+
   it('should set autoReconnect to false', () => {
     client.hardReconnectRequired = false;
     client.reconnectOnNoLongerSubscribed = false;
@@ -1485,5 +1488,96 @@ describe('extend', () => {
     expect(() => {
       Client.extend('testExtension', () => { });
     }).toThrow();
+  });
+});
+
+describe('JID maintenance', () => {
+  let client: Client;
+  let httpSpy: jest.SpyInstance;
+  let setConfigSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    client = new Client({
+      host: 'wss://streaming.example.com',
+      apiHost: 'api.example.com'
+    });
+
+    client.http = {
+      requestApi: jest.fn().mockImplementation((path) => {
+        if (path === 'users/me') {
+          return Promise.resolve({ data: { chat: { jabberId: 'test-jid' } } });
+        }
+        if (path === 'notifications/channels?connectionType=streaming') {
+          return Promise.resolve({ data: { id: 'test-channel' } });
+        }
+        return Promise.reject(new Error('Unexpected path'));
+      })
+    } as any;
+
+    httpSpy = jest.spyOn(client.http, 'requestApi');
+    setConfigSpy = jest.spyOn(client['connectionManager'], 'setConfig');
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should maintain same JID resource across hard reconnects', async () => {
+    client['jidResource'] = 'mocked-uuid';
+    await client['prepareForConnect']();
+    expect(httpSpy).toHaveBeenCalledWith('users/me', expect.any(Object));
+    expect(client.config.jid).toBe('test-jid');
+    expect(client.config.jidResource).toBe('mocked-uuid');
+
+
+    client.hardReconnectRequired = true;
+    httpSpy.mockClear();
+
+    await client['prepareForConnect']();
+    expect(httpSpy).not.toHaveBeenCalledWith('users/me', expect.any(Object));
+    expect(client.config.jid).toBe('test-jid');
+    expect(client.config.jidResource).toBe('mocked-uuid');
+  });
+
+  it('should use provided JID resource if available', async () => {
+    client = new Client({
+      host: 'wss://streaming.example.com',
+      apiHost: 'api.example.com',
+      jid: 'provided-jid',
+      jidResource: 'provided-jid-resource',
+    });
+
+    client.http = {
+      requestApi: jest.fn().mockImplementation((path) => {
+        if (path === 'users/me') {
+          return Promise.resolve({ data: { chat: { jabberId: 'test-jid' } } });
+        }
+        if (path === 'notifications/channels?connectionType=streaming') {
+          return Promise.resolve({ data: { id: 'test-channel' } });
+        }
+        return Promise.reject(new Error('Unexpected path'));
+      })
+    } as any;
+
+    httpSpy = jest.spyOn(client.http, 'requestApi');
+    setConfigSpy = jest.spyOn(client['connectionManager'], 'setConfig');
+
+    client.hardReconnectRequired = true;
+    await client['prepareForConnect']();
+
+    expect(httpSpy).not.toHaveBeenCalledWith('users/me', expect.any(Object));
+    expect(client['jidResource']).toBe('provided-jid-resource');
+    expect(client.config.jid).toBe('provided-jid');
+    expect(client.config.jidResource).toBe('provided-jid-resource');
+  });
+
+  it('should pass maintained JID resource to new stanza instances', async () => {
+    await client['prepareForConnect']();
+    const jidResource = client['jidResource'];
+
+    const connectionManager = client['connectionManager'];
+    const stanzaOptions = connectionManager['getStandardOptions']();
+
+    expect(stanzaOptions.resource).toBe(jidResource);
   });
 });
