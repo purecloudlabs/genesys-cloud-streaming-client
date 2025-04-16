@@ -195,7 +195,7 @@ describe('handleSessionSasl', () => {
 
     expect(spy).toHaveBeenCalled();
   });
-  
+
   it('should not reject if sasl success', () => {
     const spy = jest.fn();
 
@@ -228,7 +228,7 @@ describe('checkForErrorStanza', () => {
 
     expect(fakeLogger.error).toBeCalled();
   });
-  
+
   it('should not log if text does not contain "error"', () => {
     const fakeStanza = {};
 
@@ -250,7 +250,7 @@ describe('getStanzaOptions', () => {
     expect(jwtSpy).toHaveBeenCalled();
     expect(standardSpy).not.toHaveBeenCalled();
   });
-  
+
   it('should getStandardOptions if config does not include a jwt', () => {
     const jwtSpy = connectionManager['getJwtOptions'] = jest.fn();
     const standardSpy = connectionManager['getStandardOptions'] = jest.fn();
@@ -263,30 +263,53 @@ describe('getStanzaOptions', () => {
 });
 
 describe('getJwtOptions', () => {
-  it('should throw if jid is not properly formatted', () => {
+  beforeEach(() => {
     connectionManager['config'] = {
-      jwt: 'test.' + window.btoa(JSON.stringify({ data: { jid: 'acd-asdfasdfkjexample.orgspan.com' } }))
+      jidResource: 'testResource',
+      host: 'example.com'
     } as any;
-
-    expect(() => connectionManager['getJwtOptions']()).toThrowError('failed to parse');
   });
 
-  it('should return options', () => {
-    connectionManager['config'] = {
-      jwt: 'test.' + window.btoa(JSON.stringify({ data: { jid: 'acd-asdfasdfkj@conference.example.orgspan.com' } })),
-      jidResource: 'testResource',
-      host: 'example.com',
-      channelId: 'mychannel',
-      apiHost: 'api.example.com'
-    };
+  it('should use jid from jwt data when present', () => {
+    connectionManager['config'].jwt = 'test.' + window.btoa(JSON.stringify({
+      data: {
+        jid: 'acd-asdfasdfkj@conference.example.orgspan.com'
+      }
+    }));
 
     expect(connectionManager['getJwtOptions']()).toEqual({
       resource: 'testResource',
       transports: {
         websocket: `example.com/stream/jwt/${connectionManager['config'].jwt}`
       },
-      server: expect.anything()
+      server: 'example.orgspan.com'
     });
+  });
+
+  it('should use conferenceid from jwt data when jid is not present', () => {
+    connectionManager['config'].jwt = 'test.' + window.btoa(JSON.stringify({
+      data: {
+        conferenceid: 'acd-asdfasdfkj@conference.example.orgspan.com'
+      }
+    }));
+
+    expect(connectionManager['getJwtOptions']()).toEqual({
+      resource: 'testResource',
+      transports: {
+        websocket: `example.com/stream/jwt/${connectionManager['config'].jwt}`
+      },
+      server: 'example.orgspan.com'
+    });
+  });
+
+  it('should throw if jid is not properly formatted', () => {
+    connectionManager['config'].jwt = 'test.' + window.btoa(JSON.stringify({
+      data: {
+        jid: 'acd-asdfasdfkjexample.orgspan.com'
+      }
+    }));
+
+    expect(() => connectionManager['getJwtOptions']()).toThrowError('failed to parse');
   });
 });
 
