@@ -522,20 +522,12 @@ describe('disconnect', () => {
     client = new Client(getDefaultOptions());
   });
 
-  it('should do nothing if no stanza instance', async () => {
-    client.activeStanzaInstance = undefined;
-
-    const spy = client.http.stopAllRetries = jest.fn();
-
-    await client.disconnect();
-
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('should resolve when a disconnected event is received', async () => {
+  it('should stop HTTP retries and resolve when there is a current stanza instance', async () => {
     let isResolved = false;
 
-    const stanza = client.activeStanzaInstance = new EventEmitter() as any;
+    client.http.stopAllRetries = jest.fn();
+    const stanza = new EventEmitter() as any;
+    client['connectionManager'].currentStanzaInstance = stanza;
 
     let resolve;
     stanza.disconnect = jest.fn().mockImplementation(() => {
@@ -543,17 +535,30 @@ describe('disconnect', () => {
         resolve = r;
       });
     });
-    client.http.stopAllRetries = jest.fn();
 
-    const promise = client.disconnect().then(() => isResolved = true);
+    client.disconnect().then(() => isResolved = true);
     await flushPromises();
 
+    expect(client.http.stopAllRetries).toHaveBeenCalled();
     expect(stanza.disconnect).toHaveBeenCalled();
     expect(isResolved).toBeFalsy();
 
     resolve();
     await flushPromises();
 
+    expect(isResolved).toBeTruthy();
+  });
+
+  it('should stop HTTP retries and resolve when there is no current stanza instance', async () => {
+    let isResolved = false;
+
+    client.http.stopAllRetries = jest.fn();
+    client['connectionManager'].currentStanzaInstance = undefined;
+
+    const promise = client.disconnect().then(() => isResolved = true);
+    await flushPromises();
+
+    expect(client.http.stopAllRetries).toHaveBeenCalled();
     expect(isResolved).toBeTruthy();
   });
 });

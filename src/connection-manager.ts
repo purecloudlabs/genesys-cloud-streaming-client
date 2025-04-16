@@ -17,6 +17,8 @@ import SaslError from './types/sasl-error';
 import { parseJwt, timeoutPromise } from './utils';
 
 export class ConnectionManager {
+  currentStanzaInstance?: NamedAgent;
+
   constructor (private logger: Logger, private config: IClientConfig) {}
 
   setConfig (config: IClientConfig) {
@@ -26,6 +28,7 @@ export class ConnectionManager {
   async getNewStanzaConnection (): Promise<NamedAgent> {
     const options = this.getStanzaOptions();
     const stanza = createClient({}) as unknown as NamedAgent;
+    this.currentStanzaInstance = stanza;
 
     // this is a hack because stanza messes up the auth mechanism priority.
     (stanza.sasl as any).mechanisms.find(mech => mech.name === 'ANONYMOUS').priority = 0;

@@ -280,12 +280,8 @@ export class Client extends EventEmitter {
     this.hardReconnectRequired = true;
   }
 
-  async disconnect () {
+  async disconnect (): Promise<any> {
     this.logger.info('streamingClient.disconnect was called');
-
-    if (!this.activeStanzaInstance) {
-      return;
-    }
 
     // Clear stored JID on client disconnect.
     this.jidResource = '';
@@ -293,8 +289,7 @@ export class Client extends EventEmitter {
     return timeoutPromise(resolve => {
       this.autoReconnect = false;
       this.http.stopAllRetries();
-      return this.activeStanzaInstance!.disconnect()
-        .then(resolve);
+      this.connectionManager.currentStanzaInstance?.disconnect()?.then(resolve) ?? resolve();
     }, 5000, 'disconnecting streaming service');
   }
 
