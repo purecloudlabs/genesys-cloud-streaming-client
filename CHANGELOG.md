@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.1.0...HEAD)
+### Changed
+* [STREAM-462](https://inindca.atlassian.net/browse/STREAM-462) - Update Stanza timeout timer to 35 seconds to align with the updated server timeout.
+
 ### Added
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Allow for conferenceId or JID to be used in JWT auth.
 

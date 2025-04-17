@@ -3,7 +3,7 @@
 import { Client } from './client';
 import { NamedAgent } from './types/named-agent';
 
-const DEFAULT_STANZA_TIMEOUT = 70 * 1000;
+const DEFAULT_STANZA_TIMEOUT = 35 * 1000;
 
 export interface ServerMonitorOptions {
   stanzaTimeout?: number;
