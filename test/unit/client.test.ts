@@ -845,6 +845,7 @@ describe('makeConnectionAttempt', () => {
     const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
     client['boundStanzaDisconnect'] = async () => {};
     client['boundStanzaNoLongerSubscribed'] = () => {};
+    client['boundStanzaSocketClosing'] = () => {};
     client['boundStanzaDuplicateId'] = () => {};
     getConnectionSpy.mockResolvedValue(fakeInstance);
     prepareSpy.mockResolvedValue(null);
@@ -883,6 +884,7 @@ describe('makeConnectionAttempt', () => {
     expect(client['boundStanzaDisconnect']).toBeUndefined();
     expect(client['boundStanzaNoLongerSubscribed']).toBeUndefined();
     expect(client['boundStanzaDuplicateId']).toBeUndefined();
+    expect(client['boundStanzaSocketClosing']).toBeUndefined();
   });
 
   it('should cleanup event handlers and connection monitors', async () => {
@@ -1335,6 +1337,46 @@ describe('handleDuplicateId', () => {
     fakeStanza.serverMonitor = { stop: spy } as any;
 
     client['handleDuplicateId'](fakeStanza);
+
+    expect(client['hardReconnectRequired']).toBeTruthy();
+    expect(spy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('handleSocketCLosing', () => {
+  let client: Client;
+  let fakeStanza: NamedAgent;
+
+  beforeEach(() => {
+    client = new Client(getDefaultOptions());
+
+    fakeStanza = {
+      emit: jest.fn(),
+      pinger: { stop: jest.fn() },
+      serverMonitor: { stop: jest.fn() }
+    } as unknown as NamedAgent;
+
+    client.connected = true;
+    client.activeStanzaInstance = fakeStanza;
+  });
+
+  it('should set hardReconnect to true', () => {
+    client.hardReconnectRequired = false;
+    fakeStanza.pinger = undefined;
+    fakeStanza.serverMonitor = undefined;
+
+    client['handleSocketClosing'](fakeStanza);
+
+    expect(client['hardReconnectRequired']).toBeTruthy();
+  });
+
+  it('should set hardReconnect to true - with pinger', () => {
+    client.hardReconnectRequired = false;
+    const spy = jest.fn();
+    fakeStanza.pinger = { stop: spy } as unknown as Ping;
+    fakeStanza.serverMonitor = { stop: spy } as unknown as ServerMonitor;
+
+    client['handleSocketClosing'](fakeStanza);
 
     expect(client['hardReconnectRequired']).toBeTruthy();
     expect(spy).toHaveBeenCalledTimes(2);

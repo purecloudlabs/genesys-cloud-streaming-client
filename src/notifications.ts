@@ -71,6 +71,8 @@ export class Notifications implements StreamingClientExtension {
       topic = 'no_longer_subscribed';
     } else if (topic.includes('duplicate_id')) {
       topic = 'duplicate_id';
+    } else if (topic === 'v2.system.socket_closing') {
+      topic = 'socket_closing';
     }
 
     const payload = (pubsub.items!.published![0].content as any).json;
