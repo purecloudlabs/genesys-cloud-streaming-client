@@ -32,6 +32,7 @@ let extensions = {
 };
 
 const STANZA_DISCONNECTED = 'stanzaDisconnected';
+const SOCKET_CLOSING = 'notify:socket_closing';
 const NO_LONGER_SUBSCRIBED = 'notify:no_longer_subscribed';
 const DUPLICATE_ID = 'notify:duplicate_id';
 const MAX_CHANNEL_REUSES = 10;
@@ -62,6 +63,7 @@ export class Client extends EventEmitter {
   private boundStanzaDisconnect?: () => Promise<any>;
   private boundStanzaNoLongerSubscribed?: () => void;
   private boundStanzaDuplicateId?: () => void;
+  private boundStanzaSocketClosing?: () => void;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
@@ -180,10 +182,12 @@ export class Client extends EventEmitter {
     this.boundStanzaDisconnect = this.handleStanzaDisconnectedEvent.bind(this, stanza);
     this.boundStanzaNoLongerSubscribed = this.handleNoLongerSubscribed.bind(this, stanza);
     this.boundStanzaDuplicateId = this.handleDuplicateId.bind(this, stanza);
+    this.boundStanzaSocketClosing = this.handleSocketClosing.bind(this, stanza);
 
     this.on(STANZA_DISCONNECTED, this.boundStanzaDisconnect);
     this.on(NO_LONGER_SUBSCRIBED, this.boundStanzaNoLongerSubscribed);
     this.on(DUPLICATE_ID, this.boundStanzaDuplicateId);
+    this.on(SOCKET_CLOSING, this.boundStanzaSocketClosing);
 
     this.extensions.forEach(extension => {
       if (typeof extension.handleIq === 'function') {
@@ -209,6 +213,11 @@ export class Client extends EventEmitter {
     if (this.boundStanzaDuplicateId) {
       this.off(DUPLICATE_ID, this.boundStanzaDuplicateId);
       this.boundStanzaDuplicateId = undefined;
+    }
+
+    if (this.boundStanzaSocketClosing) {
+      this.off(SOCKET_CLOSING, this.boundStanzaSocketClosing);
+      this.boundStanzaSocketClosing = undefined;
     }
   }
 
@@ -274,6 +283,14 @@ export class Client extends EventEmitter {
 
   private handleDuplicateId (stanzaInstance: NamedAgent) {
     this.logger.warn('duplicate_id event received, forcing hard reconnect', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+    stanzaInstance.pinger?.stop();
+    stanzaInstance.serverMonitor?.stop();
+
+    this.hardReconnectRequired = true;
+  }
+
+  private handleSocketClosing (stanzaInstance: NamedAgent) {
+    this.logger.warn('socket_closing event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
     stanzaInstance.pinger?.stop();
     stanzaInstance.serverMonitor?.stop();
 
