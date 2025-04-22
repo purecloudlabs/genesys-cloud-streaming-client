@@ -1352,34 +1352,20 @@ describe('handleSocketCLosing', () => {
 
     fakeStanza = {
       emit: jest.fn(),
-      pinger: { stop: jest.fn() },
-      serverMonitor: { stop: jest.fn() }
     } as unknown as NamedAgent;
 
     client.connected = true;
     client.activeStanzaInstance = fakeStanza;
   });
 
-  it('should set hardReconnect to true', () => {
-    client.hardReconnectRequired = false;
-    fakeStanza.pinger = undefined;
-    fakeStanza.serverMonitor = undefined;
+  it('should disconnect and reconnect', () => {
+    client.disconnect = jest.fn();
+    client.connect = jest.fn();
 
     client['handleSocketClosing'](fakeStanza);
 
-    expect(client['hardReconnectRequired']).toBeTruthy();
-  });
-
-  it('should set hardReconnect to true - with pinger', () => {
-    client.hardReconnectRequired = false;
-    const spy = jest.fn();
-    fakeStanza.pinger = { stop: spy } as unknown as Ping;
-    fakeStanza.serverMonitor = { stop: spy } as unknown as ServerMonitor;
-
-    client['handleSocketClosing'](fakeStanza);
-
-    expect(client['hardReconnectRequired']).toBeTruthy();
-    expect(spy).toHaveBeenCalledTimes(2);
+    expect(client.disconnect).toHaveBeenCalled();
+    expect(client.connect).toHaveBeenCalled();
   });
 });
 
