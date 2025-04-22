@@ -293,9 +293,9 @@ export class Client extends EventEmitter {
     this.logger.warn('socket_closing event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
 
     // The docs says we have up to one minute to disconnect and connect a new WebSocket.
-    // So unlike a duplicate channel, we want to be proactive and not wait to be disconnected.
-    this.disconnect();
-    this.connect({ keepTryingOnFailure: true });
+    // So unlike a duplicate channel, we should be proactive and not wait to be disconnected.
+    void this.disconnect();
+    void this.connect({ keepTryingOnFailure: true });
   }
 
   async disconnect () {
