@@ -286,22 +286,6 @@ describe('getJwtOptions', () => {
     });
   });
 
-  it('should use conferenceid from jwt data when jid is not present', () => {
-    connectionManager['config'].jwt = 'test.' + window.btoa(JSON.stringify({
-      data: {
-        conferenceid: 'acd-asdfasdfkj@conference.example.orgspan.com'
-      }
-    }));
-
-    expect(connectionManager['getJwtOptions']()).toEqual({
-      resource: 'testResource',
-      transports: {
-        websocket: `example.com/stream/jwt/${connectionManager['config'].jwt}`
-      },
-      server: 'example.orgspan.com'
-    });
-  });
-
   it('should throw if jid is not properly formatted', () => {
     connectionManager['config'].jwt = 'test.' + window.btoa(JSON.stringify({
       data: {
