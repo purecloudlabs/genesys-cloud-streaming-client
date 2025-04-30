@@ -3,7 +3,7 @@ import * as utils from '../../src/utils';
 import { retryPromise } from '../../src/utils';
 import { flushPromises } from '../helpers/testing-utils';
 
-const sdp: Readonly<String> = 
+const sdp: Readonly<String> =
 `
 v=0\r\n
 o=- 2890844526 2890844526 IN IP4 192.0.2.1\r\n
@@ -65,6 +65,12 @@ describe('Utils', () => {
       expect(utils.isVideoJid('sdkfjk@conference.test.com')).toBeTruthy();
       expect(utils.isVideoJid('acd-sdkfjk@conference.test.com')).toBeFalsy();
       expect(utils.isVideoJid('sdkfjk@test.com')).toBeFalsy();
+    });
+
+    it('isAgentVideoJid', () => {
+      expect(utils.isAgentVideoJid('agent-1dad300d-e892-4cd3-9223-936b75cf75f7@conference.test-valve-video-65kgt647qyo.orgspan.com')).toBeTruthy();
+      expect(utils.isAgentVideoJid('regular-room@conference.test.com')).toBeFalsy();
+      expect(utils.isAgentVideoJid('agent@test.com')).toBeFalsy();
     });
   });
 
@@ -147,7 +153,7 @@ describe('Utils', () => {
     it('should return null if no sdp is provided', () => {
       expect(utils.getUfragFromSdp(undefined)).toBeNull();
     });
-    
+
     it('should return null if ufrag is not found', () => {
       expect(utils.getUfragFromSdp('sdllksdnflskdnflkasd')).toBeNull();
     });
@@ -161,7 +167,7 @@ describe('Utils', () => {
     it('should return null if no sdp is provided', () => {
       expect(utils.getIcePwdFromSdp(undefined)).toBeNull();
     });
-    
+
     it('should return null if icepwd is not found', () => {
       expect(utils.getIcePwdFromSdp('lskdjfksnnsn')).toBeNull();
     });

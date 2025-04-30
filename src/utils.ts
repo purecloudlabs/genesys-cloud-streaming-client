@@ -84,6 +84,10 @@ export const isVideoJid = function (jid: string): boolean {
   return !!(jid && jid.match(/@conference/) && !isAcdJid(jid));
 };
 
+export const isAgentVideoJid = function (jid: string): boolean {
+  return !!(jid && jid.match(/^agent-.*@conference/));
+};
+
 export type RetryPromise<T = any> = {
   promise: Promise<T>;
   cancel: (reason?: string | Error) => void;

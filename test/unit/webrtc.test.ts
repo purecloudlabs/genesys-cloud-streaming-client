@@ -1187,10 +1187,52 @@ describe('cancelRtcSession', () => {
 });
 
 describe('refreshIceServers', () => {
+  it('should use agent video jid as target when jid is an agent video jid', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+
+    const agentVideoJid = 'agent-1dad300d-e892-4cd3-9223-936b75cf75f7@conference.test-valve-video-65kgt647qyo.orgspan.com';
+    fakeStanza.jid = agentVideoJid;
+    fakeStanza.config.server = 'test.com';
+
+    jest.spyOn(utils, 'isAgentVideoJid').mockReturnValue(true);
+
+    (fakeStanza.getServices as jest.Mock).mockImplementation((target) => {
+      // Verify the target is the agent video jid
+      expect(target).toBe(agentVideoJid);
+      return Promise.resolve({ services: [] });
+    });
+
+    await webrtc['_refreshIceServers'](fakeStanza);
+    expect(fakeStanza.getServices).toHaveBeenCalled();
+  });
+
+  it('should use server as target when jid is not an agent video jid', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+
+    const regularJid = 'user@test.com';
+    const server = 'test.com';
+    fakeStanza.jid = regularJid;
+    fakeStanza.config.server = server;
+
+    jest.spyOn(utils, 'isAgentVideoJid').mockReturnValue(false);
+
+    (fakeStanza.getServices as jest.Mock).mockImplementation((target) => {
+      // Verify the target is the server
+      expect(target).toBe(server);
+      return Promise.resolve({ services: [] });
+    });
+
+    await webrtc['_refreshIceServers'](fakeStanza);
+    expect(fakeStanza.getServices).toHaveBeenCalled();
+  });
+
   it('should set jingle iceServers', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');

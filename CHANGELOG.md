@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-462](https://inindca.atlassian.net/browse/STREAM-462) - Update Stanza timeout timer to 35 seconds to align with the updated server timeout.
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Remove support for conferenceId in JWT auth (not breaking change, never released).
+* [STREAM-518](https://inindca.atlassian.net/browse/STREAM-518) - Update stanza sent when sending the extension discovery request for agent-video to include the full JID from the JWT.
 
 ### Added
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Allow for conferenceId or JID to be used in JWT auth.

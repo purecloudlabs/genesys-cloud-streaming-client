@@ -11,7 +11,7 @@ import JingleSession, { SessionOpts } from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise, getUfragFromSdp, iceIsDifferent } from './utils';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise, getUfragFromSdp, iceIsDifferent, isAgentVideoJid } from './utils';
 import { Client } from './client';
 import { deepFlatten, formatStatsEvent } from './stats-formatter';
 import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams, NRProxyStat, FirstProposeStat, InsightActionDetails, InsightReport, InsightAction, FlatObject, OnlineStatusStat } from './types/interfaces';
@@ -933,13 +933,17 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     }
 
     const server = stanzaInstance.config.server;
+    const jid = stanzaInstance.jid;
+    const isAgentVideoSession = jid && isAgentVideoJid(jid);
+    const target = isAgentVideoSession ? jid : server;
+
     const turnServersPromise = stanzaInstance.getServices(
-      server as string,
+      target as string,
       'turn',
       '1'
     );
     const stunServersPromise = stanzaInstance.getServices(
-      server as string,
+      target as string,
       'stun',
       '1'
     );
