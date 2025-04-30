@@ -101,7 +101,7 @@ export class ConnectionManager {
     const config = this.config;
     const jwt = parseJwt(config.jwt!);
     let jidDomain: string;
-    let jwtJid: string = jwt.data.jid || jwt.data.conferenceid;
+    let jwtJid: string = jwt.data.jid;
     try {
       jidDomain = jwtJid.split('@')[1].replace('conference.', '');
     } catch (e) {
