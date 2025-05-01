@@ -8,9 +8,6 @@ export default {
     file: 'dist/es/index.bundle.js',
     format: 'es'
   },
-  global: {
-    process: 'process-fast'
-  },
   plugins: [
     commonjs({ transformMixedEsModules: true }),
     polyfills(),
