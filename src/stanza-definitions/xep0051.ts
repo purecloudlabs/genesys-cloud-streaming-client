@@ -9,14 +9,15 @@ import { childText, DefinitionOptions } from 'stanza/jxt';
 
 const NS_CONNECTION_TRANSFER = 'urn:xmpp:cxfr';
 
+declare module 'stanza' {
+  export interface AgentEvents {
+    'iq:set:connectionTransfer': Stanzas.ReceivedIQ & { query: ConnectionTransfer };
+  }
+}
+
 declare module 'stanza/protocol' {
   export interface IQPayload {
     query?: ConnectionTransfer;
-  }
-
-  export interface AgentEvents {
-    /* tslint:disable-next-line no-unnecessary-qualifier */
-    'iq:set:connectionTransfer': Stanzas.ReceivedIQ & { query: ConnectionTransfer };
   }
 }
 
