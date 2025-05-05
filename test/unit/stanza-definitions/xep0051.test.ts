@@ -14,6 +14,6 @@ describe('connectionTransferDefinition', () => {
     stanza.stanzas.define(connectionTransfer);
 
     const converted = stanza.stanzas.import(iq);
-    expect(converted?.connectionTransfer).toBeTruthy();
+    expect(converted?.query).toBeTruthy();
   });
 });
