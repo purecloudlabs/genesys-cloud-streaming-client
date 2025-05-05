@@ -229,6 +229,8 @@ export class GenesysCloudMediaSession {
         this.onSessionTerminate();
       }
     }
+
+    this.emit('connectionState', connectionState);
   }
 
   protected onIceCandidateError (ev: Event) {
