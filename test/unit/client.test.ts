@@ -963,6 +963,26 @@ describe('setupConnectionMonitoring', () => {
     serverMonitorMock.mockClear();
   });
 
+  it('adds a watcher for connection transfers', async () => {
+    const opts = {...getDefaultOptions(), useServerSidePings: false};
+    let client = new Client(opts);
+    const fakeStanza = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
+
+    client['prepareForConnect'] = jest.fn();
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue(fakeStanza);
+    client['addInateEventHandlers'] = jest.fn();
+    client['proxyStanzaEvents'] = jest.fn();
+    client['extensions'] = [];
+
+    await client['makeConnectionAttempt']();
+    expect(fakeStanza['connectionTransfer']).toBeTruthy();
+  });
+
   it('uses client-side pings if useServerSidePings is false', async () => {
     const opts = {...getDefaultOptions(), useServerSidePings: false};
     let client = new Client(opts);
