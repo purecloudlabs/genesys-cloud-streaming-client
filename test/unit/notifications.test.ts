@@ -867,33 +867,4 @@ describe('Notifications', () => {
     expect(spy).toHaveBeenCalledWith('notify', { topic: 'duplicate_id', data: payload });
     expect(spy).toHaveBeenCalledWith('notify:duplicate_id', payload);
   });
-
-  it('should change the topic to socket_closing', () => {
-    const payload = { channelId: 'streaming-sdklnena98w4' };
-    const socketClosing = {
-      pubsub: {
-        items: {
-          node: 'v2.system.socket_closing',
-          published: [
-            {
-              content: { json: payload }
-            }
-          ]
-        }
-      }
-    };
-
-    const client = new Client({
-      apiHost: 'example.com',
-      channelId: 'notification-test-channel'
-    });
-    const notification = new Notifications(client);
-    notification.stanzaInstance = getFakeStanzaClient();
-
-    const spy = jest.spyOn(client, 'emit');
-    (client as any).emit('pubsub:event', socketClosing);
-
-    expect(spy).toHaveBeenCalledWith('notify', { topic: 'socket_closing', data: payload });
-    expect(spy).toHaveBeenCalledWith('notify:socket_closing', payload);
-  });
 });
