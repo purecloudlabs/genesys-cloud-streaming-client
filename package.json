@@ -1,6 +1,6 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "19.1.0",
+  "version": "19.0.2",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
@@ -25,7 +25,7 @@
     "compile": "tsc -p .",
     "compile:module": "tsc -p . --outDir ./dist/es --target es2015 --module es2015",
     "compile:rollup": "rollup -c rollup.config.js",
-    "compile:webpack": "NODE_OPTIONS=--openssl-legacy-provider webpack --mode production",
+    "compile:webpack": "webpack --mode production",
     "test": "npm run lint && npm run test:unit",
     "test:unit": "jest --runInBand",
     "test:watch": "jest --watch --runInBand --collectCoverage=false",
