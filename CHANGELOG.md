@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Allow for conferenceId or JID to be used in JWT auth.
 * [STREAM-523](https://inindca.atlassian.net/browse/STREAM-523) - Properly emit `connectionState` event while using SDP over XMPP
-* [STREAM-85](https://inindca.atlassian.net/browse/STREAM-85) - Handle socket closing message from Hawk signaling a reconnect is necessary
+* [STREAM-85](https://inindca.atlassian.net/browse/STREAM-85) - Handle connection transfer (socket closing) message from Hawk signaling a reconnect is necessary
 
 # [v19.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.0.1...v19.1.0)
 * [STREAM-357](https://inindca.atlassian.net/browse/STREAM-357) - Maintain the same JID resource across hard reconnects/websockets/stanza instances so that reinvites can be sent to the new WS/stanza instance.
