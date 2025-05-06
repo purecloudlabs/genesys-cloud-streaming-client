@@ -22,7 +22,10 @@ describe('ConnectionTransfer', () => {
     it('disconnects and reconnects on the iq:set:connectionTransfer event', () => {
       const fakeClient = {
         connect: jest.fn(),
-        disconnect: jest.fn()
+        disconnect: jest.fn(),
+        logger: {
+          warn: jest.fn()
+        }
       };
       const fakeStanza = getFakeStanzaClient();
       const iq = {
