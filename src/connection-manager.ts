@@ -101,8 +101,9 @@ export class ConnectionManager {
     const config = this.config;
     const jwt = parseJwt(config.jwt!);
     let jidDomain: string;
+    let jwtJid: string = jwt.data.jid;
     try {
-      jidDomain = jwt.data.jid.split('@')[1].replace('conference.', '');
+      jidDomain = jwtJid.split('@')[1].replace('conference.', '');
     } catch (e) {
       throw new Error('failed to parse jid');
     }
