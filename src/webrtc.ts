@@ -95,7 +95,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     max: 5,
     ttl: 1000 * 60 * 3
   });
-  private sdpOverXmpp = false;
+  // private sdpOverXmpp = false;
+  private sessionsMap = {};
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -385,7 +386,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   prepareSession (options: SessionOpts): StanzaMediaSession | undefined {
-    if (this.sdpOverXmpp) {
+    if (options.sid && this.sessionsMap[options.sid]) {
       this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp');
       return;
     }
@@ -613,7 +614,11 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
    * Stanza Handlers
    */
   private async handlePropose (msg: ProposeStanza) {
-    if (msg.from === this.jid) {
+    // if (msg.from === this.jid) {
+    //   return;
+    // }
+
+    if (msg.from in this.sessionsMap) {
       return;
     }
 
@@ -658,7 +663,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         privAnswerMode: msg.propose.privAnswerMode
       };
 
-      this.sdpOverXmpp = !!sessionInfo.sdpOverXmpp;
+      // this.sdpOverXmpp = !!sessionInfo.sdpOverXmpp;
+      this.sessionsMap[sessionInfo.id] = !!sessionInfo.sdpOverXmpp;
       this.pendingSessions[sessionId] = sessionInfo;
     }
 
