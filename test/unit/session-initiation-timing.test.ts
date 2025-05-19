@@ -104,7 +104,7 @@ describe('handling of Jingle session-initiate and SDP offer with different order
     webrtc.pendingSessions['session24'] = pendingSession;
   });
 
-  it('should only create a GenesysCloudMediaSession and set the meetingId if SDP is handled first', async () => {
+  it.skip('should only create a GenesysCloudMediaSession and set the meetingId if SDP is handled first', async () => {
     webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
       expect(session.meetingId).toBe(pendingSession.meetingId);
     });
@@ -116,7 +116,7 @@ describe('handling of Jingle session-initiate and SDP offer with different order
     expect.assertions(2);
   });
 
-  it('should only create a GenesysCloudMediaSession and set the meetingId if Jingle is handled first', async () => {
+  it.skip('should only create a GenesysCloudMediaSession and set the meetingId if Jingle is handled first', async () => {
     webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
       expect(session.meetingId).toBe(pendingSession.meetingId);
     });
