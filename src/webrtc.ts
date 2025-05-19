@@ -620,11 +620,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
    */
   private async handlePropose (msg: ProposeStanza) {
     console.log('mMoo: test log');
-    // if (msg.from === this.jid) {
-    //   return;
-    // }
-
-    if (msg.from in this.sessionsMap) {
+    if (msg.from === this.jid) {
       return;
     }
 
