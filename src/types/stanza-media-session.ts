@@ -147,6 +147,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
   }
 
   async end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
+    console.log('mMoo: stanza media end function?');
     this.state = 'ended';
     this.processingQueue.kill();
 

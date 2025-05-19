@@ -144,6 +144,7 @@ export class GenesysCloudMediaSession {
   }
 
   async end (reason: JingleReasonCondition | JingleReason = 'success', silent = false) {
+    console.log('mMoo: genesys cloud media end');
     this.state = 'ended';
 
     const params: GenesysSessionTerminateParams = {
@@ -308,6 +309,7 @@ export class GenesysCloudMediaSession {
   }
 
   onSessionTerminate (reason?: JingleReasonCondition) {
+    console.log('mMoo: on session terminate?');
     if (this.peerConnection) {
       this.peerConnection.close();
     }

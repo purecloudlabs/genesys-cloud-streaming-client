@@ -290,6 +290,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     session.on('sendIq' as any, (iq: IQ) => this.stanzaInstance?.sendIQ(iq));
     session.on('terminated', () => {
+      console.log('mMoo: terminated');
       this.webrtcSessions = this.webrtcSessions.filter(s => s.id !== session.id);
     });
 
@@ -335,11 +336,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   private async handleGenesysTerminate (iq: IQ) {
+    console.log('mMoo: handleGenesysTerminate');
     const message = iq.genesysWebrtc!;
     const params: GenesysSessionTerminateParams = message.params as GenesysSessionTerminateParams;
 
     const session = this.getSessionById(params.sessionId);
     (session as GenesysCloudMediaSession).onSessionTerminate(params.reason);
+    delete this.sessionsMap[params.sessionId];
   }
 
   private getSessionById (id: string, nullIfNotFound = false): IMediaSession | undefined {
@@ -362,6 +365,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   async handleMessage (msg) {
+    console.log('mMoo: handleMessage', msg);
     if (msg.propose) {
       await this.handlePropose(msg);
     } else if (msg.retract) {
@@ -605,6 +609,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.client.on('disconnected', () => {
+      console.log('mMoo: disconnected event');
       clearInterval(this.refreshIceServersTimer);
       this.refreshIceServersTimer = null;
     });
@@ -614,6 +619,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
    * Stanza Handlers
    */
   private async handlePropose (msg: ProposeStanza) {
+    console.log('mMoo: test log');
     // if (msg.from === this.jid) {
     //   return;
     // }
@@ -682,6 +688,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   private handleRetract (sessionId: string) {
     this.logger.info('retract received', this.getLogDetailsForPendingSessionId(sessionId));
+    delete this.sessionsMap[sessionId];
     delete this.pendingSessions[sessionId];
     return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
   }
@@ -808,6 +815,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       return;
     }
 
+    delete this.sessionsMap[sessionId];
     delete this.pendingSessions[sessionId];
     if (ignore) {
       this.ignoredSessions.set(sessionId, true);
