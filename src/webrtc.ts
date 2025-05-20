@@ -294,7 +294,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.webrtcSessions.push(session);
-    delete this.sessionsMap[session.id];
+    // delete this.sessionsMap[session.id];
     this.logger.info('emitting sdp media-session (offer');
 
     this.applyEarlyIceCandidates(session);
@@ -395,7 +395,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const pendingSession = this.pendingSessions[options.sid!];
     if (pendingSession) {
       delete this.pendingSessions[pendingSession.sessionId];
-      delete this.sessionsMap[pendingSession.sessionId];
+      // delete this.sessionsMap[pendingSession.sessionId];
     }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
@@ -680,7 +680,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   private handleRetract (sessionId: string) {
     this.logger.info('retract received', this.getLogDetailsForPendingSessionId(sessionId));
-    delete this.sessionsMap[sessionId];
+    // delete this.sessionsMap[sessionId];
     delete this.pendingSessions[sessionId];
     return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
   }
@@ -807,7 +807,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       return;
     }
 
-    delete this.sessionsMap[sessionId];
+    // delete this.sessionsMap[sessionId];
     delete this.pendingSessions[sessionId];
     if (ignore) {
       this.ignoredSessions.set(sessionId, true);
@@ -894,7 +894,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       }
     };
     delete this.pendingSessions[sessionId];
-    delete this.sessionsMap[sessionId];
+    // delete this.sessionsMap[sessionId];
     this.logger.info('sending jingle retract', logDetails);
     await this.stanzaInstance!.send('message', retract); // send as Message
     this.logger.info('sent jingle retract', logDetails);
