@@ -159,7 +159,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       this.refreshIceServersTimer = null;
     }
 
-    stanzaInstance.on('iq:set:genesysWebrtc' as any, this.handleGenesysWebrtcStanza.bind(this));
+    stanzaInstance.on('iq:set:genesysWebrtc', this.handleGenesysWebrtcStanza.bind(this));
 
     this.refreshIceServersTimer = setInterval(this.refreshIceServers.bind(this), ICE_SERVER_REFRESH_PERIOD);
 
