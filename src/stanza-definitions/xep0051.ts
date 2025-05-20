@@ -36,6 +36,7 @@ export interface ConnectionTransfer {
 */
 export const connectionTransfer: DefinitionOptions = {
   path: 'iq.query',
+  aliases: ['iq.connectionTransfer'],
   namespace: NS_CONNECTION_TRANSFER,
   element: 'query',
   fields: {
