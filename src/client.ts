@@ -75,7 +75,7 @@ export class Client extends EventEmitter {
 
   constructor (options: IClientOptions) {
     super();
-    this.http = new HttpClient();
+    this.http = new HttpClient(options.customHeaders);
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
     this.useServerSidePings = options.useServerSidePings !== false;

@@ -7,13 +7,16 @@ import {
   ISuperagentResponseError,
   INetworkError,
   IResponseError,
-  IAxiosResponseError
+  IAxiosResponseError,
+  ICustomHeader
 } from './types/interfaces';
 import Logger from 'genesys-cloud-client-logger';
 
 const correlationIdHeaderName = 'inin-correlation-id';
 
 export class HttpClient {
+
+  customHeaders?: ICustomHeader;
   private _httpRetryingRequests = new Map<string, RetryPromise<any>>();
 
   static retryStatusCodes = new Set([
@@ -25,6 +28,10 @@ export class HttpClient {
     503,
     504
   ]);
+
+  constructor (customHeaders?: ICustomHeader) {
+    this.customHeaders = customHeaders;
+  }
 
   requestApiWithRetry<T = any> (path: string, opts: RequestApiOptions, retryInterval?: number): RetryPromise<T> {
     const retry = retryPromise<T>(
@@ -67,10 +74,15 @@ export class HttpClient {
     const logger = opts.logger || console;
     const start = new Date().getTime();
 
+    opts.customHeaders = {
+      ...this.customHeaders,
+      ...opts.customHeaders
+    };
+
     const url = this._buildUri(opts.host, path, opts.version);
     const headers = {
       'content-type': opts.contentType || 'application/json',
-      ...(opts.customHeaders || {}),
+      ...opts.customHeaders
     };
 
     const params: AxiosRequestConfig = {
