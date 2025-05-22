@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [STREAM-462](https://inindca.atlassian.net/browse/STREAM-462) - Update Stanza timeout timer to 35 seconds to align with the updated server timeout.
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Remove support for conferenceId in JWT auth (not breaking change, never released).
 
+### Fixed
+* [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
+
 ### Added
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Allow for conferenceId or JID to be used in JWT auth.
 * [STREAM-523](https://inindca.atlassian.net/browse/STREAM-523) - Properly emit `connectionState` event while using SDP over XMPP
