@@ -75,8 +75,8 @@ export class HttpClient {
     const start = new Date().getTime();
 
     opts.customHeaders = {
-      ...this.customHeaders,
-      ...opts.customHeaders
+      ...(this.customHeaders || {}),
+      ...(opts.customHeaders || {})
     };
 
     const url = this._buildUri(opts.host, path, opts.version);
