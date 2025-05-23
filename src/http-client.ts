@@ -8,7 +8,8 @@ import {
   INetworkError,
   IResponseError,
   IAxiosResponseError,
-  ICustomHeader
+  ICustomHeader,
+  IHttpClientOptions
 } from './types/interfaces';
 import Logger from 'genesys-cloud-client-logger';
 
@@ -29,8 +30,8 @@ export class HttpClient {
     504
   ]);
 
-  constructor (customHeaders?: ICustomHeader) {
-    this.customHeaders = customHeaders;
+  constructor (httpClientOptions?: IHttpClientOptions) {
+    this.customHeaders = httpClientOptions?.customHeaders;
   }
 
   requestApiWithRetry<T = any> (path: string, opts: RequestApiOptions, retryInterval?: number): RetryPromise<T> {
