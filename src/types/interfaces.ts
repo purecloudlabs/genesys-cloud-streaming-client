@@ -44,6 +44,10 @@ export interface IClientConfig {
   logLevel?: LogLevel;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
 }
+
+export interface IHttpClientOptions {
+  customHeaders?: ICustomHeader;
+}
 export interface ExtendedRTCIceServer extends RTCIceServer {
   type: string;
 }
