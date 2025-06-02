@@ -95,7 +95,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     max: 5,
     ttl: 1000 * 60 * 3
   });
-  private sdpOverXmpp = false;
+  private sessionsMap: { [sessionId: string]: boolean } = {};
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -293,6 +293,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.webrtcSessions.push(session);
+    delete this.sessionsMap[session.id];
     this.logger.info('emitting sdp media-session (offer');
 
     this.applyEarlyIceCandidates(session);
@@ -385,7 +386,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   prepareSession (options: SessionOpts): StanzaMediaSession | undefined {
-    if (this.sdpOverXmpp) {
+    if (options.sid && this.sessionsMap[options.sid]) {
       this.logger.debug('skipping creation of jingle webrtc session due to sdpOverXmpp');
       return;
     }
@@ -393,6 +394,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const pendingSession = this.pendingSessions[options.sid!];
     if (pendingSession) {
       delete this.pendingSessions[pendingSession.sessionId];
+      delete this.sessionsMap[pendingSession.sessionId];
     }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
@@ -658,8 +660,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         privAnswerMode: msg.propose.privAnswerMode
       };
 
-      this.sdpOverXmpp = !!sessionInfo.sdpOverXmpp;
-      this.pendingSessions[sessionId] = sessionInfo;
+      if (!isDuplicatePropose) {
+        this.sessionsMap[sessionInfo.id] = !!sessionInfo.sdpOverXmpp;
+        this.pendingSessions[sessionId] = sessionInfo;
+      }
     }
 
     if (sessionInfo.accepted) {
@@ -676,6 +680,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   private handleRetract (sessionId: string) {
     this.logger.info('retract received', this.getLogDetailsForPendingSessionId(sessionId));
+    delete this.sessionsMap[sessionId];
     delete this.pendingSessions[sessionId];
     return this.emit(events.CANCEL_INCOMING_RTCSESSION, sessionId);
   }
@@ -802,6 +807,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       return;
     }
 
+    delete this.sessionsMap[sessionId];
     delete this.pendingSessions[sessionId];
     if (ignore) {
       this.ignoredSessions.set(sessionId, true);
@@ -888,6 +894,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       }
     };
     delete this.pendingSessions[sessionId];
+    delete this.sessionsMap[sessionId];
     this.logger.info('sending jingle retract', logDetails);
     await this.stanzaInstance!.send('message', retract); // send as Message
     this.logger.info('sent jingle retract', logDetails);

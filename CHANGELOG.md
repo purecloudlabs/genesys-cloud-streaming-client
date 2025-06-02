@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.0...HEAD)
+### Fixed
+* [STREAM-524](https://inindca.atlassian.net/browse/STREAM-524) - Fix issue where sdpOverXmpp flag could be overridden by a subsequent propose.
+
 ### Added
 * [STREAM-63](https://inindca.atlassian.net/browse/STREAM-63) - Added in check to ensure customHeaders is passed in for every API request call
 
