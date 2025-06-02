@@ -99,7 +99,7 @@ describe('handling of Jingle session-initiate and SDP offer with different order
     client = new Client({});
     webrtc = new WebrtcExtension(client as any, {} as any);
 
-    webrtc['sdpOverXmpp'] = true;
+    webrtc['sessionsMap']['session24'] = true;
     webrtc['stanzaInstance'] = getFakeStanzaClient();
     webrtc.pendingSessions['session24'] = pendingSession;
   });
