@@ -95,8 +95,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     max: 5,
     ttl: 1000 * 60 * 3
   });
-  // private sdpOverXmpp = false;
-  private sessionsMap = {};
+  private sessionsMap: { [sessionId: string]: boolean } = {};
 
   get jid (): string | undefined {
     return this.stanzaInstance?.jid;
@@ -661,9 +660,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         privAnswerMode: msg.propose.privAnswerMode
       };
 
-      // this.sdpOverXmpp = !!sessionInfo.sdpOverXmpp;
-      this.sessionsMap[sessionInfo.id] = !!sessionInfo.sdpOverXmpp;
-      this.pendingSessions[sessionId] = sessionInfo;
+      if (!isDuplicatePropose) {
+        this.sessionsMap[sessionInfo.id] = !!sessionInfo.sdpOverXmpp;
+        this.pendingSessions[sessionId] = sessionInfo;
+      }
     }
 
     if (sessionInfo.accepted) {
