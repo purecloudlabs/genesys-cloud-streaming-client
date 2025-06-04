@@ -201,7 +201,6 @@ describe('prepareSession', () => {
     (StanzaMediaSession as jest.Mock).mockReset();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    // webrtc['sdpOverXmpp'] = true;
 
     const sessionId = 'abc';
     const pendingSession = {
@@ -1890,7 +1889,7 @@ describe('handleGenesysOffer', () => {
   beforeEach(() => {
     client = new Client({});
     webrtc = new WebrtcExtension(client as any, {} as any);
-    webrtc['sdpOverXmpp'] = true;
+    webrtc['sessionsMap'] = { ['session24']: true };
   });
 
   it('should create and emit a session (no pending session)', async () => {
@@ -2077,10 +2076,11 @@ describe('handleGenesysOffer', () => {
     expect(stanza.sendIQ).toHaveBeenCalledWith(iqObj);
   });
 
-  it('terminated should update sessions', async () => {
+  it('terminated should update sessions and sessionsMap', async () => {
     const emitter = new EventEmitter();
     (emitter as any).setRemoteDescription = jest.fn();
     (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
+    emitter['id'] = 'session24';
 
     const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
@@ -2102,6 +2102,7 @@ describe('handleGenesysOffer', () => {
     expect(webrtc.getAllSessions().length).toBe(1);
     emitter.emit('terminated');
     expect(webrtc.getAllSessions().length).toBe(0);
+    expect(Object.keys(webrtc['sessionsMap']).length).toBe(0);
   });
 
   it('should register and handle sendIq from the session and not blow up if not stanzaInstance', async () => {
