@@ -4,7 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...HEAD)
+### Fixed
+* [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
+
+# [v19.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.0...v19.2.1)
 ### Fixed
 * [STREAM-524](https://inindca.atlassian.net/browse/STREAM-524) - Fix issue where sdpOverXmpp flag could be overridden by a subsequent propose.
 
@@ -15,9 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-462](https://inindca.atlassian.net/browse/STREAM-462) - Update Stanza timeout timer to 35 seconds to align with the updated server timeout.
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Remove support for conferenceId in JWT auth (not breaking change, never released).
-
-### Fixed
-* [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
 
 ### Added
 * [STREAM-461](https://inindca.atlassian.net/browse/STREAM-461) - Allow for conferenceId or JID to be used in JWT auth.
