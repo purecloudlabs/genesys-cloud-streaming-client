@@ -17,6 +17,7 @@ StanzaMediaSession.prototype.on = jest.fn();
 jest.mock('../../src/types/genesys-cloud-media-session', () => {
   return {
     GenesysCloudMediaSession: jest.fn().mockImplementation((webrtcExtension, params) => ({
+      id: params.id,
       meetingId: params.meetingId,
       setRemoteDescription: jest.fn(),
       on: jest.fn()
@@ -65,7 +66,7 @@ function getFakeStanzaClient (): NamedAgent {
   ) as unknown as NamedAgent;
 }
 
-describe('handling of Jingle session-initiate and SDP offer with different ordering', () => {
+describe('handling of Jingle session-initiate and SDP offer with different ordering when SDP-over-XMPP is true', () => {
   let client: Client;
   let webrtc: WebrtcExtension;
   const iq: IQ = {
