@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...HEAD)
 ### Fixed
 * [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
+* [STREAM-582](https://inindca.atlassian.net/browse/STREAM-582) - Fix issue where `session-initiate` was not ignored when SDP-over-XMPP was turned on for a session.
 
 # [v19.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.0...v19.2.1)
 ### Fixed
