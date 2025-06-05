@@ -289,11 +289,11 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     session.on('sendIq' as any, (iq: IQ) => this.stanzaInstance?.sendIQ(iq));
     session.on('terminated', () => {
+      delete this.sessionsMap[session.id];
       this.webrtcSessions = this.webrtcSessions.filter(s => s.id !== session.id);
     });
 
     this.webrtcSessions.push(session);
-    delete this.sessionsMap[session.id];
     this.logger.info('emitting sdp media-session (offer');
 
     this.applyEarlyIceCandidates(session);
