@@ -97,7 +97,6 @@ export class GenesysCloudMediaSession {
         // if we have a state mismatch
         if (this.state !== 'ended' && ['failed', 'closed'].includes(this.peerConnection.connectionState)) {
           this.log('warn', 'state mismatch between session.state and peerConnection.connectionState, manually terminating the session', { sessionId: this.id, conversationId: this.conversationId, sessionType: this.sessionType });
-          this.state = 'ended';
           this.onSessionTerminate();
         }
       }
@@ -225,7 +224,6 @@ export class GenesysCloudMediaSession {
         this.interruptionStart = undefined;
       } else if (connectionState === 'failed') {
         this.log('info', 'Connection was interrupted and failed to recover, cleaning up', { sessionId, conversationId, sessionType });
-        this.state = 'ended';
         this.onSessionTerminate();
       }
     }
@@ -308,6 +306,8 @@ export class GenesysCloudMediaSession {
   }
 
   onSessionTerminate (reason?: JingleReasonCondition) {
+    this.state = 'ended';
+
     if (this.peerConnection) {
       this.peerConnection.close();
     }
