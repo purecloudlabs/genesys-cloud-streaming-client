@@ -96,9 +96,10 @@ declare module 'stanza/protocol' {
   export interface ReceivedMessage {
     mediaMessage?: GenesysMediaMessage;
   }
+}
 
+declare module 'stanza' {
   export interface AgentEvents {
-    /* tslint:disable-next-line no-unnecessary-qualifier */
     'iq:set:genesysWebrtc': Stanzas.ReceivedIQ & { genesysWebrtc: GenesysWebrtcJsonRpcMessage };
   }
 }
