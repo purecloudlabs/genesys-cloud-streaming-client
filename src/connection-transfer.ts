@@ -13,6 +13,7 @@ export class ConnectionTransfer {
     stanzaInstance.on('iq:set:connectionTransfer', (iq: IQ) => {
       client.logger.warn('connection transfer (socket_closing) event received', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
       void client.disconnect();
+      client.emit('disconnected', { reconnecting: true });
       void client.connect({ keepTryingOnFailure: true });
     });
   }
