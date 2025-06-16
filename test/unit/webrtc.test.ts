@@ -1796,7 +1796,7 @@ describe('getAllSessions', () => {
     const jSession1 = { id: '51' };
     const genSession1 = { id: '2' };
 
-    stanza.jingle.sessions = [ jSession1 ] as any;
+    webrtc['stanzaSessions'] = [ jSession1 ] as any;
     webrtc['webrtcSessions'] = [ genSession1 ] as any;
 
     const sessions = webrtc.getAllSessions();
