@@ -23,6 +23,7 @@ describe('ConnectionTransfer', () => {
       const fakeClient = {
         connect: jest.fn(),
         disconnect: jest.fn(),
+        emit: jest.fn(),
         logger: {
           warn: jest.fn()
         }
