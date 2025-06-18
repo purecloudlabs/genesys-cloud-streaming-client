@@ -406,7 +406,6 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const pendingSession = this.pendingSessions[options.sid!];
     if (pendingSession) {
       delete this.pendingSessions[pendingSession.sessionId];
-      delete this.sessionsMap[pendingSession.sessionId];
     }
 
     const ignoreHostCandidatesForForceTurnFF = this.getIceTransportPolicy() === 'relay' && isFirefox;
@@ -434,7 +433,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     session.on('terminated', () => {
       delete this.sessionsMap[session.id];
       this.stanzaSessions = this.stanzaSessions.filter(s => s.id !== session.id);
-    };
+    });
 
     return session;
   }
