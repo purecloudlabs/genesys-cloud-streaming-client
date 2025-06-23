@@ -201,13 +201,13 @@ describe('prepareSession', () => {
     (StanzaMediaSession as jest.Mock).mockReset();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    webrtc['sdpOverXmpp'] = true;
 
     const sessionId = 'abc';
     const pendingSession = {
       sdpOverXmpp: true
     };
     webrtc.pendingSessions[sessionId] = pendingSession as any;
+    webrtc['sessionsMap'] = { [sessionId]: true };
 
     webrtc.proxyStatsForSession = jest.fn();
     jest.spyOn(webrtc, 'getIceTransportPolicy').mockReturnValue('all');
@@ -252,17 +252,19 @@ describe('prepareSession', () => {
     expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: true }));
   });
 
-  it('should delete pending session', () => {
+  it('should delete pending session and sessionsMap tracking', () => {
     (StanzaMediaSession as jest.Mock).mockReset();
     StanzaMediaSession.prototype.on = jest.fn();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
     webrtc.pendingSessions = { mysid: { sessionId: 'mysid' } as any };
+    webrtc['sessionsMap'] = { mysid: false };
 
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
     const session = webrtc.prepareSession({ sid: 'mysid' } as any);
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
+    expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
   });
 
   it('should not delete pending session if sdpOverXmpp', () => {
@@ -270,10 +272,10 @@ describe('prepareSession', () => {
     StanzaMediaSession.prototype.on = jest.fn();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    webrtc['sdpOverXmpp'] = true;
+    webrtc['sessionsMap']['test-id'] = true;
 
     webrtc.pendingSessions['mysid'] = {
-      sessionId: 'mysid',
+      sessionId: 'test-id',
       sdpOverXmpp: true,
       autoAnswer: false,
       id: 'myid',
@@ -665,22 +667,6 @@ describe('handlePropose', () => {
 
     expect(spy).toHaveBeenCalled();
   });
-
-  it('should track sdpOverXmpp', async () => {
-    const client = new Client({});
-    const webrtc = new WebrtcExtension(client as any, {} as any);
-    webrtc['stanzaInstance'] = getFakeStanzaClient();
-
-    webrtc['sdpOverXmpp'] = false;
-    const propose1 = { autoAnswer: false, conversationId: v4(), sessionId: v4(), sdpOverXmpp: true };
-    await webrtc['handlePropose']({ from: 'someJid', to: 'myJid', propose: propose1 });
-    expect(webrtc['sdpOverXmpp']).toBeTruthy();
-
-    webrtc['sdpOverXmpp'] = true;
-    const propose2 = { autoAnswer: false, conversationId: v4(), sessionId: v4() };
-    await webrtc['handlePropose']({ from: 'someJid', to: 'myJid', propose: propose2 });
-    expect(webrtc['sdpOverXmpp']).toBeFalsy();
-  });
 });
 
 describe('handleRetract', () => {
@@ -697,6 +683,20 @@ describe('handleRetract', () => {
     webrtc['handleRetract'](sessionId);
 
     expect(webrtc.emit).toHaveBeenCalledWith('cancelIncomingRtcSession', sessionId);
+  });
+
+  it('should delete pending session and sessionsMap tracking', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const sessionId = '123sessionid';
+
+    webrtc.pendingSessions = { [sessionId]: { sessionId } as any };
+    webrtc['sessionsMap'] = { [sessionId]: false };
+
+    webrtc['handleRetract'](sessionId);
+
+    expect(Object.values(webrtc.pendingSessions).length).toBe(0);
+    expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
   });
 });
 
@@ -1050,6 +1050,21 @@ describe('rejectRtcSession', () => {
     expect(sendSpy).toHaveBeenCalledWith('message', reject1);
     expect(sendSpy).toHaveBeenCalledWith('message', reject2);
   });
+
+  it('should delete pending session and sessionsMap tracking', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    const sessionId = 'session123555';
+
+    webrtc.pendingSessions = { [sessionId]: { sessionId } as any };
+    webrtc['sessionsMap'] = { [sessionId]: false };
+
+    webrtc.rejectRtcSession(sessionId);
+
+    expect(Object.values(webrtc.pendingSessions).length).toBe(0);
+    expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
+  });
 });
 
 describe('rtcSessionAccepted', () => {
@@ -1183,6 +1198,21 @@ describe('cancelRtcSession', () => {
         sessionId
       }
     });
+  });
+
+  it('should delete pending session and sessionsMap tracking', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    const sessionId = 'session12243';
+
+    webrtc.pendingSessions = { [sessionId]: { sessionId } as any };
+    webrtc['sessionsMap'] = { [sessionId]: false };
+
+    webrtc.cancelRtcSession(sessionId);
+
+    expect(Object.values(webrtc.pendingSessions).length).toBe(0);
+    expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
   });
 });
 
@@ -1905,7 +1935,7 @@ describe('handleGenesysOffer', () => {
   beforeEach(() => {
     client = new Client({});
     webrtc = new WebrtcExtension(client as any, {} as any);
-    webrtc['sdpOverXmpp'] = true;
+    webrtc['sessionsMap'] = { ['session24']: true };
   });
 
   it('should create and emit a session (no pending session)', async () => {
@@ -2092,10 +2122,11 @@ describe('handleGenesysOffer', () => {
     expect(stanza.sendIQ).toHaveBeenCalledWith(iqObj);
   });
 
-  it('terminated should update sessions', async () => {
+  it('terminated should update sessions and sessionsMap', async () => {
     const emitter = new EventEmitter();
     (emitter as any).setRemoteDescription = jest.fn();
     (GenesysCloudMediaSession as jest.Mock).mockReturnValue(emitter);
+    emitter['id'] = 'session24';
 
     const stanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
@@ -2117,6 +2148,7 @@ describe('handleGenesysOffer', () => {
     expect(webrtc.getAllSessions().length).toBe(1);
     emitter.emit('terminated');
     expect(webrtc.getAllSessions().length).toBe(0);
+    expect(Object.keys(webrtc['sessionsMap']).length).toBe(0);
   });
 
   it('should register and handle sendIq from the session and not blow up if not stanzaInstance', async () => {

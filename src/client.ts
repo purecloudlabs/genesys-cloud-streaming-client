@@ -75,7 +75,7 @@ export class Client extends EventEmitter {
 
   constructor (options: IClientOptions) {
     super();
-    this.http = new HttpClient();
+    this.http = new HttpClient({ customHeaders: options.customHeaders });
 
     this.reconnectOnNoLongerSubscribed = options.reconnectOnNoLongerSubscribed !== false;
     this.useServerSidePings = options.useServerSidePings !== false;
@@ -657,8 +657,7 @@ export class Client extends EventEmitter {
           method: 'get',
           host: this.config.apiHost,
           authToken: this.config.authToken,
-          logger: this.logger,
-          customHeaders: this.config.customHeaders
+          logger: this.logger
         };
         jidPromise = await this.http.requestApi('users/me', jidRequestOpts)
           .then(res => res.data.chat.jabberId);
@@ -671,8 +670,7 @@ export class Client extends EventEmitter {
         method: 'post',
         host: this.config.apiHost,
         authToken: this.config.authToken,
-        logger: this.logger,
-        customHeaders: this.config.customHeaders
+        logger: this.logger
       };
       const channelPromise = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
