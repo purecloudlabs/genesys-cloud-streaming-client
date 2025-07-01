@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
 
+### Added
+* [STREAM-85](https://inindca.atlassian.net/browse/STREAM-85) - Handle connection transfer (socket closing) message from Hawk signaling a reconnect is necessary
+
 # [v19.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...v19.2.2)
 ### Fixed
 * [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
