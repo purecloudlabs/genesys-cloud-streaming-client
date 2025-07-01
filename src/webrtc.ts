@@ -88,6 +88,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   private refreshIceServersTimer: any;
   private iceServers: RTCIceServer[] = [];
   private stanzaInstance?: NamedAgent;
+  private stanzaSessions: StanzaMediaSession[] = [];
   private webrtcSessions: GenesysCloudMediaSession[] = [];
   // Store a maximum of 5 previous non-duplicate reinvites.
   // These will automatically be purged after three minutes.
@@ -152,6 +153,17 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
   async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
     this.stanzaInstance = stanzaInstance;
+
+    // We create a new Stanza instance every time we connect. If we still have active StanzaMediaSessions,
+    // the new instance doesn't know about them and won't properly process actions for those sessions
+    // (e.g. it will reply to a `session-terminate`, but the session itself won't receive that action,
+    // because Stanza doesn't know about it). Since we track those sessions ourselves, we can tell
+    // the new Stanza instance about them so those actions will be processed properly.
+    const sessionsMap = this.stanzaSessions.reduce((currentMap, session) => {
+      session.parent = stanzaInstance.jingle;
+      return { ...currentMap, [session.id]: session };
+    }, {});
+    this.stanzaInstance.jingle.sessions = sessionsMap;
 
     if (this.refreshIceServersTimer) {
       clearInterval(this.refreshIceServersTimer);
@@ -417,6 +429,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     const session = new StanzaMediaSession(gcSessionOpts);
     this.proxyStatsForSession(session);
+
+    this.stanzaSessions.push(session);
+    session.on('terminated', () => {
+      delete this.sessionsMap[session.id];
+      this.stanzaSessions = this.stanzaSessions.filter(s => s.id !== session.id);
+    });
+
     return session;
   }
 
@@ -1034,10 +1053,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   getAllSessions (): IMediaSession[] {
-    const stanzaSessionsObj = this.stanzaInstance?.jingle.sessions;
-    const stanzaSessions = stanzaSessionsObj && Object.values(stanzaSessionsObj) || [];
-
-    return [ ...stanzaSessions, ...this.webrtcSessions ] as IMediaSession[];
+    return [ ...this.stanzaSessions, ...this.webrtcSessions ] as IMediaSession[];
   }
 
   proxyNRStat (stat: NRProxyStat): void {
