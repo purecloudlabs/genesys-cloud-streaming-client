@@ -382,7 +382,7 @@ export class Notifications implements StreamingClientExtension {
       this.subscriptions = {};
     }
 
-    await this.makeBulkSubscribeRequest(toSubscribe, options);
+    const bulkResponse = await this.makeBulkSubscribeRequest(toSubscribe, options);
 
     if (options.replace) {
       this.bulkSubscriptions = {};
@@ -391,6 +391,8 @@ export class Notifications implements StreamingClientExtension {
     topics.forEach(topic => {
       this.bulkSubscriptions[topic] = true;
     });
+
+    return bulkResponse;
   }
 
   get expose (): NotificationsAPI {
