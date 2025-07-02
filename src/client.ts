@@ -379,6 +379,7 @@ export class Client extends EventEmitter {
   }
 
   async connect (connectOpts?: StreamingClientConnectOptions) {
+    this.logger.info('Attempting connect');
     if (this.connecting) {
       const error = new Error('Already trying to connect streaming client');
       return this.logger.warn(error);
@@ -566,6 +567,7 @@ export class Client extends EventEmitter {
   }
 
   private async makeConnectionAttempt () {
+    this.logger.info('Entering makeConnectionAttempt');
     if (!navigator.onLine) {
       throw new OfflineError('Browser is offline, skipping connection attempt');
     }
@@ -632,11 +634,14 @@ export class Client extends EventEmitter {
   }
 
   private async prepareForConnect () {
+    this.logger.info('Entering prepareForConnect');
     if (this.config.jwt) {
       this.hardReconnectRequired = false;
       return this.connectionManager.setConfig(this.config);
     }
 
+    this.logger.info('prepareForConnect: hardReconnectRequired is ', this.hardReconnectRequired);
+    this.logger.info('prepareForConnect: channelReuses is ', this.channelReuses);
     if (!this.hardReconnectRequired) {
       this.channelReuses++;
 
@@ -651,6 +656,7 @@ export class Client extends EventEmitter {
       let jidPromise: Promise<any>;
 
       if (this.config.jid) {
+        this.logger.info('We already have a JID, using that');
         jidPromise = Promise.resolve(this.config.jid);
       } else {
         const jidRequestOpts: RequestApiOptions = {
@@ -659,6 +665,7 @@ export class Client extends EventEmitter {
           authToken: this.config.authToken,
           logger: this.logger
         };
+        this.logger.info('No existing JID, fetching it');
         jidPromise = await this.http.requestApi('users/me', jidRequestOpts)
           .then(res => res.data.chat.jabberId);
       }
@@ -672,6 +679,7 @@ export class Client extends EventEmitter {
         authToken: this.config.authToken,
         logger: this.logger
       };
+      this.logger.info('Requesting a channel');
       const channelPromise = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 

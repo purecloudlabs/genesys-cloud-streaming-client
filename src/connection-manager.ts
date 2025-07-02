@@ -24,6 +24,7 @@ export class ConnectionManager {
   }
 
   async getNewStanzaConnection (): Promise<NamedAgent> {
+    this.logger.info('Getting a new stanza instance');
     const options = this.getStanzaOptions();
     const stanza = createClient({}) as unknown as NamedAgent;
 
@@ -54,10 +55,14 @@ export class ConnectionManager {
       stanza.on('disconnected', boundSessionDisconnected);
 
       stanza.updateConfig(options);
+      this.logger.info('About to connect stanza');
       stanza.connect();
     }, 15 * 1000, 'connecting to streaming service', { channelId, stanzaInstanceId: stanza.id });
 
-    connectionAttemptPromise.catch(() => stanza.disconnect());
+    connectionAttemptPromise.catch((reason) => {
+      this.logger.info('Stanza connection failed; ', reason);
+      void stanza.disconnect();
+    });
 
     return connectionAttemptPromise.finally(() => {
       stanza.off('raw:incoming', boundCheckForErrorStanza);
