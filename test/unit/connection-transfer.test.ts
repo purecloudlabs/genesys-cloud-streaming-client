@@ -1,6 +1,5 @@
 import EventEmitter from "events";
 import { Stanzas } from 'stanza';
-import { v4 as uuidv4 } from "uuid";
 
 import { ConnectionTransfer } from "../../src/connection-transfer";
 import Client from "../../src";
