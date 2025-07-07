@@ -332,8 +332,8 @@ describe('prepareSession', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     (StanzaMediaSession as jest.Mock).mockReset();
-    const emitter = new EventEmitter();
     (StanzaMediaSession as jest.Mock).mockImplementationOnce((params: IStanzaMediaSessionParams) => {
+      const emitter = new EventEmitter();
       emitter['id'] = params.id;
       return emitter;
     });
@@ -344,7 +344,7 @@ describe('prepareSession', () => {
     expect(webrtc.getAllSessions().length).toBe(1);
 
     expect(Object.values(webrtc['sessionsMap']).length).toBe(1);
-    session!.emit('terminated');
+    session?.emit('terminated');
     expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
     expect(webrtc.getAllSessions().length).toBe(0);
   });
