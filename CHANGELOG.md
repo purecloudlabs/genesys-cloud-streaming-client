@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 * [STREAM-85](https://inindca.atlassian.net/browse/STREAM-85) - Handle connection transfer (`v2.system.socket_closing`) message from Hawk signaling a reconnect is necessary
+### Fixed
+* [STREAM-154](https://inindca.atlassian.net/browse/STREAM-154) - Track StanzaMediaSessions so events can still be processed if streaming-client is disconnected and reconnected without.
 
 # [v19.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...v19.2.2)
 ### Fixed
