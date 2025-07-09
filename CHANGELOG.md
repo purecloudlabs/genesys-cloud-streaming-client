@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-client-logger/compare/19.2.2...HEAD)
+### Changed
+* [STREAM-643](https://inindca.atlassian.net/browse/STREAM-643) - Bumped webpack dependency to 5.94.0
+
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.2...HEAD)
 ### Changed
 * [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
