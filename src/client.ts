@@ -292,7 +292,12 @@ export class Client extends EventEmitter {
       this.autoReconnect = false;
       this.cancelConnectionAttempt = true;
       this.http.stopAllRetries();
-      this.connectionManager.currentStanzaInstance?.disconnect()?.then(resolve) ?? resolve();
+      const currentStanza = this.connectionManager.currentStanzaInstance;
+      if (currentStanza) {
+        return currentStanza.disconnect().then(resolve);
+      } else {
+        resolve();
+      }
     }, 5000, 'disconnecting streaming service');
   }
 
