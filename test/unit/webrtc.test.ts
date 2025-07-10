@@ -724,6 +724,18 @@ describe('handledIncomingRtcSession', () => {
 });
 
 describe('initiateRtcSession', () => {
+  let client: Client;
+  let webrtc: WebrtcExtension;
+  let stanzaInstance: NamedAgent;
+
+  beforeEach(() => {
+    client = new Client({});
+    webrtc = new WebrtcExtension(client as any, {} as any);
+    stanzaInstance = getFakeStanzaClient();
+    stanzaInstance.jid = 'test@test.com';
+    webrtc['stanzaInstance'] = stanzaInstance;
+  });
+
   it('should add medias based on provided stream', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
@@ -825,6 +837,32 @@ describe('initiateRtcSession', () => {
 
     expect(sendSpy).toHaveBeenCalledWith('message', expected);
     expect(sendSpy).not.toHaveBeenCalledWith('presence', expect.any);
+  });
+
+  it('should send correct media presence for colaborateVideo', async () => {
+    const opts = {
+      jid: 'room@conference.test.com',
+      mediaPurpose: SessionTypes.collaborateVideo,
+      conversationId: 'test-conversation',
+      sourceCommunicationId: 'test-source'
+    };
+
+    const sendSpy = jest.spyOn(stanzaInstance, 'send');
+
+    await webrtc.initiateRtcSession(opts);
+
+    expect(sendSpy).toHaveBeenCalledWith('presence', expect.objectContaining({
+      type: 'upgradeMedia',
+      to: opts.jid,
+      from: webrtc.jid,
+      media: expect.objectContaining({
+        conversationId: opts.conversationId,
+        sourceCommunicationId: opts.sourceCommunicationId,
+        video: true,
+        audio: true,
+        videoGuest: true
+      })
+    }));
   });
 
   it('should handle when stream and params are provided', async () => {

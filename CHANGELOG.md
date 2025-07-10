@@ -7,10 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-client-logger/compare/19.2.2...HEAD)
 ### Changed
 * [STREAM-643](https://inindca.atlassian.net/browse/STREAM-643) - Bumped webpack dependency to 5.94.0
-
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.2...HEAD)
-### Changed
 * [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
+
+### Added
+* [STREAM-653](https://inindca.atlassian.net/browse/STREAM-653) - Added fields to upgradeMediaPresence stanza definition.
 
 # [v19.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...v19.2.2)
 ### Fixed
