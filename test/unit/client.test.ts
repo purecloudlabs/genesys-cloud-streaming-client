@@ -8,7 +8,6 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import SaslError from '../../src/types/sasl-error';
 import { TimeoutError } from '../../src/types/timeout-error';
 import OfflineError from '../../src/types/offline-error';
-import { reject } from 'lodash';
 import EventEmitter from 'events';
 import { NamedAgent } from '../../src/types/named-agent';
 import { flushPromises } from '../helpers/testing-utils';
@@ -344,6 +343,25 @@ describe('connect', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
       expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
+    }
+    expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+    expect.assertions(4);
+  });
+
+  it('should throw a user_canceled error if the connection attempt was canceled regardless of the thrown error', async () => {
+    const error = new SaslError('incorrect-encoding', 'channelId', 'instanceId');
+    connectionAttemptSpy.mockRejectedValue(error);
+    connectionAttemptSpy.mockImplementation(() => {
+      client['cancelConnectionAttempt'] = true;
+      throw error;
+    });
+
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.userCanceled);
       expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
@@ -1069,7 +1087,7 @@ describe('prepareForConnect', () => {
 
     setConfigSpy = client['connectionManager'].setConfig = jest.fn();
     httpSpy = client.http.requestApi = jest.fn().mockImplementation((path) => {
-      const promise = new Promise(resolve => {
+      const promise = new Promise((resolve, reject) => {
         if (path === 'users/me') {
           return resolve({ data: { chat: { jabberId: 'myRequestedJid' } } });
         } else if (path.startsWith('notifications/channels')) {

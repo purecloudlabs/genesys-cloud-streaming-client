@@ -435,7 +435,13 @@ export class Client extends EventEmitter {
     } catch (err: any) {
       let errorForThrowing: StreamingClientError;
       let errorForLogging = err;
-      if (!err) {
+
+      // Check `cancelConnectionAttempt` instead of the error type in case a different error occurred
+      // around the same time that might mask the cancellation.
+      if (this.cancelConnectionAttempt) {
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.userCanceled, 'Streaming client connection canceled', err);
+        errorForLogging = errorForThrowing;
+      } else if (!err) {
         errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Streaming client connection attempted and received an undefined error');
         errorForLogging = errorForThrowing;
       } else if (err.name === 'AxiosError') {
