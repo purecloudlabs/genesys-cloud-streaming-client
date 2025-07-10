@@ -475,6 +475,10 @@ export class Client extends EventEmitter {
   }
 
   private async backoffConnectRetryHandler (connectOpts: { maxConnectionAttempts: number }, err: any, connectionAttempt: number): Promise<boolean> {
+    if (this.cancelConnectionAttempt) {
+      return false;
+    }
+
     // if we exceed the `numOfAttempts` in the backoff config it still calls this retry fn and just ignores the result
     // if that's the case, we just want to bail out and ignore all the extra logging here.
     if (connectionAttempt >= connectOpts.maxConnectionAttempts) {

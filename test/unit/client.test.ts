@@ -588,6 +588,12 @@ describe('backoffConnectRetryHandler', () => {
     errorSpy = jest.spyOn(client.logger, 'error');
   });
 
+  it('should return false if cancelConnectionAttempt is true', async () => {
+    client['cancelConnectionAttempt'] = true;
+    const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, {}, 1)
+    expect(result).toBeFalsy();
+  });
+
   it('should return false if not keepTryingOnFailure', async () => {
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 1 }, {}, 1)).toBeFalsy();
   });
