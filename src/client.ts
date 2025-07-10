@@ -578,6 +578,12 @@ export class Client extends EventEmitter {
     let previousConnectingState = this.connecting;
     try {
       await this.prepareForConnect();
+
+      if (this.cancelConnectionAttempt) {
+        console.log('Hjon: makeConnectionAttempt:throwingCancelError');
+        throw new UserCanceledError('Connection attempt canceled');
+      }
+
       stanzaInstance = await this.connectionManager.getNewStanzaConnection();
       this.connected = true;
       this.connecting = false;

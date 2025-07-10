@@ -830,6 +830,15 @@ describe('makeConnectionAttempt', () => {
     spy.mockRestore();
   });
 
+  it('should not set up a stanza instance if the connection attempt is canceled after preparing to connect', async () => {
+    prepareSpy.mockImplementation(() => client['cancelConnectionAttempt'] = true);
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCanceledError);
+
+    expect(prepareSpy).toHaveBeenCalled();
+    expect(getConnectionSpy).not.toHaveBeenCalled();
+  });
+
   it('should set up stanzaInstance and emit connected event', async () => {
     expect.assertions(8);
     const fakeInstance = {};
