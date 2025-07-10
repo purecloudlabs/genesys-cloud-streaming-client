@@ -52,6 +52,7 @@ export class Client extends EventEmitter {
   backgroundAssistantMode = false;
 
   private autoReconnect = true;
+  private cancelConnectionAttempt = false;
   private extensions: StreamingClientExtension[] = [];
   private connectionManager: ConnectionManager;
   private channelReuses = 0;
@@ -288,6 +289,7 @@ export class Client extends EventEmitter {
 
     return timeoutPromise(resolve => {
       this.autoReconnect = false;
+      this.cancelConnectionAttempt = true;
       this.http.stopAllRetries();
       this.connectionManager.currentStanzaInstance?.disconnect()?.then(resolve) ?? resolve();
     }, 5000, 'disconnecting streaming service');

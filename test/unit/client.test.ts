@@ -520,6 +520,7 @@ describe('disconnect', () => {
 
   beforeEach(() => {
     client = new Client(getDefaultOptions());
+    client['autoReconnect'] = true;
   });
 
   it('should stop HTTP retries and resolve when there is a current stanza instance', async () => {
@@ -547,6 +548,8 @@ describe('disconnect', () => {
     await flushPromises();
 
     expect(isResolved).toBeTruthy();
+    expect(client['autoReconnect']).toBeFalsy();
+    expect(client['cancelConnectionAttempt']).toBeTruthy();
   });
 
   it('should stop HTTP retries and resolve when there is no current stanza instance', async () => {
@@ -555,11 +558,12 @@ describe('disconnect', () => {
     client.http.stopAllRetries = jest.fn();
     client['connectionManager'].currentStanzaInstance = undefined;
 
-    const promise = client.disconnect().then(() => isResolved = true);
-    await flushPromises();
+    await client.disconnect().then(() => isResolved = true);
 
     expect(client.http.stopAllRetries).toHaveBeenCalled();
     expect(isResolved).toBeTruthy();
+    expect(client['autoReconnect']).toBeFalsy();
+    expect(client['cancelConnectionAttempt']).toBeTruthy();
   });
 });
 
