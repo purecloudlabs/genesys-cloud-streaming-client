@@ -475,6 +475,8 @@ export class Client extends EventEmitter {
   }
 
   private async backoffConnectRetryHandler (connectOpts: { maxConnectionAttempts: number }, err: any, connectionAttempt: number): Promise<boolean> {
+    // Check `cancelConnectionAttempt` instead of the error type in case a different error occurred
+    // around the same time that might allow for retries to continue.
     if (this.cancelConnectionAttempt) {
       return false;
     }

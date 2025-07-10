@@ -589,8 +589,17 @@ describe('backoffConnectRetryHandler', () => {
   });
 
   it('should return false if cancelConnectionAttempt is true', async () => {
+    const error = new UserCanceledError('user canceled');
     client['cancelConnectionAttempt'] = true;
-    const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, {}, 1)
+    const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
+    expect(result).toBeFalsy();
+  });
+
+  it('should return false if cancelConnectionAttempt is true even if called with another error', async () => {
+    const error = new TimeoutError('fake timeout');
+    client['cancelConnectionAttempt'] = true;
+
+    const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1);
     expect(result).toBeFalsy();
   });
 
