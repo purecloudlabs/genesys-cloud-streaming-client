@@ -24,6 +24,7 @@ import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
 import { v4 } from 'uuid';
+import UserCanceledError from './types/user-canceled-error';
 
 let extensions = {
   notifications: Notifications,
@@ -564,6 +565,11 @@ export class Client extends EventEmitter {
   }
 
   private async makeConnectionAttempt () {
+    if (this.cancelConnectionAttempt) {
+      console.log('Hjon: makeConnectionAttempt:throwingCancelErrorBeforeOnlineCheck');
+      throw new UserCanceledError('Connection attempt canceled');
+    }
+
     if (!navigator.onLine) {
       throw new OfflineError('Browser is offline, skipping connection attempt');
     }

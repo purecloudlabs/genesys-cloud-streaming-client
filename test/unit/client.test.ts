@@ -15,6 +15,7 @@ import { flushPromises } from '../helpers/testing-utils';
 import { SCConnectionData, StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Ping } from '../../src/ping';
 import { ServerMonitor } from '../../src/server-monitor';
+import UserCanceledError from '../../src/types/user-canceled-error';
 
 jest.mock('genesys-cloud-client-logger');
 jest.mock('../../src/ping');
@@ -809,6 +810,14 @@ describe('makeConnectionAttempt', () => {
     getConnectionSpy = client['connectionManager'].getNewStanzaConnection = jest.fn();
 
     pingerMock.mockClear();
+  });
+
+  it('should not attempt if the connection attempt has been canceled', async () => {
+    client['cancelConnectionAttempt'] = true;
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCanceledError);
+    expect(prepareSpy).not.toHaveBeenCalled();
+    expect(getConnectionSpy).not.toHaveBeenCalled();
   });
 
   it('should not attempt if offline', async () => {
