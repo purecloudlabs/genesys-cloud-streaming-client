@@ -376,6 +376,7 @@ export class Client extends EventEmitter {
   }
 
   async connect (connectOpts?: StreamingClientConnectOptions) {
+    this.cancelConnectionAttempt = false;
     if (this.connecting) {
       const error = new Error('Already trying to connect streaming client');
       return this.logger.warn(error);

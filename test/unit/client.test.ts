@@ -270,6 +270,14 @@ describe('connect', () => {
     backoffRetrySpy = client['backoffConnectRetryHandler'] = jest.fn();
   });
 
+  it('should set cancelConnectionAttempt to false', async () => {
+    connectionAttemptSpy.mockResolvedValue(null);
+    client['cancelConnectionAttempt'] = true;
+
+    await client.connect();
+    expect(client['cancelConnectionAttempt']).toBeFalsy();
+  });
+
   it('should do nothing if already connecting', async () => {
     client.connecting = true;
     await client.connect();
