@@ -292,6 +292,7 @@ export class Client extends EventEmitter {
     this.jidResource = '';
 
     return timeoutPromise(resolve => {
+      this.hardReconnectRequired = true;
       this.autoReconnect = false;
       this.http.stopAllRetries();
       return this.activeStanzaInstance!.disconnect()
