@@ -334,8 +334,8 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: true })
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);
-      expect((err as any)['details']).toBe(error);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
     expect.assertions(4);
@@ -348,8 +348,8 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);
-      expect((err as any)['details']).toBeFalsy();
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBeFalsy();
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
     expect.assertions(4);
@@ -374,7 +374,7 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.invalid_token);
+      expect(err['type']).toBe(StreamingClientErrorTypes.invalid_token);
     }
 
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
@@ -403,8 +403,8 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: true })
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);
-      expect((err as any)['details']).toBe(error);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
     expect(backoffRetrySpy).toHaveBeenCalledTimes(1);
@@ -428,7 +428,7 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.invalid_token);
+      expect(err['type']).toBe(StreamingClientErrorTypes.invalid_token);
     }
 
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
@@ -462,8 +462,8 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);
-      expect((err as any)['details']).toBe(error);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
     }
 
     expect(errorSpy).toHaveBeenCalledWith('Failed to connect streaming client', {
@@ -492,8 +492,8 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.invalid_token);
-      expect((err as any)['details']).toBe(error);
+      expect(err['type']).toBe(StreamingClientErrorTypes.invalid_token);
+      expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
     expect.assertions(4);
@@ -507,8 +507,8 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);
-      expect((err as any)['details']).toBe(error);
+      expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
     expect.assertions(4);
