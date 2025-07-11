@@ -1400,7 +1400,7 @@ describe('refreshIceServers', () => {
       await promise;
       fail('ice servers should have timedout');
     } catch (error) {
-      expect(error.message).toBe('Timeout waiting for refresh ice servers to finish');
+      expect((error as Error).message).toBe('Timeout waiting for refresh ice servers to finish');
     }
 
     jest.clearAllTimers();
