@@ -520,6 +520,7 @@ describe('disconnect', () => {
 
   beforeEach(() => {
     client = new Client(getDefaultOptions());
+    client.hardReconnectRequired = false;
   });
 
   it('should do nothing if no stanza instance', async () => {
@@ -555,6 +556,7 @@ describe('disconnect', () => {
     await flushPromises();
 
     expect(isResolved).toBeTruthy();
+    expect(client.hardReconnectRequired).toBeTruthy();
   });
 });
 
