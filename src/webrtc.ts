@@ -60,6 +60,7 @@ export interface InitRtcSessionOptions {
   jid?: string;
   conversationId?: string;
   sourceCommunicationId?: string;
+  videoGuest?: boolean;
 }
 
 export class WebrtcExtension extends EventEmitter implements StreamingClientExtension {
@@ -753,6 +754,14 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
           sourceCommunicationId: opts.sourceCommunicationId
         }
       };
+
+      if (opts.mediaPurpose === SessionTypes.collaborateVideo) {
+        Object.assign(mediaPresence.media, {
+          video: true,
+          audio: true,
+          videoGuest: true
+        });
+      }
 
       // TODO? can't set last-n on parent element because it invalidates presence root schema
 
