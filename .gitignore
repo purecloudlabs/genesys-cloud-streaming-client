@@ -10,9 +10,6 @@ web
 ## vscode specific files
 /.vscode
 
-## JetBrains specific files
-/.idea
-
 # tap specific files
 /.nyc_output
 /coverage
