@@ -583,7 +583,6 @@ export class Client extends EventEmitter {
 
   private async makeConnectionAttempt () {
     if (this.cancelConnectionAttempt) {
-      console.log('Hjon: makeConnectionAttempt:throwingCancelErrorBeforeOnlineCheck');
       throw new UserCanceledError('Connection attempt canceled');
     }
 
@@ -597,7 +596,6 @@ export class Client extends EventEmitter {
       await this.prepareForConnect();
 
       if (this.cancelConnectionAttempt) {
-        console.log('Hjon: makeConnectionAttempt:throwingCancelError');
         throw new UserCanceledError('Connection attempt canceled');
       }
 
