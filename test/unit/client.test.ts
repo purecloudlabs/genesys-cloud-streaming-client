@@ -14,7 +14,7 @@ import { flushPromises } from '../helpers/testing-utils';
 import { SCConnectionData, StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Ping } from '../../src/ping';
 import { ServerMonitor } from '../../src/server-monitor';
-import UserCanceledError from '../../src/types/user-canceled-error';
+import UserCancelledError from '../../src/types/user-cancelled-error';
 
 jest.mock('genesys-cloud-client-logger');
 jest.mock('../../src/ping');
@@ -349,7 +349,7 @@ describe('connect', () => {
     expect.assertions(4);
   });
 
-  it('should throw a user_canceled error if the connection attempt was canceled regardless of the thrown error', async () => {
+  it('should throw a user_cancelled error if the connection attempt was cancelled regardless of the thrown error', async () => {
     const error = new SaslError('incorrect-encoding', 'channelId', 'instanceId');
     connectionAttemptSpy.mockRejectedValue(error);
     connectionAttemptSpy.mockImplementation(() => {
@@ -361,7 +361,7 @@ describe('connect', () => {
       await client.connect({ keepTryingOnFailure: false });
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
-      expect(err['type']).toBe(StreamingClientErrorTypes.userCanceled);
+      expect(err['type']).toBe(StreamingClientErrorTypes.userCancelled);
       expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
@@ -607,7 +607,7 @@ describe('backoffConnectRetryHandler', () => {
   });
 
   it('should return false if cancelConnectionAttempt is true', async () => {
-    const error = new UserCanceledError('user canceled');
+    const error = new UserCancelledError('user cancelled');
     client['cancelConnectionAttempt'] = true;
     const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
     expect(result).toBeFalsy();
@@ -845,10 +845,10 @@ describe('makeConnectionAttempt', () => {
     pingerMock.mockClear();
   });
 
-  it('should not attempt if the connection attempt has been canceled', async () => {
+  it('should not attempt if the connection attempt has been cancelled', async () => {
     client['cancelConnectionAttempt'] = true;
 
-    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCanceledError);
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCancelledError);
     expect(prepareSpy).not.toHaveBeenCalled();
     expect(getConnectionSpy).not.toHaveBeenCalled();
   });
@@ -863,10 +863,10 @@ describe('makeConnectionAttempt', () => {
     spy.mockRestore();
   });
 
-  it('should not set up a stanza instance if the connection attempt is canceled after preparing to connect', async () => {
+  it('should not set up a stanza instance if the connection attempt is cancelled after preparing to connect', async () => {
     prepareSpy.mockImplementation(() => client['cancelConnectionAttempt'] = true);
 
-    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCanceledError);
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCancelledError);
 
     expect(prepareSpy).toHaveBeenCalled();
     expect(getConnectionSpy).not.toHaveBeenCalled();

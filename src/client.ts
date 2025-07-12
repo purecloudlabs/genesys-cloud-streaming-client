@@ -24,7 +24,7 @@ import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
 import { v4 } from 'uuid';
-import UserCanceledError from './types/user-canceled-error';
+import UserCancelledError from './types/user-cancelled-error';
 
 let extensions = {
   notifications: Notifications,
@@ -444,7 +444,7 @@ export class Client extends EventEmitter {
       // Check `cancelConnectionAttempt` instead of the error type in case a different error occurred
       // around the same time that might mask the cancellation.
       if (this.cancelConnectionAttempt) {
-        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.userCanceled, 'Streaming client connection canceled', err);
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.userCancelled, 'Streaming client connection cancelled', err);
         errorForLogging = errorForThrowing;
       } else if (!err) {
         errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Streaming client connection attempted and received an undefined error');
@@ -583,7 +583,7 @@ export class Client extends EventEmitter {
 
   private async makeConnectionAttempt () {
     if (this.cancelConnectionAttempt) {
-      throw new UserCanceledError('Connection attempt canceled');
+      throw new UserCancelledError('Connection attempt cancelled');
     }
 
     if (!navigator.onLine) {
@@ -596,7 +596,7 @@ export class Client extends EventEmitter {
       await this.prepareForConnect();
 
       if (this.cancelConnectionAttempt) {
-        throw new UserCanceledError('Connection attempt canceled');
+        throw new UserCancelledError('Connection attempt cancelled');
       }
 
       stanzaInstance = await this.connectionManager.getNewStanzaConnection();
