@@ -7,7 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.2...HEAD)
 ### Changed
 * [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
-* [STREAM-643](https://inindca.atlassian.net/browse/STREAM-643) - Bumped webpack dependency to 5.94.0
 
 ### Fixed
 * [STREAM-155](https://inindca.atlassian.net/browse/STREAM-155) - Calling `disconnect` will now stop any in-progress connection attempts.
