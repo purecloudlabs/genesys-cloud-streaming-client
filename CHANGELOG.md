@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 * [STREAM-154](https://inindca.atlassian.net/browse/STREAM-154) - Track StanzaMediaSessions so events can still be processed if streaming-client is disconnected and reconnected without.
 
+### Added
+* [STREAM-653](https://inindca.atlassian.net/browse/STREAM-653) - Added fields to upgradeMediaPresence stanza definition.
+
 # [v19.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...v19.2.2)
 ### Fixed
 * [STREAM-262](https://inindca.atlassian.net/browse/STREAM-262) - Set the state of a GenesysCloudMediaSession to `ended` when a `terminate` is received (or we determine a hard closure of the PeerConnection is needed)
