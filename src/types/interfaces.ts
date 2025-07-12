@@ -113,7 +113,8 @@ export interface IResponseError extends IError {
 
 export enum StreamingClientErrorTypes {
   generic = 'generic',
-  invalid_token = 'invalid_token'
+  invalid_token = 'invalid_token',
+  userCancelled = 'user_cancelled'
 }
 
 export interface IError {
