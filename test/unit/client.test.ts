@@ -520,6 +520,7 @@ describe('disconnect', () => {
 
   beforeEach(() => {
     client = new Client(getDefaultOptions());
+    client.hardReconnectRequired = false;
   });
 
   it('should do nothing if no stanza instance', async () => {
@@ -555,6 +556,7 @@ describe('disconnect', () => {
     await flushPromises();
 
     expect(isResolved).toBeTruthy();
+    expect(client.hardReconnectRequired).toBeTruthy();
   });
 });
 
@@ -806,7 +808,12 @@ describe('makeConnectionAttempt', () => {
 
   it('should set up stanzaInstance and emit connected event', async () => {
     expect.assertions(8);
-    const fakeInstance = {};
+    const fakeInstance = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
     getConnectionSpy.mockResolvedValue(fakeInstance);
     prepareSpy.mockResolvedValue(null);
 
@@ -840,7 +847,7 @@ describe('makeConnectionAttempt', () => {
     const fakeInstance = {
       disconnect: disconnectSpy,
       emit: null,
-      originalEmitter: fakeEmit
+      originalEmitter: fakeEmit,
     };
     const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
     client['boundStanzaDisconnect'] = async () => {};
@@ -891,7 +898,11 @@ describe('makeConnectionAttempt', () => {
     const fakeInstance = {
       disconnect: disconnectSpy,
       emit: null,
+      on: jest.fn(),
       originalEmitter: fakeEmit,
+      stanzas: {
+        define: jest.fn()
+      },
       subscribeToNode: jest.fn().mockResolvedValue({}),
       pinger: {
         stop: jest.fn()
@@ -954,12 +965,37 @@ describe('setupConnectionMonitoring', () => {
     serverMonitorMock.mockClear();
   });
 
+  it('adds a watcher for connection transfers', async () => {
+    const opts = {...getDefaultOptions(), useServerSidePings: false};
+    let client = new Client(opts);
+    const fakeStanza = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
+
+    client['prepareForConnect'] = jest.fn();
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue(fakeStanza);
+    client['addInateEventHandlers'] = jest.fn();
+    client['proxyStanzaEvents'] = jest.fn();
+    client['extensions'] = [];
+
+    await client['makeConnectionAttempt']();
+    expect(fakeStanza['connectionTransfer']).toBeTruthy();
+  });
+
   it('uses client-side pings if useServerSidePings is false', async () => {
     const opts = {...getDefaultOptions(), useServerSidePings: false};
     let client = new Client(opts);
 
     client['prepareForConnect'] = jest.fn();
-    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({});
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    });
     client['addInateEventHandlers'] = jest.fn();
     client['proxyStanzaEvents'] = jest.fn();
     client['extensions'] = [];
@@ -977,7 +1013,11 @@ describe('setupConnectionMonitoring', () => {
       throw new Error('pretending server-side pings don\'t work');
     };
     client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
-      subscribeToNode: mockSubscribeToNode
+      on: jest.fn(),
+      subscribeToNode: mockSubscribeToNode,
+      stanzas: {
+        define: jest.fn()
+      }
     });
     client['addInateEventHandlers'] = jest.fn();
     client['proxyStanzaEvents'] = jest.fn();
@@ -994,7 +1034,11 @@ describe('setupConnectionMonitoring', () => {
     client['prepareForConnect'] = jest.fn();
     const subscribeToNodeSpy = jest.fn().mockResolvedValue({});
     client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
-      subscribeToNode: subscribeToNodeSpy
+      on: jest.fn(),
+      subscribeToNode: subscribeToNodeSpy,
+      stanzas: {
+        define: jest.fn()
+      }
     });
     client['addInateEventHandlers'] = jest.fn();
     client['proxyStanzaEvents'] = jest.fn();
