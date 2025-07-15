@@ -20,8 +20,7 @@ jobs:
       - name: Get and Cache Dependencies
         uses: ./.github/actions/cached-deps
         with:
-          path: node_modules
-          key: deps-node-modules-${{ hashFiles('**/package-lock.json') }}
+          caching: 'true'
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm ci
@@ -42,6 +41,8 @@ jobs:
         uses: actions/checkout@v3
       - name: Get and Cache Dependencies
         uses: ./.github/actions/cached-deps
+        with:
+          caching: 'true'
       - name: Run build
         run: export NODE_OPTIONS="--openssl-legacy-provider" && npm run build
       - name: Upload build artifact
