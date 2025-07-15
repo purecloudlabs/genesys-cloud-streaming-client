@@ -18,10 +18,10 @@ jobs:
       - name: Install and Cache Dependencies
         uses: ./.github/actions/cached-deps
       - name: Build
-        if: matrix.node-version != 20 || 18
+        if: matrix.node-version != 20 && matrix.node-version != 18
         run: npm run build
-      - name: Build with legacy OpenSSL (Node 20)
-        if: matrix.node-version == 20 || 18
+      - name: Build with legacy OpenSSL (Node 18 and 20)
+        if: matrix.node-version == 20 || matrix.node-version == 18
         env:
           NODE_OPTIONS: --openssl-legacy-provider
         run: npm run build
