@@ -17,7 +17,7 @@ import { NamedAgent } from '../../src/types/named-agent';
 import { StanzaMediaSession } from '../../src/types/stanza-media-session';
 import { GenesysCloudMediaSession } from '../../src/types/genesys-cloud-media-session';
 import { IQ } from 'stanza/protocol';
-import { IMediaSession } from '../../src/types/media-session';
+import { IStanzaMediaSessionParams } from '../../src/types/media-session';
 
 jest.mock('../../src/types/stanza-media-session');
 StanzaMediaSession.prototype.on = jest.fn();
@@ -252,19 +252,17 @@ describe('prepareSession', () => {
     expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: true }));
   });
 
-  it('should delete pending session and sessionsMap tracking', () => {
+  it('should delete pending session', () => {
     (StanzaMediaSession as jest.Mock).mockReset();
     StanzaMediaSession.prototype.on = jest.fn();
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
 
     webrtc.pendingSessions = { mysid: { sessionId: 'mysid' } as any };
-    webrtc['sessionsMap'] = { mysid: false };
 
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
     const session = webrtc.prepareSession({ sid: 'mysid' } as any);
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
-    expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
   });
 
   it('should not delete pending session if sdpOverXmpp', () => {
@@ -328,6 +326,27 @@ describe('prepareSession', () => {
 
     const session = webrtc.prepareSession({} as any);
     expect(StanzaMediaSession).toBeCalledWith(expect.objectContaining({ ignoreHostCandidatesFromRemote: false }));
+  });
+
+  it('should update sessions and sessionsMap on terminated event', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    (StanzaMediaSession as jest.Mock).mockReset();
+    (StanzaMediaSession as jest.Mock).mockImplementationOnce((params: IStanzaMediaSessionParams) => {
+      const emitter = new EventEmitter();
+      emitter['id'] = params.id;
+      return emitter;
+    });
+    webrtc['sessionsMap'] = { 'session25': false };
+
+    expect(webrtc.getAllSessions().length).toBe(0);
+    const session = webrtc.prepareSession({ sid: 'session25' } as any);
+    expect(webrtc.getAllSessions().length).toBe(1);
+
+    expect(Object.values(webrtc['sessionsMap']).length).toBe(1);
+    session?.emit('terminated');
+    expect(Object.values(webrtc['sessionsMap']).length).toBe(0);
+    expect(webrtc.getAllSessions().length).toBe(0);
   });
 });
 
@@ -1816,7 +1835,19 @@ describe('handleStanzaInstanceChange', () => {
     await webrtc.handleStanzaInstanceChange(stanza);
 
     expect(spy).toHaveBeenCalledWith(123);
-  })
+  });
+
+  it('should set existing sessions on the new Stanza instance', async () => {
+    webrtc['stanzaSessions'] = [
+      { id: 'session24' } as StanzaMediaSession,
+      { id: 'session25' } as StanzaMediaSession
+    ];
+
+    await webrtc.handleStanzaInstanceChange(stanza);
+
+    expect(Object.values(stanza.jingle.sessions).length).toBe(2);
+    expect(webrtc['stanzaSessions'][0].parent).toBe(stanza.jingle);
+  });
 });
 
 describe('getAllSessions', () => {
@@ -1834,7 +1865,7 @@ describe('getAllSessions', () => {
     const jSession1 = { id: '51' };
     const genSession1 = { id: '2' };
 
-    stanza.jingle.sessions = [ jSession1 ] as any;
+    webrtc['stanzaSessions'] = [ jSession1 ] as any;
     webrtc['webrtcSessions'] = [ genSession1 ] as any;
 
     const sessions = webrtc.getAllSessions();

@@ -24,6 +24,7 @@ import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
 import { v4 } from 'uuid';
+import { ConnectionTransfer } from './connection-transfer';
 import UserCancelledError from './types/user-cancelled-error';
 
 let extensions = {
@@ -289,6 +290,7 @@ export class Client extends EventEmitter {
     this.jidResource = '';
 
     return timeoutPromise(resolve => {
+      this.hardReconnectRequired = true;
       this.autoReconnect = false;
       this.cancelConnectionAttempt = true;
       this.http.stopAllRetries();
@@ -637,6 +639,8 @@ export class Client extends EventEmitter {
   }
 
   private async setupConnectionMonitoring (stanzaInstance: NamedAgent) {
+    stanzaInstance.connectionTransfer = new ConnectionTransfer(this, stanzaInstance);
+
     const setupClientPinger = (message: string) => {
       const logMessage = `${message}, falling back to client-side pinging`;
       this.logger.warn(logMessage, { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });

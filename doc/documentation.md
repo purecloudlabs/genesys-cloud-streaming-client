@@ -42,29 +42,9 @@ one example of a disconnect that will not trigger a reconnect.
 - The client will emit a `connected` event when the connection is established and
 authenticated.
 
-- The websocket host service may periodically request the client reconnect to facilitate connection
-draining for a deployment, or load balancing. The client has the ability to delay that reconnect up
-to 10 minutes to allow the application to finish any active task which would be disrupted by a reconnect.
-To subscribe to this event, use the `requestReconnect` event name, which emits with a callback. The
-callback accepts an object with either `pending` or `done` property indicating that the reconnect should
-be delayed or can proceed. If the callback is not called within one second, the disconnect will proceed.
-If the callback is called with `{ pending: true }` then the disconnect will proceed after the callback
-is called with `{ done: true }` or 10 minutes, whichever is sooner. Example:
-
-```js
-client.on('requestReconnect', function (callback) {
-  // e.g., no calls are alerting
-  if (this.canReconnectSafely()) {
-    callback({ done: true });
-  } else {
-    callback({ pending: true });
-    // e.g., an event when all calls have disconnected
-    this.on('canReconnectSafely', function () {
-      callback({ done: true });
-    });
-  }
-});
-```
+- The websocket host service may periodically request the client to reconnect to facilitate
+connection draining for a deployment, or load balancing. If this occurs, the client will
+automatically attempt to reconnect.
 
 #### Constructor
 
@@ -90,9 +70,6 @@ client.on('requestReconnect', function (callback) {
 `client.connect() : Promise<void>` - Initialize the WebSocket connection for streaming
 connectivity with Genesys Cloud. `connect` must be called before any events will trigger.
 
-`client.reconnect() : Promise<void>` - Disconnect (if connected) and reconnect to
-the streaming service
-
 `client.disconnect() : Promise<void>` - Disconnect from the streaming
 service
 
@@ -115,15 +92,16 @@ service
 
 The following extensions are currently bundled with the client:
 
- - Ping (for keepalive on the socket)
- - Reconnector (for automatic reconnecting)
+ - Ping (for keepalive on the socket sent from the client)
+ - ServerMonitor (for keepalive on the socket sent from the server)
+ - ConnectionTransfer (for automatic reconnecting when the WebSocket host requests the client to reconnect)
  - [Notifications](notifications.md)
  - [WebRTC Sessions](webrtc-sessions.md)
 
 ## Known Issues and work-arounds
 
 ### Axios
-We recently updated axios in this library as well as in our dependencies. In the 1.x.x version of axios, they changed the 
+We recently updated axios in this library as well as in our dependencies. In the 1.x.x version of axios, they changed the
 module type from CommonJS to ECMAScript. Since Jest runs in a node environment, we need to specify the node version
 of axios when testing. This can be done by adjusting the `moduleNameMapper` for jest. If your jest config is in your
 `package.json`:
@@ -144,7 +122,7 @@ module.exports = {
     "axios": "axios/dist/node/axios.cjs"
   },
 ```
-  
+
 NOTE: if you have conflicting versions of axios, you will probably have to specify the axios version present *inside* the streaming-client repo:
 ```
 "moduleNameMapper": {
