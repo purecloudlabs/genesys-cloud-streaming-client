@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
 
+### Fixed
+* [STREAM-154](https://inindca.atlassian.net/browse/STREAM-154) - Track StanzaMediaSessions so events can still be processed if streaming-client is disconnected and reconnected.
+
 ### Added
 * [STREAM-653](https://inindca.atlassian.net/browse/STREAM-653) - Added fields to upgradeMediaPresence stanza definition.
 * [STREAM-85](https://inindca.atlassian.net/browse/STREAM-85) - Handle connection transfer (`v2.system.socket_closing`) message from Hawk signaling a reconnect is necessary
