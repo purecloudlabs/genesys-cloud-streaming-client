@@ -22,4 +22,6 @@ jobs:
         run: npm run build
       - name: Build with legacy OpenSSL (Node 20)
         if: matrix.node-version == 20
-        run: export NODE_OPTIONS="--openssl-legacy-provider" && npm run build
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+        run: npm run build
