@@ -1,9 +1,5 @@
 name: Test Matrix
-on:
-  push:
-    branches:
-      - master
-      - develop
+on: push
 jobs:
   build:
     continue-on-error: true
