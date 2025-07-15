@@ -25,6 +25,7 @@ import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
 import { v4 } from 'uuid';
 import { ConnectionTransfer } from './connection-transfer';
+import UserCancelledError from './types/user-cancelled-error';
 
 let extensions = {
   notifications: Notifications,
@@ -53,6 +54,7 @@ export class Client extends EventEmitter {
   backgroundAssistantMode = false;
 
   private autoReconnect = true;
+  private cancelConnectionAttempt = false;
   private extensions: StreamingClientExtension[] = [];
   private connectionManager: ConnectionManager;
   private channelReuses = 0;
@@ -281,12 +283,8 @@ export class Client extends EventEmitter {
     this.hardReconnectRequired = true;
   }
 
-  async disconnect () {
+  async disconnect (): Promise<any> {
     this.logger.info('streamingClient.disconnect was called');
-
-    if (!this.activeStanzaInstance) {
-      return;
-    }
 
     // Clear stored JID on client disconnect.
     this.jidResource = '';
@@ -294,9 +292,14 @@ export class Client extends EventEmitter {
     return timeoutPromise(resolve => {
       this.hardReconnectRequired = true;
       this.autoReconnect = false;
+      this.cancelConnectionAttempt = true;
       this.http.stopAllRetries();
-      return this.activeStanzaInstance!.disconnect()
-        .then(resolve);
+      const currentStanza = this.connectionManager.currentStanzaInstance;
+      if (currentStanza) {
+        return currentStanza.disconnect().then(resolve);
+      } else {
+        resolve();
+      }
     }, 5000, 'disconnecting streaming service');
   }
 
@@ -381,6 +384,7 @@ export class Client extends EventEmitter {
   }
 
   async connect (connectOpts?: StreamingClientConnectOptions) {
+    this.cancelConnectionAttempt = false;
     if (this.connecting) {
       const error = new Error('Already trying to connect streaming client');
       return this.logger.warn(error);
@@ -438,7 +442,13 @@ export class Client extends EventEmitter {
     } catch (err: any) {
       let errorForThrowing: StreamingClientError;
       let errorForLogging = err;
-      if (!err) {
+
+      // Check `cancelConnectionAttempt` instead of the error type in case a different error occurred
+      // around the same time that might mask the cancellation.
+      if (this.cancelConnectionAttempt) {
+        errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.userCancelled, 'Streaming client connection cancelled', err);
+        errorForLogging = errorForThrowing;
+      } else if (!err) {
         errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.generic, 'Streaming client connection attempted and received an undefined error');
         errorForLogging = errorForThrowing;
       } else if (err.name === 'AxiosError') {
@@ -478,6 +488,12 @@ export class Client extends EventEmitter {
   }
 
   private async backoffConnectRetryHandler (connectOpts: { maxConnectionAttempts: number }, err: any, connectionAttempt: number): Promise<boolean> {
+    // Check `cancelConnectionAttempt` instead of the error type in case a different error occurred
+    // around the same time that might allow for retries to continue.
+    if (this.cancelConnectionAttempt) {
+      return false;
+    }
+
     // if we exceed the `numOfAttempts` in the backoff config it still calls this retry fn and just ignores the result
     // if that's the case, we just want to bail out and ignore all the extra logging here.
     if (connectionAttempt >= connectOpts.maxConnectionAttempts) {
@@ -568,6 +584,10 @@ export class Client extends EventEmitter {
   }
 
   private async makeConnectionAttempt () {
+    if (this.cancelConnectionAttempt) {
+      throw new UserCancelledError('Connection attempt cancelled');
+    }
+
     if (!navigator.onLine) {
       throw new OfflineError('Browser is offline, skipping connection attempt');
     }
@@ -576,6 +596,11 @@ export class Client extends EventEmitter {
     let previousConnectingState = this.connecting;
     try {
       await this.prepareForConnect();
+
+      if (this.cancelConnectionAttempt) {
+        throw new UserCancelledError('Connection attempt cancelled');
+      }
+
       stanzaInstance = await this.connectionManager.getNewStanzaConnection();
       this.connected = true;
       this.connecting = false;
