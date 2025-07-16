@@ -1,4 +1,5 @@
 ## Streaming Client
+[![Test Matrix](https://github.com/purecloudlabs/genesys-cloud-streaming-client/actions/workflows/matrix.yml/badge.svg)](https://github.com/purecloudlabs/genesys-cloud-streaming-client/actions/workflows/matrix.yml)
 
 ### Overview
 Client library for streaming-service
