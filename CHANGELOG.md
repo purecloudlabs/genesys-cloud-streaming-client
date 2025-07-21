@@ -4,7 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.2...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.0...HEAD)
+
+# [v19.3.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.2...v19.3.0)
+### Changed
+* [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
+
+### Fixed
+* [STREAM-154](https://inindca.atlassian.net/browse/STREAM-154) - Track StanzaMediaSessions so events can still be processed if streaming-client is disconnected and reconnected.
+* [STREAM-155](https://inindca.atlassian.net/browse/STREAM-155) - Calling `disconnect` will now stop any in-progress connection attempts.
+
+### Added
+* [STREAM-653](https://inindca.atlassian.net/browse/STREAM-653) - Added fields to upgradeMediaPresence stanza definition.
+* [STREAM-85](https://inindca.atlassian.net/browse/STREAM-85) - Handle connection transfer (`v2.system.socket_closing`) message from Hawk signaling a reconnect is necessary
+* [STREAM-652](https://inindca.atlassian.net/browse/STREAM-652) - Added GitHub Actions for linting, testing, and building in an effort to make the build process more transparent and reliable.
 
 # [v19.2.2](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.1...v19.2.2)
 ### Fixed
@@ -13,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [v19.2.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.0...v19.2.1)
 ### Fixed
-* [STREAM-524](https://inindca.atlassian.net/browse/STREAM-524) - Fix issue where sdpOverXmpp flag could be overridden by a subsequent propose.
+* [STREAM-534](https://inindca.atlassian.net/browse/STREAM-534) - Fix issue where sdpOverXmpp flag could be overridden by a subsequent propose.
 
 ### Added
 * [STREAM-63](https://inindca.atlassian.net/browse/STREAM-63) - Added in check to ensure customHeaders is passed in for every API request call

@@ -96,9 +96,10 @@ declare module 'stanza/protocol' {
   export interface ReceivedMessage {
     mediaMessage?: GenesysMediaMessage;
   }
+}
 
+declare module 'stanza' {
   export interface AgentEvents {
-    /* tslint:disable-next-line no-unnecessary-qualifier */
     'iq:set:genesysWebrtc': Stanzas.ReceivedIQ & { genesysWebrtc: GenesysWebrtcJsonRpcMessage };
   }
 }
@@ -137,7 +138,8 @@ const upgradeMediaPresenceDefinition: DefinitionOptions = {
     video: childAttribute(null, 'mediastream', 'video'),
     audio: childAttribute(null, 'mediastream', 'audio'),
     listener: childAttribute(null, 'mediastream', 'listener'),
-    screenRecording: childAttribute(null, 'mediastream', 'screenRecording')
+    screenRecording: childAttribute(null, 'mediastream', 'screenRecording'),
+    videoGuest: childAttribute(null, 'mediastream', 'videoGuest')
   },
   namespace: 'orgspan:mediastream'
 };
