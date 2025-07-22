@@ -12,6 +12,24 @@ jobs:
           caching: 'false'
       - name: Lint code
         run: npm run lint
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install and Cache Dependencies
+        uses: ./.github/actions/cached-deps
+      - name: Run security audit
+        id: security-audit
+        run: |
+          npm audit --json > security-audit.json
+          npm audit --audit-level=critical || echo "CRITICAL_VULN=true" >> $GITHUB_ENV
+      - name: Upload security audit report
+        if: env.CRITICAL_VULN == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-audit-report
+          path: security-audit.json
   test:
     runs-on: ubuntu-latest
     steps:
@@ -30,21 +48,6 @@ jobs:
         with:
           name: test-report
           path: test.json
-      - name: Run security audit
-        id: security-audit
-        run: |
-          npm audit --json > security-audit.json
-          if ! npm audit --audit-level=critical --production; then
-            echo "CRITICAL_VULN=true" >> $GITHUB_ENV
-          else
-            echo "CRITICAL_VULN=false" >> $GITHUB_ENV
-          fi
-      - name: Upload security audit report
-        if: env.CRITICAL_VULN == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-audit-report
-          path: security-audit.json
   build:
     needs: test
     runs-on: ubuntu-latest
