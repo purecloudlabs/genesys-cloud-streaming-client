@@ -21,20 +21,7 @@ jobs:
         uses: ./.github/actions/cached-deps
       - name: Run security audit
         id: security-audit
-        run: |
-          npm audit --json > security-audit.json
-          npm audit --audit-level=critical --production || echo "CRITICAL_VULN=true" >> $GITHUB_ENV
-      - name: Upload security audit report
-        if: env.CRITICAL_VULN == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-audit-report
-          path: security-audit.json
-      - name: Check for vulnerabilities
-        if: env.CRITICAL_VULN == 'true'
-        run: |
-          echo "Critical vulnerabilities found - check the uploaded report"
-          exit 1
+        run: npm audit --audit-level=critical --production
   test:
     runs-on: ubuntu-latest
     steps:
