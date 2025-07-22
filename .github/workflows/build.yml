@@ -21,7 +21,7 @@ jobs:
         uses: ./.github/actions/cached-deps
       - name: Run security audit
         id: security-audit
-        run: npm audit --audit-level=critical --production
+        run: npm audit --audit-level=critical --omit=dev
   test:
     runs-on: ubuntu-latest
     steps:
