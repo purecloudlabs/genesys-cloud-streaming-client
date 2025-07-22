@@ -8,13 +8,13 @@ import { AxiosError, AxiosHeaders } from 'axios';
 import SaslError from '../../src/types/sasl-error';
 import { TimeoutError } from '../../src/types/timeout-error';
 import OfflineError from '../../src/types/offline-error';
-import { reject } from 'lodash';
 import EventEmitter from 'events';
 import { NamedAgent } from '../../src/types/named-agent';
 import { flushPromises } from '../helpers/testing-utils';
 import { SCConnectionData, StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Ping } from '../../src/ping';
 import { ServerMonitor } from '../../src/server-monitor';
+import UserCancelledError from '../../src/types/user-cancelled-error';
 
 jest.mock('genesys-cloud-client-logger');
 jest.mock('../../src/ping');
@@ -270,6 +270,14 @@ describe('connect', () => {
     backoffRetrySpy = client['backoffConnectRetryHandler'] = jest.fn();
   });
 
+  it('should set cancelConnectionAttempt to false', async () => {
+    connectionAttemptSpy.mockResolvedValue(null);
+    client['cancelConnectionAttempt'] = true;
+
+    await client.connect();
+    expect(client['cancelConnectionAttempt']).toBeFalsy();
+  });
+
   it('should do nothing if already connecting', async () => {
     client.connecting = true;
     await client.connect();
@@ -335,6 +343,25 @@ describe('connect', () => {
     } catch (err) {
       expect(err).toBeInstanceOf(StreamingClientError);
       expect(err['type']).toBe(StreamingClientErrorTypes.generic);
+      expect(err['details']).toBe(error);
+    }
+    expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
+    expect.assertions(4);
+  });
+
+  it('should throw a user_cancelled error if the connection attempt was cancelled regardless of the thrown error', async () => {
+    const error = new SaslError('incorrect-encoding', 'channelId', 'instanceId');
+    connectionAttemptSpy.mockRejectedValue(error);
+    connectionAttemptSpy.mockImplementation(() => {
+      client['cancelConnectionAttempt'] = true;
+      throw error;
+    });
+
+    try {
+      await client.connect({ keepTryingOnFailure: false });
+    } catch (err) {
+      expect(err).toBeInstanceOf(StreamingClientError);
+      expect(err['type']).toBe(StreamingClientErrorTypes.userCancelled);
       expect(err['details']).toBe(error);
     }
     expect(connectionAttemptSpy).toHaveBeenCalledTimes(1);
@@ -520,22 +547,16 @@ describe('disconnect', () => {
 
   beforeEach(() => {
     client = new Client(getDefaultOptions());
+    client.hardReconnectRequired = false;
+    client['autoReconnect'] = true;
   });
 
-  it('should do nothing if no stanza instance', async () => {
-    client.activeStanzaInstance = undefined;
-
-    const spy = client.http.stopAllRetries = jest.fn();
-
-    await client.disconnect();
-
-    expect(spy).not.toHaveBeenCalled();
-  });
-
-  it('should resolve when a disconnected event is received', async () => {
+  it('should stop HTTP retries and resolve when there is a current stanza instance', async () => {
     let isResolved = false;
 
-    const stanza = client.activeStanzaInstance = new EventEmitter() as any;
+    client.http.stopAllRetries = jest.fn();
+    const stanza = new EventEmitter() as any;
+    client['connectionManager'].currentStanzaInstance = stanza;
 
     let resolve;
     stanza.disconnect = jest.fn().mockImplementation(() => {
@@ -543,11 +564,11 @@ describe('disconnect', () => {
         resolve = r;
       });
     });
-    client.http.stopAllRetries = jest.fn();
 
-    const promise = client.disconnect().then(() => isResolved = true);
+    client.disconnect().then(() => isResolved = true);
     await flushPromises();
 
+    expect(client.http.stopAllRetries).toHaveBeenCalled();
     expect(stanza.disconnect).toHaveBeenCalled();
     expect(isResolved).toBeFalsy();
 
@@ -555,6 +576,24 @@ describe('disconnect', () => {
     await flushPromises();
 
     expect(isResolved).toBeTruthy();
+    expect(client.hardReconnectRequired).toBeTruthy();
+    expect(client['autoReconnect']).toBeFalsy();
+    expect(client['cancelConnectionAttempt']).toBeTruthy();
+  });
+
+  it('should stop HTTP retries and resolve when there is no current stanza instance', async () => {
+    let isResolved = false;
+
+    client.http.stopAllRetries = jest.fn();
+    client['connectionManager'].currentStanzaInstance = undefined;
+
+    await client.disconnect().then(() => isResolved = true);
+
+    expect(client.http.stopAllRetries).toHaveBeenCalled();
+    expect(isResolved).toBeTruthy();
+    expect(client.hardReconnectRequired).toBeTruthy();
+    expect(client['autoReconnect']).toBeFalsy();
+    expect(client['cancelConnectionAttempt']).toBeTruthy();
   });
 });
 
@@ -568,6 +607,21 @@ describe('backoffConnectRetryHandler', () => {
     });
 
     errorSpy = jest.spyOn(client.logger, 'error');
+  });
+
+  it('should return false if cancelConnectionAttempt is true', async () => {
+    const error = new UserCancelledError('user cancelled');
+    client['cancelConnectionAttempt'] = true;
+    const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
+    expect(result).toBeFalsy();
+  });
+
+  it('should return false if cancelConnectionAttempt is true even if called with another error', async () => {
+    const error = new TimeoutError('fake timeout');
+    client['cancelConnectionAttempt'] = true;
+
+    const result = await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1);
+    expect(result).toBeFalsy();
   });
 
   it('should return false if not keepTryingOnFailure', async () => {
@@ -794,6 +848,14 @@ describe('makeConnectionAttempt', () => {
     pingerMock.mockClear();
   });
 
+  it('should not attempt if the connection attempt has been cancelled', async () => {
+    client['cancelConnectionAttempt'] = true;
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCancelledError);
+    expect(prepareSpy).not.toHaveBeenCalled();
+    expect(getConnectionSpy).not.toHaveBeenCalled();
+  });
+
   it('should not attempt if offline', async () => {
     const spy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
 
@@ -804,9 +866,23 @@ describe('makeConnectionAttempt', () => {
     spy.mockRestore();
   });
 
+  it('should not set up a stanza instance if the connection attempt is cancelled after preparing to connect', async () => {
+    prepareSpy.mockImplementation(() => client['cancelConnectionAttempt'] = true);
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCancelledError);
+
+    expect(prepareSpy).toHaveBeenCalled();
+    expect(getConnectionSpy).not.toHaveBeenCalled();
+  });
+
   it('should set up stanzaInstance and emit connected event', async () => {
     expect.assertions(8);
-    const fakeInstance = {};
+    const fakeInstance = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
     getConnectionSpy.mockResolvedValue(fakeInstance);
     prepareSpy.mockResolvedValue(null);
 
@@ -840,7 +916,7 @@ describe('makeConnectionAttempt', () => {
     const fakeInstance = {
       disconnect: disconnectSpy,
       emit: null,
-      originalEmitter: fakeEmit
+      originalEmitter: fakeEmit,
     };
     const cleanupSpy = jest.spyOn(client as any, 'removeStanzaBoundEventHandlers');
     client['boundStanzaDisconnect'] = async () => {};
@@ -891,7 +967,11 @@ describe('makeConnectionAttempt', () => {
     const fakeInstance = {
       disconnect: disconnectSpy,
       emit: null,
+      on: jest.fn(),
       originalEmitter: fakeEmit,
+      stanzas: {
+        define: jest.fn()
+      },
       subscribeToNode: jest.fn().mockResolvedValue({}),
       pinger: {
         stop: jest.fn()
@@ -954,12 +1034,37 @@ describe('setupConnectionMonitoring', () => {
     serverMonitorMock.mockClear();
   });
 
+  it('adds a watcher for connection transfers', async () => {
+    const opts = {...getDefaultOptions(), useServerSidePings: false};
+    let client = new Client(opts);
+    const fakeStanza = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
+
+    client['prepareForConnect'] = jest.fn();
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue(fakeStanza);
+    client['addInateEventHandlers'] = jest.fn();
+    client['proxyStanzaEvents'] = jest.fn();
+    client['extensions'] = [];
+
+    await client['makeConnectionAttempt']();
+    expect(fakeStanza['connectionTransfer']).toBeTruthy();
+  });
+
   it('uses client-side pings if useServerSidePings is false', async () => {
     const opts = {...getDefaultOptions(), useServerSidePings: false};
     let client = new Client(opts);
 
     client['prepareForConnect'] = jest.fn();
-    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({});
+    client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    });
     client['addInateEventHandlers'] = jest.fn();
     client['proxyStanzaEvents'] = jest.fn();
     client['extensions'] = [];
@@ -977,7 +1082,11 @@ describe('setupConnectionMonitoring', () => {
       throw new Error('pretending server-side pings don\'t work');
     };
     client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
-      subscribeToNode: mockSubscribeToNode
+      on: jest.fn(),
+      subscribeToNode: mockSubscribeToNode,
+      stanzas: {
+        define: jest.fn()
+      }
     });
     client['addInateEventHandlers'] = jest.fn();
     client['proxyStanzaEvents'] = jest.fn();
@@ -994,7 +1103,11 @@ describe('setupConnectionMonitoring', () => {
     client['prepareForConnect'] = jest.fn();
     const subscribeToNodeSpy = jest.fn().mockResolvedValue({});
     client['connectionManager'].getNewStanzaConnection = jest.fn().mockResolvedValue({
-      subscribeToNode: subscribeToNodeSpy
+      on: jest.fn(),
+      subscribeToNode: subscribeToNodeSpy,
+      stanzas: {
+        define: jest.fn()
+      }
     });
     client['addInateEventHandlers'] = jest.fn();
     client['proxyStanzaEvents'] = jest.fn();
@@ -1019,7 +1132,7 @@ describe('prepareForConnect', () => {
 
     setConfigSpy = client['connectionManager'].setConfig = jest.fn();
     httpSpy = client.http.requestApi = jest.fn().mockImplementation((path) => {
-      const promise = new Promise(resolve => {
+      const promise = new Promise((resolve, reject) => {
         if (path === 'users/me') {
           return resolve({ data: { chat: { jabberId: 'myRequestedJid' } } });
         } else if (path.startsWith('notifications/channels')) {
