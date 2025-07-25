@@ -1,6 +1,6 @@
 {
   "name": "genesys-cloud-streaming-client",
-  "version": "19.3.0",
+  "version": "19.3.1",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
   "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
   "license": "MIT",
