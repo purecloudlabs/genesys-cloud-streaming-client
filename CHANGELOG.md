@@ -6,6 +6,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.1...HEAD)
 
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/19.3.1...HEAD)
+### Changed
+* [STREAM-643](https://inindca.atlassian.net/browse/STREAM-643) - Bumped webpack dependency to 5.94.0
+
 # [v19.3.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.0...v19.3.1)
 * [STREAM-801](https://inindca.atlassian.net/browse/STREAM-801) - Update genesys-cloud-client-logger and axios to address Snyk vulnerability.
 
@@ -13,15 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
 
-<<<<<<< HEAD
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.0...HEAD)
-
-# [v19.3.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.2.2...v19.3.0)
-### Changed
-* [STREAM-631](https://inindca.atlassian.net/browse/STREAM-631) - Remove pipeline infra from open-source.
-
-=======
->>>>>>> 8e8df55f36de0b5593234cabf801dfdd73f1b012
 ### Fixed
 * [STREAM-154](https://inindca.atlassian.net/browse/STREAM-154) - Track StanzaMediaSessions so events can still be processed if streaming-client is disconnected and reconnected.
 * [STREAM-155](https://inindca.atlassian.net/browse/STREAM-155) - Calling `disconnect` will now stop any in-progress connection attempts.

@@ -12,8 +12,6 @@ jobs:
           caching: 'false'
       - name: Lint code
         run: npm run lint
-<<<<<<< HEAD
-=======
   security-audit:
     runs-on: ubuntu-latest
     steps:
@@ -24,7 +22,6 @@ jobs:
       - name: Run security audit
         id: security-audit
         run: npm audit --audit-level=critical --omit=dev
->>>>>>> 8e8df55f36de0b5593234cabf801dfdd73f1b012
   test:
     runs-on: ubuntu-latest
     steps:
@@ -59,8 +56,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
-<<<<<<< HEAD
           path: dist
-=======
-          path: dist
->>>>>>> 8e8df55f36de0b5593234cabf801dfdd73f1b012
