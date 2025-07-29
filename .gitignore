@@ -7,11 +7,11 @@
 dist
 web
 
-## vscode specific files
-/.vscode
-
 ## JetBrains specific files
 /.idea
+
+## vscode specific files
+/.vscode
 
 # tap specific files
 /.nyc_output
