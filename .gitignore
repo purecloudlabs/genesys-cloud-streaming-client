@@ -7,6 +7,9 @@
 dist
 web
 
+## JetBrains specific files
+/.idea
+
 ## vscode specific files
 /.vscode
 
