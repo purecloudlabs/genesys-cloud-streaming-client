@@ -17,3 +17,4 @@ web
 /.npmrc
 .ignore
 *.tgz
+/test-results
