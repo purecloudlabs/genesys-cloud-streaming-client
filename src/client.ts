@@ -27,7 +27,7 @@ import { v4 } from 'uuid';
 import { ConnectionTransfer } from './connection-transfer';
 import UserCancelledError from './types/user-cancelled-error';
 
-let extensions = {
+const extensions = {
   notifications: Notifications,
   webrtcSessions: WebrtcExtension,
   messenger: MessengerExtension
@@ -313,7 +313,7 @@ export class Client extends EventEmitter {
     const connectionDataStr = sessionStorage.getItem(this.getSessionStoreKey());
 
     const defaultValue = {
-      currentDelayMs: 0,
+      currentDelayMs: 0
     };
 
     if (connectionDataStr) {
@@ -418,7 +418,6 @@ export class Client extends EventEmitter {
     try {
       await backOff(
         async () => {
-
           const connectionData = this.getConnectionData();
           await this.makeConnectionAttempt();
           if (connectionData.nextDelayReductionTime) {
@@ -435,8 +434,8 @@ export class Client extends EventEmitter {
           startingDelay,
           delayFirstAttempt,
           retry: this.backoffConnectRetryHandler.bind(this, {
-            maxConnectionAttempts: maxAttempts,
-          }),
+            maxConnectionAttempts: maxAttempts
+          })
         }
       );
     } catch (err: any) {
@@ -507,7 +506,7 @@ export class Client extends EventEmitter {
     } else if (err.name === 'AxiosError') {
       const axiosError = err as AxiosError;
       const config = axiosError.config || { url: undefined, method: undefined };
-      let sanitizedError = {
+      const sanitizedError = {
         config: {
           url: config.url,
           method: config.method
@@ -558,7 +557,7 @@ export class Client extends EventEmitter {
 
       if (retryAfter) {
         // retry after comes in seconds, we need to return milliseconds
-        let retryDelay = parseInt(retryAfter, 10) * 1000;
+        const retryDelay = parseInt(retryAfter, 10) * 1000;
         additionalErrorDetails.retryDelay = retryDelay;
         this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails, { skipServer: err instanceof OfflineError });
         await delay(retryDelay);
@@ -593,7 +592,7 @@ export class Client extends EventEmitter {
     }
 
     let stanzaInstance: NamedAgent | undefined;
-    let previousConnectingState = this.connecting;
+    const previousConnectingState = this.connecting;
     try {
       await this.prepareForConnect();
 

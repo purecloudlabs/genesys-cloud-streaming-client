@@ -104,13 +104,13 @@ export class ConnectionManager {
     const config = this.config;
     const jwt = parseJwt(config.jwt!);
     let jidDomain: string;
-    let jwtJid: string = jwt.data.jid;
+    const jwtJid: string = jwt.data.jid;
     try {
       jidDomain = jwtJid.split('@')[1].replace('conference.', '');
     } catch (e) {
       throw new Error('failed to parse jid');
     }
-    let wsHost = config.host.replace(/\/$/, '');
+    const wsHost = config.host.replace(/\/$/, '');
     return {
       resource: config.jidResource,
       transports: {
@@ -122,7 +122,7 @@ export class ConnectionManager {
 
   private getStandardOptions (): AgentConfig {
     const config = this.config;
-    let wsHost = config.host.replace(/\/$/, '');
+    const wsHost = config.host.replace(/\/$/, '');
     return {
       jid: config.jid,
       resource: config.jidResource,

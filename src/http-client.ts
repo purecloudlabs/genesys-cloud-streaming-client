@@ -16,7 +16,6 @@ import Logger from 'genesys-cloud-client-logger';
 const correlationIdHeaderName = 'inin-correlation-id';
 
 export class HttpClient {
-
   customHeaders?: ICustomHeader;
   private _httpRetryingRequests = new Map<string, RetryPromise<any>>();
 
@@ -97,7 +96,7 @@ export class HttpClient {
 
     // default to include auth header
     if (!opts.noAuthHeader) {
-      params.headers!['Authorization'] = `Bearer ${opts.authToken}`;
+      params.headers!.Authorization = `Bearer ${opts.authToken}`;
     }
 
     const boundHandler = this.handleResponse.bind(this, logger, start, params);
@@ -107,8 +106,8 @@ export class HttpClient {
   }
 
   private handleResponse (logger: Logger, start: number, params: AxiosRequestConfig, res: AxiosResponse): Promise<AxiosResponse> {
-    let now = new Date().getTime();
-    let elapsed = (now - start) + 'ms';
+    const now = new Date().getTime();
+    const elapsed = (now - start) + 'ms';
     if (res instanceof AxiosError) {
       // sanitize the auth token
       if (res.config?.headers?.Authorization) {
@@ -128,10 +127,10 @@ export class HttpClient {
 
       /* istanbul ignore next */
       const response = res.response || {} as any;
-      let status = response.status;
-      let correlationId = response.headers && response.headers[correlationIdHeaderName];
-      let body = response.data;
-      let error: IAxiosResponseError = {
+      const status = response.status;
+      const correlationId = response.headers && response.headers[correlationIdHeaderName];
+      const body = response.data;
+      const error: IAxiosResponseError = {
         ...res,
         text: response.request?.response
       };
@@ -148,9 +147,9 @@ export class HttpClient {
       return Promise.reject(error);
     }
 
-    let status = res.status;
-    let correlationId = res.headers[correlationIdHeaderName];
-    let body = JSON.stringify(res.data);
+    const status = res.status;
+    const correlationId = res.headers[correlationIdHeaderName];
+    const body = JSON.stringify(res.data);
 
     logger.debug(`response: ${params.method!.toUpperCase()} ${params.url}`, {
       now,

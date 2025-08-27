@@ -1,4 +1,3 @@
-
 import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
 import { AxiosError, ResponseType } from 'axios';
 import { NamedAgent } from './named-agent';
