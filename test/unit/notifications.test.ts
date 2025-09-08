@@ -3,13 +3,13 @@
 import WildEmitter from 'wildemitter';
 import nock from 'nock';
 
-import { Notifications } from '../../src/notifications';
+import { ChannelTopicsEntityListing, Notifications } from '../../src/notifications';
 import { Agent } from 'stanza';
 import { HttpClient } from '../../src/http-client';
 import { EventEmitter } from 'stream';
 import { NamedAgent } from '../../src/types/named-agent';
 import { v4 } from 'uuid';
-import axios from 'axios';
+import axios, { Axios, AxiosResponse } from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
 
 const exampleTopics = require('../helpers/example-topics.json');
@@ -106,6 +106,111 @@ describe('Notifications', () => {
       notification.stanzaInstance = undefined;
       notification.handleStanzaInstanceChange(newInstance);
       expect(resubSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('enablePartialBulkResubscribe', () => {
+    let client: Client;
+    let notification: Notifications;
+    let axiosMock = new AxiosMockAdapter(axios);
+    let bulkSubscribeUrl: string;
+
+    beforeEach(() => {
+      client = new Client({
+        channelId,
+        apiHost: 'example.com',
+      });
+      bulkSubscribeUrl = `https://api.example.com/api/v2/notifications/channels/${channelId}/subscriptions`;
+      axiosMock.onPut(bulkSubscribeUrl).reply((config) => {
+        const topics = JSON.parse(config.data).map((topic) => topic.id);
+        if (topics.includes('b.topic')) {
+          return [403, {
+            message: 'The user does not have permission "b.topic:view" required for topic "b.topic"',
+            code: 'notification.unauthorized.topic',
+            status: 403,
+          }];
+        }
+        return [200, { entities: [{ id: 'a.topic', state: 'Permitted' }] }];
+      });
+      axiosMock.onPut(`${bulkSubscribeUrl}?ignoreErrors=true`).reply((config) => {
+        const topics = JSON.parse(config.data).map((topic) => topic.id);
+        const response: ChannelTopicsEntityListing = {
+          entities: [{ id: 'a.topic', state: 'Permitted' }]
+        };
+        if (topics.includes('b.topic')) {
+          response.entities.push({ id: 'b.topic', state: 'Rejected', rejectionReason: 'The user does not have permissions required for topic b.topic' });
+        }
+        return [200, response];
+      });
+    });
+    afterEach(() => {
+      axiosMock.reset();
+    });
+
+    it('should not be enabled by default', () => {
+      notification = new Notifications(client);
+      expect(notification.enablePartialBulkResubscribe).toBe(false);
+    });
+
+    describe('when not enabled', () => {
+      beforeEach(() => {
+        notification = new Notifications(client, { host: 'localhost', enablePartialBulkResubscribe: false });
+        notification.stanzaInstance = getFakeStanzaClient();
+      });
+      it('should not add ignoreErrors param to bulk resubscribe', async () => {
+        await notification.subscribe('a.topic', () => {});
+        expect(axiosMock.history.put.length).toEqual(1);
+        expect(axiosMock.history.put[0].url).not.toContain('?ignoreErrors');
+      });
+      it('should fail all subscribe() calls from the same debounce interval with the same 403 error if one fails', async () => {
+        let aResult: undefined | 'fulfilled' | 'rejected';
+        let bResult: undefined | 'fulfilled' | 'rejected';
+        let cResult: undefined | 'fulfilled' | 'rejected';
+        await Promise.all([
+          notification.subscribe('a.topic').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
+          notification.subscribe('b.topic').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
+          notification.subscribe('c.topic').then(() => { cResult = 'fulfilled'; }, () => { cResult = 'rejected'; }),
+        ]);
+        // All subscribe() calls reject because the bulk subscribe response is 403 due to b.topic
+        expect(aResult).toEqual('rejected');
+        expect(bResult).toEqual('rejected');
+        expect(cResult).toEqual('rejected');
+        // But all 3 topics should remain in bulkSubscriptions
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('a.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('b.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('c.topic');
+      });
+    });
+
+    describe('when enabled', () => {
+      beforeEach(() => {
+        notification = new Notifications(client, { host: 'localhost', enablePartialBulkResubscribe: true });
+        notification.stanzaInstance = getFakeStanzaClient();
+      });
+      it('should add ?ignoreErrors=true to bulk resubscribe', async () => {
+        await notification.subscribe('a.topic', () => {});
+        expect(axiosMock.history.put.length).toEqual(1);
+        expect(axiosMock.history.put[0].url).toContain('?ignoreErrors');
+      });
+      it('should individually succeed or fail subscribe() calls from the same debounce interval based on API response', async () => {
+        let aResult: undefined | 'fulfilled' | 'rejected';
+        let bResult: undefined | 'fulfilled' | 'rejected';
+        let cResult: undefined | 'fulfilled' | 'rejected';
+        await Promise.all([
+          notification.subscribe('a.topic').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
+          notification.subscribe('b.topic').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
+          notification.subscribe('c.topic').then(() => { cResult = 'fulfilled'; }, () => { cResult = 'rejected'; }),
+        ]);
+        expect(aResult).toEqual('fulfilled');
+        // b.topic subscribe() call is rejected because bulk subscribe result is "Rejected" for that topic
+        expect(bResult).toEqual('rejected');
+        // c.topic subscribe() call is rejected because bulk subscribe result is "Unknown" for that topic (not in the API response)
+        expect(cResult).toEqual('rejected');
+        // all 3 topics get added to bulkSubscriptions
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('a.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('b.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('c.topic');
+      });
     });
   });
 
@@ -251,7 +356,7 @@ describe('Notifications', () => {
 
     // subscribing
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
-    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue({});
     const handler = jest.fn();
     const firstSubscription = notification.expose.subscribe('topic.test', handler);
 
@@ -285,11 +390,10 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
-    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue({} as AxiosResponse);
 
-    const topic1 = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation'
+    const topic1 = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.geolocation';
     const topic2 = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7.presence';
     const handler = () => { };
 
@@ -326,10 +430,9 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     // subscribing
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
-    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue({});
     await Promise.all([
       notification.expose.subscribe('topic.test', jest.fn()),
       notification.expose.subscribe('topic.test', jest.fn()),
@@ -358,7 +461,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     client.connected = true;
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockRejectedValue(new Error('test'));
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockRejectedValue(new Error('test'));
@@ -382,7 +484,7 @@ describe('Notifications', () => {
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
-    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'bulkSubscribe').mockResolvedValue({});
     client.emit('pubsub:event', SUBSCRIPTIONS_EXPIRING);
     expect(notification.bulkSubscribe).not.toHaveBeenCalled();
     expect(notification.stanzaInstance!.subscribeToNode).not.toHaveBeenCalled();
@@ -456,7 +558,7 @@ describe('Notifications', () => {
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
-    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue({} as AxiosResponse);
 
     const handler = jest.fn();
     const handler2 = jest.fn();
@@ -476,12 +578,11 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({});
     (notification.stanzaInstance as jest.Mocked<NamedAgent>).unsubscribeFromNode.mockResolvedValue({});
     client.emit('connected');
     client.connected = true;
-    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue({} as AxiosResponse);
 
     const handler = jest.fn();
     const handler2 = jest.fn();
@@ -499,7 +600,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     const reducedTopics = notification.mapCombineTopics(exampleTopics);
     expect(reducedTopics.length).toBe(exampleTopics.length / 5);
   });
@@ -510,7 +610,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     const topics = [
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
@@ -538,7 +637,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     const topics = [
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.routingStatus',
@@ -562,7 +660,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
     const singleTopic = 'v2.users.660b6ba5-5e69-4f55-a487-d44cee0f7ce7.presence';
@@ -588,7 +685,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     const topic = 'v2.users.731c4a20-e6c2-443a-b361-39bcb9e087b7?geolocation&presence&routingStatus&conversationsummary';
     const handler = jest.fn();
@@ -623,7 +719,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     const topicList: string[] = [];
     for (let i = 0; i < 1030; i++) {
       topicList.push(`v2.users.${i}.presence`);
@@ -648,7 +743,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     const topicList: string[] = [];
     for (let i = 0; i < 1030; i++) {
       topicList.push(`v2.users.${i}.presence`, `v2.users.${i}.geolocation`);
@@ -668,7 +762,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     const topics = [
       'v2.users.8b67e4d1-9758-4285-8c45-b49fedff3f99.geolocation',
@@ -717,7 +810,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     notification.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 1, 'test.topic3': 5, 'test.topic4': -1 });
     expect(notification.getTopicPriority('test.topic')).toBe(2);
     expect(notification.getTopicPriority('test.defaulttopicpriority')).toBe(0);
@@ -735,7 +827,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     notification.setTopicPriorities({ 'test.topic': 2 });
     expect(notification.topicPriorities.test.topic).toBe(2);
@@ -761,7 +852,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     notification.setTopicPriorities();
     notification.setTopicPriorities({ 'test.topic': 2, 'test.topic2': 5 });
@@ -795,7 +885,7 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue(undefined);
+    jest.spyOn(notification, 'makeBulkSubscribeRequest').mockResolvedValue({} as AxiosResponse);
 
     const priorities = {
       'topic.test.one': 1,
@@ -830,7 +920,6 @@ describe('Notifications', () => {
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
 
-
     const spy = jest.spyOn(client, 'emit');
     (client as any).emit('pubsub:event', noLongerSubscribed);
 
@@ -859,7 +948,6 @@ describe('Notifications', () => {
     });
     const notification = new Notifications(client);
     notification.stanzaInstance = getFakeStanzaClient();
-
 
     const spy = jest.spyOn(client, 'emit');
     (client as any).emit('pubsub:event', duplicateId);

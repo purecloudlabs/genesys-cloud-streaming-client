@@ -1,11 +1,13 @@
 import { Agent } from 'stanza';
 import { PubsubEvent, PubsubSubscription, PubsubSubscriptionWithOptions } from 'stanza/protocol';
-const debounce = require('debounce-promise');
+import debounce from 'debounce-promise';
 
 import { Client } from './client';
-import { RequestApiOptions, StreamingClientExtension } from './types/interfaces';
+import { IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
 import { splitIntoIndividualTopics } from './utils';
+import { StreamingSubscriptionError } from './';
+import { AxiosResponse } from 'axios';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 const MAX_SUBSCRIBABLE_TOPICS = 1000;
@@ -22,14 +24,18 @@ export class Notifications implements StreamingClientExtension {
   subscriptions: any;
   bulkSubscriptions: any;
   topicPriorities: any;
-  debouncedResubscribe: any;
+  debouncedResubscribe: () => Promise<BulkSubscribeResult>;
 
-  constructor (client) {
+  enablePartialBulkResubscribe: boolean;
+
+  constructor (client, options?: IClientOptions) {
     this.subscriptions = {};
     this.bulkSubscriptions = {};
     this.topicPriorities = {};
 
     this.client = client;
+
+    this.enablePartialBulkResubscribe = options?.enablePartialBulkResubscribe ?? false;
 
     client.on('pubsub:event', this.pubsubEvent.bind(this));
     client.on('connected', this.subscriptionsKeepAlive.bind(this));
@@ -54,7 +60,7 @@ export class Notifications implements StreamingClientExtension {
 
     if (needsToResub) {
       this.client.logger.info('resubscribing due to hard reconnect');
-      this.debouncedResubscribe();
+      void this.debouncedResubscribe();
     }
   }
 
@@ -196,7 +202,7 @@ export class Notifications implements StreamingClientExtension {
     return keptTopics;
   }
 
-  makeBulkSubscribeRequest (topics: string[], options): Promise<any> {
+  makeBulkSubscribeRequest (topics: string[], options): Promise<AxiosResponse<ChannelTopicsEntityListing>> {
     const requestOptions: RequestApiOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
@@ -205,7 +211,13 @@ export class Notifications implements StreamingClientExtension {
       logger: this.client.logger
     };
     const channelId = this.stanzaInstance!.channelId;
-    return this.client.http.requestApi(`notifications/channels/${channelId}/subscriptions`, requestOptions);
+    let path = `notifications/channels/${channelId}/subscriptions`;
+
+    if (this.enablePartialBulkResubscribe) {
+      path += '?ignoreErrors=true';
+    }
+
+    return this.client.http.requestApi(path, requestOptions);
   }
 
   createSubscription (topic: string, handler: (obj?: any) => void): void {
@@ -264,13 +276,13 @@ export class Notifications implements StreamingClientExtension {
     return activeTopics;
   }
 
-  resubscribe (): Promise<any> {
+  resubscribe (): Promise<BulkSubscribeResult> {
     const bulkSubs = Object.keys(this.bulkSubscriptions);
 
     /* if we don't have bulk or individual subs, we don't need to resubscribe */
     const noTopics = bulkSubs.length + this.getActiveIndividualTopics().length === 0;
     if (noTopics) {
-      return Promise.resolve();
+      return Promise.resolve({});
     }
 
     /* only pass in bulk subs with the replace flag – bulkSubscribe() will handle merging our individual topics (see PCM-1846) */
@@ -328,12 +340,12 @@ export class Notifications implements StreamingClientExtension {
     });
   }
 
-  subscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean, priority?: number): Promise<any> {
+  async subscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean, priority?: number): Promise<TopicSubscribeResult> {
     if (priority) {
       this.setTopicPriorities({ [topic]: priority });
     }
 
-    let promise;
+    let promise: Promise<unknown>;
     if (!immediate) {
       // let this and any other subscribe/unsubscribe calls roll in, then trigger a whole resubscribe
       promise = this.debouncedResubscribe();
@@ -345,7 +357,19 @@ export class Notifications implements StreamingClientExtension {
     } else {
       this.bulkSubscriptions[topic] = true;
     }
-    return promise;
+    const result = await promise;
+    // Assume topic subscription succeeded if promise is resolved...
+    let topicResult: TopicSubscribeResult = { topic, state: 'Permitted' };
+    // ... but if partial bulk resubscribe is enabled, use topic's individual result from the API response.
+    if (this.enablePartialBulkResubscribe && result && typeof result === 'object' && isTopicSubscribeResult(result[topic])) {
+      topicResult = result[topic];
+    }
+    // Topic result other than state=Permitted becomes a StreamingSubscriptionError promise rejection.
+    if (topicResult.state !== 'Permitted') {
+      const message = topicResult.rejectionReason || `Failed to subscribe topic ${topic}`;
+      throw new StreamingSubscriptionError(message, topic, 'subscribe');
+    }
+    return topicResult;
   }
 
   unsubscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean): Promise<any> {
@@ -369,7 +393,7 @@ export class Notifications implements StreamingClientExtension {
     topics: string[],
     options: BulkSubscribeOpts = { replace: false, force: false },
     priorities: { [topicName: string]: number } = {}
-  ): Promise<any> {
+  ): Promise<BulkSubscribeResult> {
     this.setTopicPriorities(priorities);
 
     let toSubscribe = mergeAndDedup(topics, []);
@@ -382,7 +406,16 @@ export class Notifications implements StreamingClientExtension {
       this.subscriptions = {};
     }
 
-    await this.makeBulkSubscribeRequest(toSubscribe, options);
+    const response = await this.makeBulkSubscribeRequest(toSubscribe, options);
+    let topicResponseEntities: ChannelTopicResponseEntity[] = [];
+    if (response && response.data && 'entities' in response.data && Array.isArray(response.data.entities)) {
+      topicResponseEntities = response.data.entities;
+    }
+    const topicResponsesById: { [topic: string]: ChannelTopicResponseEntity } = {};
+    for (const topicEntity of topicResponseEntities) {
+      topicResponsesById[topicEntity.id] = topicEntity;
+    }
+    const result: BulkSubscribeResult = {};
 
     if (options.replace) {
       this.bulkSubscriptions = {};
@@ -390,7 +423,20 @@ export class Notifications implements StreamingClientExtension {
 
     topics.forEach(topic => {
       this.bulkSubscriptions[topic] = true;
+
+      if (this.enablePartialBulkResubscribe) {
+        if (topic in topicResponsesById) {
+          const { state, rejectionReason } = topicResponsesById[topic];
+          result[topic] = { topic, state, rejectionReason };
+        } else {
+          result[topic] = { topic, state: 'Unknown' };
+        }
+      } else {
+        result[topic] = { topic, state: 'Permitted' };
+      }
     });
+
+    return result;
   }
 
   get expose (): NotificationsAPI {
@@ -415,4 +461,35 @@ export interface NotificationsAPI {
 export interface BulkSubscribeOpts {
   replace?: boolean;
   force?: boolean;
+}
+
+export interface BulkSubscribeResult {
+  [topic: string]: TopicSubscribeResult;
+}
+
+export interface TopicSubscribeResult {
+  topic: string;
+  state: 'Permitted' | 'Rejected' | 'Unknown';
+  rejectionReason?: string;
+}
+
+function isTopicSubscribeResult (value: unknown): value is TopicSubscribeResult {
+  let hasTopic = false;
+  let hasValidState = false;
+  if (value && typeof value === 'object') {
+    hasTopic = 'topic' in value && typeof (value as { topic: unknown }).topic === 'string';
+    hasValidState = 'state' in value && ['Permitted', 'Rejected', 'Unknown'].includes((value as { state: string }).state);
+  }
+  return hasTopic && hasValidState;
+}
+
+export interface ChannelTopicResponseEntity {
+  id: string;
+  state: 'Permitted' | 'Rejected';
+  rejectionReason?: string;
+  selfUri?: string;
+}
+
+export interface ChannelTopicsEntityListing {
+  entities: ChannelTopicResponseEntity[];
 }
