@@ -123,22 +123,35 @@ describe('Notifications', () => {
       bulkSubscribeUrl = `https://api.example.com/api/v2/notifications/channels/${channelId}/subscriptions`;
       axiosMock.onPut(bulkSubscribeUrl).reply((config) => {
         const topics = JSON.parse(config.data).map((topic) => topic.id);
-        if (topics.includes('b.topic')) {
-          return [403, {
-            message: 'The user does not have permission "b.topic:view" required for topic "b.topic"',
-            code: 'notification.unauthorized.topic',
-            status: 403,
-          }];
+        const response: ChannelTopicsEntityListing = { entities: [] };
+        for (const topic of topics) {
+          if (topic.includes('bad')) {
+            // In the non-ignoreErrors case a bad topic bails early with 403 response for the bad topic
+            return [403, {
+              message: `The user does not have permission "${topic}:view" required for topic "${topic}"`,
+              code: 'notification.unauthorized.topic',
+              status: 403,
+            }];
+          } else if (!topic.includes('unknown')) {
+            // Everything defaults to success except topics containing "unknown" which we purposely
+            // omit the response for in order to test the fallback behavior of no API result for topic.
+            response.entities.push({ id: topic, state: 'Permitted' });
+          }
         }
-        return [200, { entities: [{ id: 'a.topic', state: 'Permitted' }] }];
+        return [200, response];
       });
       axiosMock.onPut(`${bulkSubscribeUrl}?ignoreErrors=true`).reply((config) => {
         const topics = JSON.parse(config.data).map((topic) => topic.id);
-        const response: ChannelTopicsEntityListing = {
-          entities: [{ id: 'a.topic', state: 'Permitted' }]
-        };
-        if (topics.includes('b.topic')) {
-          response.entities.push({ id: 'b.topic', state: 'Rejected', rejectionReason: 'The user does not have permissions required for topic b.topic' });
+        const response: ChannelTopicsEntityListing = { entities: [] };
+        for (const topic of topics) {
+          if (topic.includes('bad')) {
+            // In the ignoreErrors case a bad topic just adds a Rejected topic result to the overall success response payload
+            response.entities.push({ id: topic, state: 'Rejected', rejectionReason: `The user does not have permissions required for topic ${topic}` });
+          } else if (!topic.includes('unknown')) {
+            // Everything defaults to success except topics containing "unknown" which we purposely
+            // omit the response for in order to test the fallback behavior of no API result for topic.
+            response.entities.push({ id: topic, state: 'Permitted' });
+          }
         }
         return [200, response];
       });
@@ -158,7 +171,7 @@ describe('Notifications', () => {
         notification.stanzaInstance = getFakeStanzaClient();
       });
       it('should not add ignoreErrors param to bulk resubscribe', async () => {
-        await notification.subscribe('a.topic', () => {});
+        await notification.subscribe('a.ok.topic', () => {});
         expect(axiosMock.history.put.length).toEqual(1);
         expect(axiosMock.history.put[0].url).not.toContain('?ignoreErrors');
       });
@@ -167,18 +180,18 @@ describe('Notifications', () => {
         let bResult: undefined | 'fulfilled' | 'rejected';
         let cResult: undefined | 'fulfilled' | 'rejected';
         await Promise.all([
-          notification.subscribe('a.topic').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
-          notification.subscribe('b.topic').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
-          notification.subscribe('c.topic').then(() => { cResult = 'fulfilled'; }, () => { cResult = 'rejected'; }),
+          notification.subscribe('a.ok.topic').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
+          notification.subscribe('b.bad.topic').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
+          notification.subscribe('c.unknown.topic').then(() => { cResult = 'fulfilled'; }, () => { cResult = 'rejected'; }),
         ]);
-        // All subscribe() calls reject because the bulk subscribe response is 403 due to b.topic
+        // All subscribe() calls reject because the bulk subscribe response is 403 due to b.bad.topic
         expect(aResult).toEqual('rejected');
         expect(bResult).toEqual('rejected');
         expect(cResult).toEqual('rejected');
         // But all 3 topics should remain in bulkSubscriptions
-        expect(Object.keys(notification.bulkSubscriptions)).toContain('a.topic');
-        expect(Object.keys(notification.bulkSubscriptions)).toContain('b.topic');
-        expect(Object.keys(notification.bulkSubscriptions)).toContain('c.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('a.ok.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('b.bad.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('c.unknown.topic');
       });
     });
 
@@ -188,7 +201,7 @@ describe('Notifications', () => {
         notification.stanzaInstance = getFakeStanzaClient();
       });
       it('should add ?ignoreErrors=true to bulk resubscribe', async () => {
-        await notification.subscribe('a.topic', () => {});
+        await notification.subscribe('a.ok.topic', () => {});
         expect(axiosMock.history.put.length).toEqual(1);
         expect(axiosMock.history.put[0].url).toContain('?ignoreErrors');
       });
@@ -197,19 +210,21 @@ describe('Notifications', () => {
         let bResult: undefined | 'fulfilled' | 'rejected';
         let cResult: undefined | 'fulfilled' | 'rejected';
         await Promise.all([
-          notification.subscribe('a.topic').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
-          notification.subscribe('b.topic').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
-          notification.subscribe('c.topic').then(() => { cResult = 'fulfilled'; }, () => { cResult = 'rejected'; }),
+          notification.subscribe('a.ok.topic').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
+          notification.subscribe('b.bad.topic').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
+          // API response will not include info for c.unknown.topic... this tests edge case when topic's API response is missing
+          notification.subscribe('c.unknown.topic').then(() => { cResult = 'fulfilled'; }, () => { cResult = 'rejected'; }),
         ]);
         expect(aResult).toEqual('fulfilled');
-        // b.topic subscribe() call is rejected because bulk subscribe result is "Rejected" for that topic
+        // b.bad.topic subscribe() call is rejected because bulk subscribe result is "Rejected" for that topic
         expect(bResult).toEqual('rejected');
-        // c.topic subscribe() call is rejected because bulk subscribe result is "Unknown" for that topic (not in the API response)
+        // c.unknown.topic result will not be in the API response (intentionally, see mock above).
+        // We default to rejected in this case since we don't know if the server has the sub or not.
         expect(cResult).toEqual('rejected');
         // all 3 topics get added to bulkSubscriptions
-        expect(Object.keys(notification.bulkSubscriptions)).toContain('a.topic');
-        expect(Object.keys(notification.bulkSubscriptions)).toContain('b.topic');
-        expect(Object.keys(notification.bulkSubscriptions)).toContain('c.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('a.ok.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('b.bad.topic');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('c.unknown.topic');
       });
     });
   });
