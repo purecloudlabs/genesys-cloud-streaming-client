@@ -396,7 +396,6 @@ export class Client extends EventEmitter {
 
     let maxAttempts = connectOpts?.maxConnectionAttempts || 1;
 
-    // tslint:disable-next-line
     if (connectOpts?.keepTryingOnFailure) {
       // this maintains the previous functionality
       maxAttempts = Infinity;
