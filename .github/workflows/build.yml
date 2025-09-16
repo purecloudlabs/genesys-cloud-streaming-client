@@ -51,7 +51,7 @@ jobs:
         with:
           caching: 'true'
       - name: Build
-        run: export NODE_OPTIONS="--openssl-legacy-provider" && npm run build
+        run: npm run build
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
