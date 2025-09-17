@@ -25,6 +25,14 @@ export class StreamingClientError extends Error {
   }
 }
 
+export class StreamingSubscriptionError extends Error {
+  name = 'StreamingSubscriptionError';
+
+  constructor (message: string, public readonly topic?: string, public readonly operation?: 'subscribe' | 'unsubscribe') {
+    super(message);
+  }
+}
+
 /* istanbul ignore next */
 export function timeoutPromise (fn: Function, timeoutMs: number, msg: string, details?: any) {
   return new Promise<any>(function (resolve, reject) {
