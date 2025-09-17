@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.1...HEAD)
 ### Added
 * [STREAM-865](https://inindca.atlassian.net/browse/STREAM-865) - Generate a test report in JUnit.xml format.
+* [STREAM-892](https://inindca.atlassian.net/browse/STREAM-892) - Add `enablePartialBulkResubscribe` client option to make notifications bulk subscription changes succeed or fail each topic independently rather than a single failed topic causing the whole bulk operation to fail.
 
 ### Changed
 * [STREAM-865](https://inindca.atlassian.net/browse/STREAM-865) - Remove the SDP payload from SDP answer logs.
