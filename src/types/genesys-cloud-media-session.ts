@@ -372,7 +372,8 @@ export class GenesysCloudMediaSession {
       sessionId: this.id
     };
 
-    this.logger.info('sending sdp answer', this.conversationId);
+    // Do not log the SDP payload to avoid logging sensitive information.
+    this.logger.info('sending sdp answer', { sessionId: this.id, conversationId: this.conversationId });
     return this.sendGenesysWebrtc({
       jsonrpc: '2.0',
       method: 'answer',
