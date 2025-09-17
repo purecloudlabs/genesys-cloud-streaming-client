@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * [STREAM-865](https://inindca.atlassian.net/browse/STREAM-865) - Generate a test report in JUnit.xml format.
 
+### Changed
+* [STREAM-865](https://inindca.atlassian.net/browse/STREAM-865) - Remove the SDP payload from SDP answer logs.
+
 # [v19.3.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.0...v19.3.1)
 * [STREAM-801](https://inindca.atlassian.net/browse/STREAM-801) - Update genesys-cloud-client-logger and axios to address Snyk vulnerability.
 

@@ -372,7 +372,7 @@ export class GenesysCloudMediaSession {
       sessionId: this.id
     };
 
-    this.logger.info('sending sdp answer', params);
+    this.logger.info('sending sdp answer', this.conversationId);
     return this.sendGenesysWebrtc({
       jsonrpc: '2.0',
       method: 'answer',
