@@ -24,6 +24,8 @@ export interface IClientOptions {
   appVersion?: string;
   appId?: string;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
+  /** Allow bulk topic resubscribe to succeed or fail per-topic rather than all or nothing */
+  enablePartialBulkResubscribe?: boolean;
 }
 
 export interface ICustomHeader {
