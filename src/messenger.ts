@@ -77,7 +77,7 @@ export class MessengerExtension extends Emitter<MessengerEvents> implements Stre
       once: this.once.bind(this),
       off: this.off.bind(this),
       removeListener: this.removeListener.bind(this),
-      addListener: this.addListener.bind(this),
+      addListener: this.addListener.bind(this)
     };
   }
 }

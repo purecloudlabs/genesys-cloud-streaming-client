@@ -11,7 +11,7 @@ import JingleSession, { SessionOpts } from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise, getUfragFromSdp, iceIsDifferent } from './utils';
+import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise, iceIsDifferent } from './utils';
 import { Client } from './client';
 import { deepFlatten, formatStatsEvent } from './stats-formatter';
 import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams, NRProxyStat, FirstProposeStat, InsightActionDetails, InsightReport, InsightAction, FlatObject, OnlineStatusStat } from './types/interfaces';
@@ -72,12 +72,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   // hold onto early candidates for 1 minute
   private earlyIceCandidates = new LRUCache<string, string[]>({ max: 10, ttl: 1000 * 60, ttlAutopurge: true });
 
-  logger: any;
+  logger: Logger;
   pendingSessions: { [sessionId: string]: IPendingSession } = {};
   config: {
     allowIPv6: boolean;
     optOutOfWebrtcStatsTelemetry?: boolean;
   };
+
   private statsArr: InsightActionDetails<any>[] = [];
   private throttleSendStatsInterval = 25000;
   private currentMaxStatSize = desiredMaxStatsSize;
@@ -97,6 +98,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     max: 5,
     ttl: 1000 * 60 * 3
   });
+
   private sessionsMap: { [sessionId: string]: boolean } = {};
 
   get jid (): string | undefined {
@@ -147,7 +149,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       details: {
         _eventType: 'onlineStatus',
         _eventTimestamp: new Date().getTime(),
-        online,
+        online
       }
     } as OnlineStatusStat);
   }
@@ -235,8 +237,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const message = iq.genesysWebrtc!;
     const params = message.params as GenesysWebrtcOfferParams;
 
-     // XMPP-SIP-Gateway will repeat reinvite offers until the client has responded.
-     // We don't want to process the duplicate reinvites and instead will ignore them.
+    // XMPP-SIP-Gateway will repeat reinvite offers until the client has responded.
+    // We don't want to process the duplicate reinvites and instead will ignore them.
     if (params.reinvite && this.reinviteCache.get(message.id!)) {
       this.logger.info('Ignoring duplicate reinvite offer', message.id);
       return;
@@ -644,7 +646,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const isDuplicatePropose = !!sessionInfo;
 
     const sessionType = this.getSessionTypeByJid(msg.from);
-    const loggingParams = { sessionId: sessionId, conversationId: msg.propose.conversationId, sessionType, isDuplicatePropose };
+    const loggingParams = { sessionId, conversationId: msg.propose.conversationId, sessionType, isDuplicatePropose };
     this.logger.info('propose received', loggingParams);
 
     if (!isDuplicatePropose) {
@@ -656,8 +658,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
           _eventType: 'firstPropose',
           conversationId: loggingParams.conversationId,
           sdpViaXmppRequested: !!msg.propose.sdpOverXmpp,
-          sessionId: sessionId,
-          sessionType: sessionType,
+          sessionId,
+          sessionType
         }
       };
       this.addStatToQueue(proposeStat);
@@ -708,7 +710,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
    * Inform the client that another client has already taken care of the pendingSession
    */
   private handledIncomingRtcSession (sessionId: string, msg: any) {
-    let acceptedOrRejected = msg.accept ? 'accept' : 'reject';
+    const acceptedOrRejected = msg.accept ? 'accept' : 'reject';
     this.logger.info(`${acceptedOrRejected} received`, this.getLogDetailsForPendingSessionId(sessionId));
     return this.emit(events.HANDLED_INCOMING_RTCSESSION, sessionId);
   }
@@ -727,7 +729,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       }
     };
     if (opts.stream) {
-      for (let track of Array.from(opts.stream.getTracks())) {
+      for (const track of Array.from(opts.stream.getTracks())) {
         session.propose.descriptions.push({ media: track.kind });
       }
     }
@@ -1061,7 +1063,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
   }
 
   getAllSessions (): IMediaSession[] {
-    return [ ...this.stanzaSessions, ...this.webrtcSessions ] as IMediaSession[];
+    return [...this.stanzaSessions, ...this.webrtcSessions] as IMediaSession[];
   }
 
   proxyNRStat (stat: NRProxyStat): void {

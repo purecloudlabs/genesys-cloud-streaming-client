@@ -6,11 +6,11 @@ function isGetStatsEvent (event: StatsEvent): event is GetStatsEvent {
 }
 
 function prepGetStatsEvent (event: GetStatsEvent): FlatObject {
-  let details: FlatObject = {};
+  const details: FlatObject = {};
   Object.assign(details, deepFlatten(event.tracks, 'localTrack'));
   delete (event as any).tracks;
 
-  Object.assign(details, deepFlatten(event.remoteTracks, `remoteTrack`));
+  Object.assign(details, deepFlatten(event.remoteTracks, 'remoteTrack'));
   delete (event as any).remoteTracks;
 
   return details;
@@ -35,7 +35,7 @@ export function formatStatsEvent (event: StatsEvent, extraDetails: FlatObject = 
 
   const formattedEvent: InsightAction<typeof details> = {
     actionName: 'WebrtcStats',
-    details,
+    details
   };
 
   return formattedEvent;

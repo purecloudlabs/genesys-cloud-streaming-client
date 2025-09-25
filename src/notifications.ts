@@ -82,7 +82,7 @@ export class Notifications implements StreamingClientExtension {
     const payload = (pubsub.items!.published![0].content as any).json;
     const handlers = this.topicHandlers(topic);
 
-    this.client.emit('notify' as any, { topic: topic, data: payload });
+    this.client.emit('notify' as any, { topic, data: payload });
     this.client.emit(`notify:${topic}` as any, payload);
     handlers.forEach((handler) => {
       handler(payload);
@@ -147,7 +147,7 @@ export class Notifications implements StreamingClientExtension {
       }
     });
 
-    let combinedTopics: Array<{ id: string }> = [];
+    const combinedTopics: Array<{ id: string }> = [];
 
     // Max length of 200 in topic names
     // so recursively break them up if the combined length exceeds 200
@@ -224,7 +224,7 @@ export class Notifications implements StreamingClientExtension {
     const topics = splitIntoIndividualTopics(topic);
 
     topics.forEach(t => {
-      let handlers = this.topicHandlers(t);
+      const handlers = this.topicHandlers(t);
       if (!handlers.includes(handler)) {
         handlers.push(handler);
       }
@@ -235,8 +235,8 @@ export class Notifications implements StreamingClientExtension {
     const topics = splitIntoIndividualTopics(topic);
 
     topics.forEach(t => {
-      let handlers = this.topicHandlers(t);
-      let handlerIndex = handlers.indexOf(handler);
+      const handlers = this.topicHandlers(t);
+      const handlerIndex = handlers.indexOf(handler);
       if (handlerIndex > -1) {
         handlers.splice(handlerIndex, 1);
       }

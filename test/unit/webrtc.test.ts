@@ -1,5 +1,3 @@
-/* tslint:disable:no-string-literal */
-
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { JingleAction } from 'stanza/Constants';
