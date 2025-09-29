@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.0...HEAD)
+### Changed
+* [STREAM-941](https://inindca.atlassian.net/browse/STREAM-941) - Fix an issue where notifications.subscribe() with `enablePartialBulkResubscribe` would not resolve/reject based on API result when the requested topic was internally combined with others, e.g. "topic.a" and "topic.b" individually subscribed and bulk resubscribe combines them as "topic?a&b"
 
 # [v19.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.1...v19.4.0)
 ### Added

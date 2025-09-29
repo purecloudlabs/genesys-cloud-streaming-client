@@ -411,11 +411,26 @@ export class Notifications implements StreamingClientExtension {
     if (response && response.data && 'entities' in response.data && Array.isArray(response.data.entities)) {
       topicResponseEntities = response.data.entities;
     }
-    const topicResponsesById: { [topic: string]: ChannelTopicResponseEntity } = {};
-    for (const topicEntity of topicResponseEntities) {
-      topicResponsesById[topicEntity.id] = topicEntity;
-    }
     const result: BulkSubscribeResult = {};
+    for (const topicEntity of topicResponseEntities) {
+      const { id, state, rejectionReason } = topicEntity;
+      const topicResult = result[id] = { topic: id, state, rejectionReason };
+      // If response entity is a combined topic ID like "a.b?c&d" include individualized topic IDs
+      // as keys in the map. This could either point to the same result as the combined topic ID
+      // or to a specific result for that individual topic if backend provides a specific result.
+      // Example: caller asked to subscribe "a.b?c&d" but user lacks permission for topic "a.b.d"
+      // In this case, API response will include "a.b?c&d" as success along with "a.b.d" as failure.
+      if (id.includes('?')) {
+        for (const individualTopic of splitIntoIndividualTopics(id)) {
+          const hasIndividualTopicResult = (individualTopic in result);
+          // Only use the combined topic result for this individual topic ID if there isn't already
+          // a result for the individual topic itself. Exact topic result takes precedence.
+          if (!hasIndividualTopicResult) {
+            result[individualTopic] = topicResult;
+          }
+        }
+      }
+    }
 
     if (options.replace) {
       this.bulkSubscriptions = {};
@@ -423,18 +438,14 @@ export class Notifications implements StreamingClientExtension {
 
     topics.forEach(topic => {
       this.bulkSubscriptions[topic] = true;
-
-      if (this.enablePartialBulkResubscribe) {
-        if (topic in topicResponsesById) {
-          const { state, rejectionReason } = topicResponsesById[topic];
-          result[topic] = { topic, state, rejectionReason };
-        } else {
-          result[topic] = { topic, state: 'Unknown' };
-        }
-      } else {
-        result[topic] = { topic, state: 'Permitted' };
-      }
     });
+
+    // Add a fallback result for any topic in the toSubscribe list that isn't already in result.
+    // With partial bulk resubscribe enabled missing result means "Unknown" state but when not
+    // enabled the fallback is "Permitted" for backward compatibility (success response means OK).
+    for (const topic of toSubscribe) {
+      result[topic] ??= { topic, state: this.enablePartialBulkResubscribe ? 'Unknown' : 'Permitted' };
+    }
 
     return result;
   }
