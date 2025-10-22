@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.0...HEAD)
 ### Changed
 * [STREAM-941](https://inindca.atlassian.net/browse/STREAM-941) - Fix an issue where notifications.subscribe() with `enablePartialBulkResubscribe` would not resolve/reject based on API result when the requested topic was internally combined with others, e.g. "topic.a" and "topic.b" individually subscribed and bulk resubscribe combines them as "topic?a&b"
+* [STREAM-950](https://inindca.atlassian.net/browse/STREAM-950) - Update genesys-cloud-client-logger to pick up change moving from `unload` to `visibilitychange`.
 
 # [v19.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.1...v19.4.0)
 ### Added
@@ -14,11 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [STREAM-892](https://inindca.atlassian.net/browse/STREAM-892) - Add `enablePartialBulkResubscribe` client option to make notifications bulk subscription changes succeed or fail each topic independently rather than a single failed topic causing the whole bulk operation to fail.
 
 ### Changed
-* [STREAM-865](https://inindca.atlassian.net/browse/STREAM-865) - Remove the SDP payload from SDP answer logs.
-
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/19.3.1...HEAD)
-### Changed
 * [STREAM-643](https://inindca.atlassian.net/browse/STREAM-643) - Bumped webpack dependency to 5.94.0
+* [STREAM-865](https://inindca.atlassian.net/browse/STREAM-865) - Remove the SDP payload from SDP answer logs.
 
 # [v19.3.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.0...v19.3.1)
 * [STREAM-801](https://inindca.atlassian.net/browse/STREAM-801) - Update genesys-cloud-client-logger and axios to address Snyk vulnerability.
