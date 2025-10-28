@@ -414,7 +414,7 @@ export class Notifications implements StreamingClientExtension {
     const result: BulkSubscribeResult = {};
     for (const topicEntity of topicResponseEntities) {
       const { id, state, rejectionReason } = topicEntity;
-      const topicResult = result[id] = { topic: id, state, rejectionReason };
+      result[id] = { topic: id, state, rejectionReason };
       // If response entity is a combined topic ID like "a.b?c&d" include individualized topic IDs
       // as keys in the map. This could either point to the same result as the combined topic ID
       // or to a specific result for that individual topic if backend provides a specific result.
@@ -422,11 +422,11 @@ export class Notifications implements StreamingClientExtension {
       // In this case, API response will include "a.b?c&d" as success along with "a.b.d" as failure.
       if (id.includes('?')) {
         for (const individualTopic of splitIntoIndividualTopics(id)) {
-          const hasIndividualTopicResult = (individualTopic in result);
+          const hasIndividualTopicResult = result.hasOwnProperty(individualTopic);
           // Only use the combined topic result for this individual topic ID if there isn't already
           // a result for the individual topic itself. Exact topic result takes precedence.
           if (!hasIndividualTopicResult) {
-            result[individualTopic] = topicResult;
+            result[individualTopic] = result[id];
           }
         }
       }
