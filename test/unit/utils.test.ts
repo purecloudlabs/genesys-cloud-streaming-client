@@ -55,6 +55,12 @@ describe('Utils', () => {
       expect(utils.isScreenRecordingJid('sdkfjk@test.com')).toBeFalsy();
     });
 
+    it('isLiveScreenMonitoringJid', () => {
+      expect(utils.isLiveScreenMonitoringJid('livescreenmonitoring-sdkfjk@test.com')).toBeTruthy();
+      expect(utils.isLiveScreenMonitoringJid('livescreenmonitoring-sdkfjk@gjoll.test.com')).toBeFalsy();
+      expect(utils.isLiveScreenMonitoringJid('sdkfjk@test.com')).toBeFalsy();
+    });
+
     it('isSoftphoneJid', () => {
       expect(utils.isSoftphoneJid('sdkfjk@gjoll.test.com')).toBeTruthy();
       expect(utils.isSoftphoneJid('sdkfjk@test.com')).toBeFalsy();
