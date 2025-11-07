@@ -2332,7 +2332,7 @@ describe('handleGenesysOffer', () => {
   it('should handle live screen monitoring offer correctly', async () => {
     const iq: IQ = {
       type: 'set',
-      from: 'livescreenmonitoring-12345@test.com',
+      from: 'livemonitor-12345@test.com',
       genesysWebrtc: {
         jsonrpc: '2.0',
         method: 'offer',
