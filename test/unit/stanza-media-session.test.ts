@@ -172,7 +172,7 @@ describe('StanzaMediaSession', () => {
       expect(spy).not.toHaveBeenCalled();
     });
 
-    it('should log ICE connection failed along with the number of candidates exchanged', () => {
+    it('should log ICE connection failed along with the number of candidates exchanged and cleanup.', () => {
       const parent = new FakeParent();
       const session = new StanzaMediaSession({
         options: { parent } as any,
@@ -183,15 +183,17 @@ describe('StanzaMediaSession', () => {
 
       session['iceCandidatesDiscovered'] = 3;
       session['iceCandidatesReceivedFromPeer'] = 5;
-      const spy = session['_log'] = jest.fn();
+      const logSpy = session['_log'] = jest.fn();
+      const endSpy = jest.spyOn(session, 'end');
       session['pc'] = { iceConnectionState: 'failed' } as any;
 
       session.onIceStateChange();
 
-      expect(spy).toHaveBeenCalledWith('info', 'ICE connection failed', expect.objectContaining({
+      expect(logSpy).toHaveBeenCalledWith('info', 'ICE connection failed', expect.objectContaining({
         candidatesDiscovered: 3,
         candidatesReceivedFromPeer: 5
       }));
+      expect(endSpy).toHaveBeenCalledWith('failed-transport');
     });
 
     it('should set interruption start', () => {
