@@ -202,6 +202,8 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
         candidatesDiscovered: this.iceCandidatesDiscovered,
         candidatesReceivedFromPeer: this.iceCandidatesReceivedFromPeer
       });
+      // Cleanup the session because failed is a state of finality.
+      this.end('failed-transport');
     }
 
     super.onIceStateChange();
