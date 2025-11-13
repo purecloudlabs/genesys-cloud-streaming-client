@@ -11,7 +11,7 @@ import JingleSession, { SessionOpts } from 'stanza/jingle/Session';
 import { isFirefox } from 'browserama';
 
 import { definitions, Propose } from './stanza-definitions/webrtc-signaling';
-import { isAcdJid, isScreenRecordingJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise, iceIsDifferent } from './utils';
+import { isAcdJid, isScreenRecordingJid, isLiveScreenMonitoringJid, isSoftphoneJid, isVideoJid, calculatePayloadSize, retryPromise, RetryPromise, iceIsDifferent } from './utils';
 import { Client } from './client';
 import { deepFlatten, formatStatsEvent } from './stats-formatter';
 import { ExtendedRTCIceServer, IClientOptions, SessionTypes, IPendingSession, StreamingClientExtension, GenesysWebrtcSdpParams, GenesysSessionTerminateParams, GenesysWebrtcOfferParams, NRProxyStat, FirstProposeStat, InsightActionDetails, InsightReport, InsightAction, FlatObject, OnlineStatusStat } from './types/interfaces';
@@ -1049,6 +1049,8 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       return SessionTypes.acdScreenShare;
     } else if (isScreenRecordingJid(jid)) {
       return SessionTypes.screenRecording;
+    } else if (isLiveScreenMonitoringJid(jid)) {
+      return SessionTypes.liveScreenMonitoring;
     } else if (isSoftphoneJid(jid)) {
       return SessionTypes.softphone;
     } else if (isVideoJid(jid)) {

@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-941](https://inindca.atlassian.net/browse/STREAM-941) - Fix an issue where notifications.subscribe() with `enablePartialBulkResubscribe` would not resolve/reject based on API result when the requested topic was internally combined with others, e.g. "topic.a" and "topic.b" individually subscribed and bulk resubscribe combines them as "topic?a&b"
 * [STREAM-950](https://inindca.atlassian.net/browse/STREAM-950) - Update genesys-cloud-client-logger to pick up change moving from `unload` to `visibilitychange`.
+* [STREAM-824](https://inindca.atlassian.net/browse/STREAM-824) - Handle new SDP offer for live screen-monitoring.
 
 # [v19.4.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.3.1...v19.4.0)
 ### Added

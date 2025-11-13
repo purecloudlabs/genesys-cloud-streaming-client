@@ -3,7 +3,7 @@ import * as utils from '../../src/utils';
 import { retryPromise } from '../../src/utils';
 import { flushPromises } from '../helpers/testing-utils';
 
-const sdp: Readonly<String> = 
+const sdp: Readonly<String> =
 `
 v=0\r\n
 o=- 2890844526 2890844526 IN IP4 192.0.2.1\r\n
@@ -53,6 +53,12 @@ describe('Utils', () => {
       expect(utils.isScreenRecordingJid('screenrecording-sdkfjk@test.com')).toBeTruthy();
       expect(utils.isScreenRecordingJid('screenrecording-sdkfjk@gjoll.test.com')).toBeFalsy();
       expect(utils.isScreenRecordingJid('sdkfjk@test.com')).toBeFalsy();
+    });
+
+    it('isLiveScreenMonitoringJid', () => {
+      expect(utils.isLiveScreenMonitoringJid('livemonitor-sdkfjk@test.com')).toBeTruthy();
+      expect(utils.isLiveScreenMonitoringJid('livemonitor-sdkfjk@gjoll.test.com')).toBeFalsy();
+      expect(utils.isLiveScreenMonitoringJid('sdkfjk@test.com')).toBeFalsy();
     });
 
     it('isSoftphoneJid', () => {
@@ -147,7 +153,7 @@ describe('Utils', () => {
     it('should return null if no sdp is provided', () => {
       expect(utils.getUfragFromSdp(undefined)).toBeNull();
     });
-    
+
     it('should return null if ufrag is not found', () => {
       expect(utils.getUfragFromSdp('sdllksdnflskdnflkasd')).toBeNull();
     });
@@ -161,7 +167,7 @@ describe('Utils', () => {
     it('should return null if no sdp is provided', () => {
       expect(utils.getIcePwdFromSdp(undefined)).toBeNull();
     });
-    
+
     it('should return null if icepwd is not found', () => {
       expect(utils.getIcePwdFromSdp('lskdjfksnnsn')).toBeNull();
     });
