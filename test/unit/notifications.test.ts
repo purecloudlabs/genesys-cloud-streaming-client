@@ -11,6 +11,7 @@ import { NamedAgent } from '../../src/types/named-agent';
 import { v4 } from 'uuid';
 import axios, { Axios, AxiosResponse } from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
+import { splitIntoIndividualTopics } from '../../src/utils';
 
 const exampleTopics = require('../helpers/example-topics.json');
 
@@ -125,14 +126,14 @@ describe('Notifications', () => {
         const topics = JSON.parse(config.data).map((topic) => topic.id);
         const response: ChannelTopicsEntityListing = { entities: [] };
         for (const topic of topics) {
-          if (topic.includes('bad')) {
+          if (topic.includes('.bad')) {
             // In the non-ignoreErrors case a bad topic bails early with 403 response for the bad topic
             return [403, {
               message: `The user does not have permission "${topic}:view" required for topic "${topic}"`,
               code: 'notification.unauthorized.topic',
               status: 403,
             }];
-          } else if (!topic.includes('unknown')) {
+          } else if (!topic.includes('.unknown')) {
             // Everything defaults to success except topics containing "unknown" which we purposely
             // omit the response for in order to test the fallback behavior of no API result for topic.
             response.entities.push({ id: topic, state: 'Permitted' });
@@ -144,13 +145,22 @@ describe('Notifications', () => {
         const topics = JSON.parse(config.data).map((topic) => topic.id);
         const response: ChannelTopicsEntityListing = { entities: [] };
         for (const topic of topics) {
-          if (topic.includes('bad')) {
+          if (topic.includes('.bad')) {
             // In the ignoreErrors case a bad topic just adds a Rejected topic result to the overall success response payload
             response.entities.push({ id: topic, state: 'Rejected', rejectionReason: `The user does not have permissions required for topic ${topic}` });
-          } else if (!topic.includes('unknown')) {
+          } else if (!topic.includes('.unknown')) {
             // Everything defaults to success except topics containing "unknown" which we purposely
             // omit the response for in order to test the fallback behavior of no API result for topic.
             response.entities.push({ id: topic, state: 'Permitted' });
+          }
+          // For combined topics, the API response will include a Permitted result for the combined topic
+          // and a Rejected result for any constituent individual topic ID that failed within the combo.
+          if (topic.includes('?')) {
+            for (const individualTopic of splitIntoIndividualTopics(topic)) {
+              if (individualTopic.includes('.bad')) {
+                response.entities.push({ id: individualTopic, state: 'Rejected', rejectionReason: 'Individual topic rejection' });
+              }
+            }
           }
         }
         return [200, response];
@@ -225,6 +235,30 @@ describe('Notifications', () => {
         expect(Object.keys(notification.bulkSubscriptions)).toContain('a.ok.topic');
         expect(Object.keys(notification.bulkSubscriptions)).toContain('b.bad.topic');
         expect(Object.keys(notification.bulkSubscriptions)).toContain('c.unknown.topic');
+      });
+      it('should individually succeed or fail subscribe() calls that combine to a single topic', async () => {
+        let aResult: undefined | 'fulfilled' | 'rejected';
+        let bResult: undefined | 'fulfilled' | 'rejected';
+        await Promise.all([
+          notification.subscribe('topic.ok').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; }),
+          notification.subscribe('topic.bad').then(() => { bResult = 'fulfilled'; }, () => { bResult = 'rejected'; }),
+        ]);
+        expect(aResult).toEqual('fulfilled');
+        // topic.bad subscribe() call is rejected because bulk subscribe result is "Rejected" for that topic
+        // even though the API response will have a "Permitted" result for "topic?ok&bad&unknown"
+        expect(bResult).toEqual('rejected');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('topic.ok');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('topic.bad');
+      });
+      // Not sure this is desired behavior, but it's the actual behavior so this test documents that... :)
+      it('should succeed subscribe() call for combined topic even if individual topic fails', async () => {
+        let aResult: undefined | 'fulfilled' | 'rejected';
+        // In this case the API response is expected to have a "Permitted" result for "topic?ok&bad"
+        // But will also have a "Rejected" result for individual "topic.bad" (which we would only
+        // know if we had explicitly subscribed that topic).
+        await notification.subscribe('topic?ok&bad').then(() => { aResult = 'fulfilled'; }, () => { aResult = 'rejected'; });
+        expect(aResult).toEqual('fulfilled');
+        expect(Object.keys(notification.bulkSubscriptions)).toContain('topic?ok&bad');
       });
     });
   });

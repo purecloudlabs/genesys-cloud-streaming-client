@@ -81,6 +81,10 @@ export const isScreenRecordingJid = function (jid: string): boolean {
   return jid.startsWith('screenrecording-') && !isSoftphoneJid(jid);
 };
 
+export const isLiveScreenMonitoringJid = function (jid: string): boolean {
+  return jid.startsWith('livemonitor-') && !isSoftphoneJid(jid);
+};
+
 export const isSoftphoneJid = function (jid: string): boolean {
   if (!jid) {
     return false;

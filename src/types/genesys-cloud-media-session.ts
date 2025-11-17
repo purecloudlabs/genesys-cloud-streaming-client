@@ -73,7 +73,7 @@ export class GenesysCloudMediaSession {
     this.peerConnection.addEventListener('iceconnectionstatechange', this.onIceStateChange.bind(this));
     this.peerConnection.addEventListener('connectionstatechange', this.onConnectionStateChange.bind(this));
     this.peerConnection.addEventListener('icecandidateerror', this.onIceCandidateError.bind(this));
-      // sync the session state after a silent disconnect, like putting the system to sleep.
+    // sync the session state after a silent disconnect, like putting the system to sleep.
   }
 
   private keepStateInSyncWithPeerConnection () {
@@ -195,7 +195,7 @@ export class GenesysCloudMediaSession {
       await this.sendGenesysWebrtc({
         jsonrpc: '2.0',
         params,
-        method: 'info',
+        method: 'info'
       });
 
       this._setupDataChannel();
@@ -262,8 +262,8 @@ export class GenesysCloudMediaSession {
 
   // this is for ice candidates we harvest for ourself
   protected onIceCandidate (e: RTCPeerConnectionIceEvent) {
-    let candidateString = e.candidate?.candidate;
-    let sdpMid = e.candidate?.sdpMid;
+    const candidateString = e.candidate?.candidate;
+    const sdpMid = e.candidate?.sdpMid;
     let sdpStr: string;
 
     if (e.candidate) {

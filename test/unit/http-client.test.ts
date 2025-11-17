@@ -125,7 +125,7 @@ describe('HttpRequestClient', () => {
         await http.requestApi(path, { host, method: 'get', logger });
         fail('should have thrown');
       } catch (error) {
-        expect(error.response.data.message).toBe('bad request');
+        expect((error as any).response.data.message).toBe('bad request');
       }
     });
   });

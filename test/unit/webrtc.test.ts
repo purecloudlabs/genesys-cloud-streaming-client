@@ -1,5 +1,3 @@
-/* tslint:disable:no-string-literal */
-
 import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { JingleAction } from 'stanza/Constants';
@@ -1444,11 +1442,22 @@ describe('getSessionTypeByJid', () => {
     expect(webrtc.getSessionTypeByJid('sldkjf')).toEqual('screenRecording');
   });
 
+  it('should return liveScreenMonitoring', () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
+    jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
+    jest.spyOn(utils, 'isLiveScreenMonitoringJid').mockReturnValue(true);
+
+    expect(webrtc.getSessionTypeByJid('sldkjf')).toEqual('liveScreenMonitoring');
+  });
+
   it('should return softphone', () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
+    jest.spyOn(utils, 'isLiveScreenMonitoringJid').mockReturnValue(false);
     jest.spyOn(utils, 'isSoftphoneJid').mockReturnValue(true);
 
     expect(webrtc.getSessionTypeByJid('sldkjf')).toEqual('softphone');
@@ -1459,6 +1468,7 @@ describe('getSessionTypeByJid', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
+    jest.spyOn(utils, 'isLiveScreenMonitoringJid').mockReturnValue(false);
     jest.spyOn(utils, 'isSoftphoneJid').mockReturnValue(false);
     jest.spyOn(utils, 'isVideoJid').mockReturnValue(true);
 
@@ -1470,6 +1480,7 @@ describe('getSessionTypeByJid', () => {
     const webrtc = new WebrtcExtension(client as any, {} as any);
     jest.spyOn(utils, 'isAcdJid').mockReturnValue(false);
     jest.spyOn(utils, 'isScreenRecordingJid').mockReturnValue(false);
+    jest.spyOn(utils, 'isLiveScreenMonitoringJid').mockReturnValue(false);
     jest.spyOn(utils, 'isSoftphoneJid').mockReturnValue(false);
     jest.spyOn(utils, 'isVideoJid').mockReturnValue(false);
 
@@ -2316,6 +2327,33 @@ describe('handleGenesysOffer', () => {
     expect(Object.values(webrtc.pendingSessions).length).toBe(1);
     await webrtc['handleGenesysOffer'](iq);
     expect(Object.values(webrtc.pendingSessions).length).toBe(0);
+  });
+
+  it('should handle live screen monitoring offer correctly', async () => {
+    const iq: IQ = {
+      type: 'set',
+      from: 'livemonitor-12345@test.com',
+      genesysWebrtc: {
+        jsonrpc: '2.0',
+        method: 'offer',
+        params: {
+          sessionId: 'session-lsm-1',
+          conversationId: 'conv-lsm-1',
+          sdp: 'v=0\r\nm=audio 9 RTP/AVP 0\r\nm=video 9 RTP/AVP 96\r\n'
+        }
+      }
+    };
+
+    jest.spyOn(utils, 'isLiveScreenMonitoringJid').mockReturnValue(true);
+    jest.spyOn(webrtc, 'getSessionTypeByJid').mockReturnValue('liveScreenMonitoring' as any);
+
+    webrtc.on('incomingRtcSession', (session: GenesysCloudMediaSession) => {
+      expect(session.setRemoteDescription).toHaveBeenCalled();
+      expect(webrtc['webrtcSessions'].length).toEqual(1);
+    });
+
+    await webrtc['handleGenesysOffer'](iq);
+    expect.assertions(2);
   });
 });
 

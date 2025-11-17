@@ -1,4 +1,3 @@
-
 import { ILogger, LogFormatterFn, LogLevel } from 'genesys-cloud-client-logger';
 import { AxiosError, ResponseType } from 'axios';
 import { NamedAgent } from './named-agent';
@@ -125,13 +124,14 @@ export interface IError {
   stack?: string;
 }
 
-export type SessionTypesAsStrings = 'softphone' | 'screenShare' | 'screenRecording' | 'collaborateVideo' | 'unknown';
+export type SessionTypesAsStrings = 'softphone' | 'screenShare' | 'screenRecording' | 'liveScreenMonitoring' | 'collaborateVideo' | 'unknown';
 
 export enum SessionTypes {
   softphone = 'softphone',
   collaborateVideo = 'collaborateVideo',
   acdScreenShare = 'screenShare',
   screenRecording = 'screenRecording',
+  liveScreenMonitoring = 'liveScreenMonitoring',
   unknown = 'unknown'
 }
 
