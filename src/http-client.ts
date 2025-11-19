@@ -29,14 +29,30 @@ export class HttpClient {
     504
   ]);
 
+  static retryNetworkErrorCodes = new Set([
+    'ECONNABORTED',
+    'ERR_NETWORK',
+    'ETIMEDOUT'
+  ]);
+
   constructor (httpClientOptions?: IHttpClientOptions) {
     this.customHeaders = httpClientOptions?.customHeaders;
   }
 
   requestApiWithRetry<T = any> (path: string, opts: RequestApiOptions, retryInterval?: number): RetryPromise<T> {
+    const maxRetries = opts.maxAttempts || 10;
+    let retryCount = 0;
+
     const retry = retryPromise<T>(
       this.requestApi.bind(this, path, opts),
       (error: any) => {
+        retryCount++;
+
+        if (retryCount >= maxRetries) {
+          (opts.logger || console).info('Max retries reached, will not retry.', { maxRetries, retryCount, path });
+          return false;
+        }
+
         let retryValue: boolean | number = false;
 
         if (error?.response) {
@@ -50,6 +66,15 @@ export class HttpClient {
 
             // retry after comes in seconds, we need to return milliseconds
             retryValue = parseInt(retryAfter, 10) * 1000;
+          }
+        }
+
+        // Check network error codes independently - error may have both response (with status 0) and a network error code.
+        if (error?.code && retryValue === false) {
+          // Retry on network error codes - request didn't make it to the server or no response was received
+          if (HttpClient.retryNetworkErrorCodes.has(error.code)) {
+            (opts.logger || console).debug('Retry network error code found, will retry.', { code: error.code });
+            retryValue = true;
           }
         }
 
