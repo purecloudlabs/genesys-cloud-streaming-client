@@ -183,6 +183,48 @@ describe('HttpRequestClient', () => {
         .catch(e => expect(e).toBe(error));
     });
 
+    it('should retry if it fails with a network error code', async () => {
+      const error = new Error('bad network error');
+      (error as any).code = 'ECONNABORTED';
+
+      jest.spyOn(http, 'requestApi')
+        .mockRejectedValueOnce(error)
+        .mockResolvedValueOnce({ status: 200, data: 'success' });
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }, 10).promise;
+      expect(http.requestApi).toHaveBeenCalledTimes(2);
+    });
+
+    it('should stop retrying after max attempts is reached', async () => {
+      const error = new Error('DCA is down again');
+      (error as any).code = 'ERR_NETWORK';
+
+      jest.spyOn(http, 'requestApi').mockRejectedValue(error);
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com', maxAttempts: 3 }, 10).promise
+        .catch(e => {
+          expect(e.message).toBe('DCA is down again');
+        });
+
+      // Initial attempt + 2 retries = 3 total calls
+      expect(http.requestApi).toHaveBeenCalledTimes(3);
+    });
+
+    it('should stop retrying after default max attempts (10) when maxAttempts not specified', async () => {
+      const error = new Error('DCA is down again');
+      (error as any).code = 'ERR_NETWORK';
+
+      jest.spyOn(http, 'requestApi').mockRejectedValue(error);
+
+      await http.requestApiWithRetry('some/path', { method: 'get', host: 'inin.com' }, 10).promise
+        .catch(e => {
+          expect(e.message).toBe('DCA is down again');
+        });
+
+      // Initial attempt + 9 retries = 10 total calls
+      expect(http.requestApi).toHaveBeenCalledTimes(10);
+    });
+
     it('retry handler should return the retry-after value in milliseconds', async () => {
       const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '3', promise: Promise.resolve(), cancel: jest.fn() });
 
