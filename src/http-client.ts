@@ -31,6 +31,7 @@ export class HttpClient {
 
   static retryNetworkErrorCodes = new Set([
     'ECONNABORTED',
+    'ECONNRESET',
     'ERR_NETWORK',
     'ETIMEDOUT'
   ]);
