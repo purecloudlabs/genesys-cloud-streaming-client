@@ -27,9 +27,11 @@ export class StreamingClientError extends Error {
 
 export class StreamingSubscriptionError extends Error {
   name = 'StreamingSubscriptionError';
+  missingPermissions?: string[];
 
-  constructor (message: string, public readonly topic?: string, public readonly operation?: 'subscribe' | 'unsubscribe') {
+  constructor (message: string, public readonly topic?: string, public readonly operation?: 'subscribe' | 'unsubscribe', missingPermissions?: string[]) {
     super(message);
+    this.missingPermissions = missingPermissions;
   }
 }
 
