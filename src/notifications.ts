@@ -367,7 +367,8 @@ export class Notifications implements StreamingClientExtension {
     // Topic result other than state=Permitted becomes a StreamingSubscriptionError promise rejection.
     if (topicResult.state !== 'Permitted') {
       const message = topicResult.rejectionReason || `Failed to subscribe topic ${topic}`;
-      throw new StreamingSubscriptionError(message, topic, 'subscribe', topicResult.missingPermissions);
+      const missingPermissions = topicResult.missingPermissions;
+      throw new StreamingSubscriptionError(message, topic, 'subscribe', { missingPermissions });
     }
     return topicResult;
   }

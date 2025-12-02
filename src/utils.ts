@@ -1,6 +1,6 @@
 import { v4 } from 'uuid';
 import { TimeoutError } from './types/timeout-error';
-import { StreamingClientErrorTypes } from './types/interfaces';
+import { StreamingClientErrorTypes, StreamingSubscriptionErrorDetails } from './types/interfaces';
 
 export class StreamingClientError extends Error {
   type: StreamingClientErrorTypes;
@@ -29,9 +29,9 @@ export class StreamingSubscriptionError extends Error {
   name = 'StreamingSubscriptionError';
   missingPermissions?: string[];
 
-  constructor (message: string, public readonly topic?: string, public readonly operation?: 'subscribe' | 'unsubscribe', missingPermissions?: string[]) {
+  constructor (message: string, public readonly topic?: string, public readonly operation?: 'subscribe' | 'unsubscribe', details?: StreamingSubscriptionErrorDetails) {
     super(message);
-    this.missingPermissions = missingPermissions;
+    this.missingPermissions = details?.missingPermissions;
   }
 }
 

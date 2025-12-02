@@ -174,6 +174,10 @@ export interface StreamingClientConnectOptions {
   maxDelayBetweenConnectionAttempts?: number;
 }
 
+export interface StreamingSubscriptionErrorDetails {
+  missingPermissions?: string[];
+}
+
 export type GenesysWebrtcBaseParams = { sessionId: string };
 export type GenesysWebrtcSdpParams = GenesysWebrtcBaseParams & { sdp: string; };
 export type GenesysWebrtcOfferParams = GenesysWebrtcSdpParams & {
