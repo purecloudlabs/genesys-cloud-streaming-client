@@ -49,7 +49,7 @@ describe('Utils', () => {
         'Subscription failed',
         'test.topic',
         'subscribe',
-        missingPermissions
+        { missingPermissions }
       );
 
       expect(error.name).toBe('StreamingSubscriptionError');
