@@ -58,6 +58,19 @@ describe('Utils', () => {
       expect(error.operation).toBe('subscribe');
       expect(error.missingPermissions).toEqual(missingPermissions);
     });
+
+    it('should create without details argument', () => {
+      const error = new utils.StreamingSubscriptionError(
+        'Subscription failed',
+        'test.topic',
+        'subscribe'
+      );
+
+      expect(error.name).toBe('StreamingSubscriptionError');
+      expect(error.message).toBe('Subscription failed');
+      expect(error.topic).toBe('test.topic');
+      expect(error.operation).toBe('subscribe');
+    });
   });
 
   describe('jid utils', () => {
