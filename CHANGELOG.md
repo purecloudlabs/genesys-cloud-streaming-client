@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.1...HEAD)
+### Added
+* [STREAM-995](https://inindca.atlassian.net/browse/STREAM-995) - Include `missingPermissions` on topic subscribe Error
 ### Changed
 * [STREAM-997](https://inindca.atlassian.net/browse/STREAM-997) - Updated requestWithApiRetry to retry on network error codes. Added maxAttempts option to requestApiWithRetry.
 * [STREAM-1006](https://inindca.atlassian.net/browse/STREAM-1006) - Added ECONNRESET to the list of network error codes to retry on.
