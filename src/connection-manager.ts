@@ -132,7 +132,8 @@ export class ConnectionManager {
       },
       transports: {
         websocket: `${wsHost}/stream/channels/${config.channelId}`
-      }
+      },
+      timeout: 1
     };
   }
 }

@@ -317,7 +317,8 @@ describe('getStandardOptions', () => {
       },
       transports: {
         websocket: 'example.com/stream/channels/mychannel'
-      }
+      },
+      timeout: 1
     });
   });
 });
