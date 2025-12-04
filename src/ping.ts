@@ -4,7 +4,7 @@ import { Client } from './client';
 import { NamedAgent } from './types/named-agent';
 
 const DEFAULT_PING_INTERVAL = 1 * 1000;
-const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 14;
+const DEFAULT_MAXIMUM_FAILED_PINGS_BEFORE_DISCONNECT = 4;
 
 export interface PingOptions {
   pingInterval?: number;
