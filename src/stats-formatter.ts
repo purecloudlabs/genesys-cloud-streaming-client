@@ -52,8 +52,9 @@ export function deepFlatten (obj: any, prefix = ''): any {
     flatObj[prefix] = obj;
   } else {
     Object.keys(obj)
-      /* don't send IP addresses to NR */
-      .filter(key => key.toLowerCase() !== 'ip')
+      /* Filter all IP addresses before sending to NR.
+      https://developer.mozilla.org/en-US/docs/Web/API/RTCIceCandidatePairStats */
+      .filter(key => !['ip', 'address', 'relatedaddress'].includes(key.toLowerCase()))
       .forEach((key) => {
         const val = obj[key];
 
