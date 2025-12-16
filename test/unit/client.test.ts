@@ -1368,7 +1368,8 @@ describe('handleStanzaDisconnectedEvent', () => {
 
     const disconnectHandler = jest.fn();
     client.on('disconnected', disconnectHandler);
-    client.on('error', () => {});
+    const errorHandler = jest.fn();
+    client.on('error', errorHandler);
 
     const errorForThrowing: StreamingClientError = {
       type: StreamingClientErrorTypes.generic,
@@ -1388,6 +1389,7 @@ describe('handleStanzaDisconnectedEvent', () => {
     expect(connectSpy).toHaveBeenCalled();
     expect(emitSpy).toHaveBeenCalledTimes(2); // disconnected and then error
     expect(emitSpy).toHaveBeenLastCalledWith('error', error);
+    expect(errorHandler).toHaveBeenCalledWith(error);
   });
 
   it('should catch reconnection errors and emit them. No error handler.', async () => {
