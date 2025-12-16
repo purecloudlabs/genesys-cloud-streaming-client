@@ -1361,6 +1361,58 @@ describe('handleStanzaDisconnectedEvent', () => {
     expect(connectSpy).toHaveBeenCalled();
   });
 
+  it('should catch reconnection errors and emit them. Client error handler exists.', async () => {
+    client['autoReconnect'] = true;
+    fakeStanza.pinger = undefined;
+    fakeStanza.serverMonitor = undefined;
+
+    const disconnectHandler = jest.fn();
+    client.on('disconnected', disconnectHandler);
+    client.on('error', () => {});
+
+    const errorForThrowing: StreamingClientError = {
+      type: StreamingClientErrorTypes.generic,
+      details: 'Invalid token',
+      name: 'myError',
+      message: 'error message'
+    }
+    const error = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'Failed to connect streaming client due to invalid token', errorForThrowing);
+
+    connectSpy = client.connect = jest.fn().mockRejectedValue(error);
+    const emitSpy = jest.spyOn(client, 'emit');
+
+    await client['handleStanzaDisconnectedEvent'](fakeStanza);
+
+    expect(client.connected).toBeFalsy();
+    expect(disconnectHandler).toHaveBeenCalled();
+    expect(connectSpy).toHaveBeenCalled();
+    expect(emitSpy).toHaveBeenCalledTimes(2); // disconnected and then error
+    expect(emitSpy).toHaveBeenLastCalledWith('error', error);
+  });
+
+  it('should catch reconnection errors and emit them. No error handler.', async () => {
+    client['autoReconnect'] = true;
+    fakeStanza.pinger = undefined;
+    fakeStanza.serverMonitor = undefined;
+
+    const disconnectHandler = jest.fn();
+    client.on('disconnected', disconnectHandler);
+
+    const error = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'Failed to connect.', { });
+
+    connectSpy = client.connect = jest.fn().mockRejectedValue(error);
+    const emitSpy = jest.spyOn(client, 'emit');
+
+    // If no client.on('error') handler exists the error will be thrown as before
+    await expect(async () => {
+      await client['handleStanzaDisconnectedEvent'](fakeStanza);
+    }).rejects.toThrow('Failed to connect');
+
+    expect(connectSpy).toHaveBeenCalled();
+    expect(emitSpy).toHaveBeenCalledTimes(2); // disconnected and then error
+    expect(emitSpy).toHaveBeenLastCalledWith('error', error);
+  });
+
   it('should unproxy events', async () => {
     client['autoReconnect'] = false;
 
