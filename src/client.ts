@@ -259,7 +259,8 @@ export class Client extends EventEmitter {
     this.emit('disconnected', { reconnecting: this.autoReconnect });
 
     if (this.autoReconnect) {
-      return this.connect({ keepTryingOnFailure: true });
+      return this.connect({ keepTryingOnFailure: true })
+        .catch(e => this.emit('error', e));
     }
   }
 
