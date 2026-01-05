@@ -367,7 +367,8 @@ export class Notifications implements StreamingClientExtension {
     // Topic result other than state=Permitted becomes a StreamingSubscriptionError promise rejection.
     if (topicResult.state !== 'Permitted') {
       const message = topicResult.rejectionReason || `Failed to subscribe topic ${topic}`;
-      throw new StreamingSubscriptionError(message, topic, 'subscribe');
+      const missingPermissions = topicResult.missingPermissions;
+      throw new StreamingSubscriptionError(message, topic, 'subscribe', { missingPermissions });
     }
     return topicResult;
   }
@@ -413,8 +414,8 @@ export class Notifications implements StreamingClientExtension {
     }
     const result: BulkSubscribeResult = {};
     for (const topicEntity of topicResponseEntities) {
-      const { id, state, rejectionReason } = topicEntity;
-      result[id] = { topic: id, state, rejectionReason };
+      const { id, state, rejectionReason, missingPermissions } = topicEntity;
+      result[id] = { topic: id, state, rejectionReason, missingPermissions };
       // If response entity is a combined topic ID like "a.b?c&d" include individualized topic IDs
       // as keys in the map. This could either point to the same result as the combined topic ID
       // or to a specific result for that individual topic if backend provides a specific result.
@@ -482,6 +483,7 @@ export interface TopicSubscribeResult {
   topic: string;
   state: 'Permitted' | 'Rejected' | 'Unknown';
   rejectionReason?: string;
+  missingPermissions?: string[];
 }
 
 function isTopicSubscribeResult (value: unknown): value is TopicSubscribeResult {
@@ -498,6 +500,7 @@ export interface ChannelTopicResponseEntity {
   id: string;
   state: 'Permitted' | 'Rejected';
   rejectionReason?: string;
+  missingPermissions?: string[];
   selfUri?: string;
 }
 

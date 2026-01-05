@@ -1,7 +1,6 @@
 'use strict';
 
 import WildEmitter from 'wildemitter';
-import nock from 'nock';
 
 import { ChannelTopicsEntityListing, Notifications } from '../../src/notifications';
 import { Agent } from 'stanza';
@@ -9,9 +8,10 @@ import { HttpClient } from '../../src/http-client';
 import { EventEmitter } from 'stream';
 import { NamedAgent } from '../../src/types/named-agent';
 import { v4 } from 'uuid';
-import axios, { Axios, AxiosResponse } from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
 import { splitIntoIndividualTopics } from '../../src/utils';
+import { IClientOptions } from '../../src';
 
 const exampleTopics = require('../helpers/example-topics.json');
 
@@ -260,6 +260,39 @@ describe('Notifications', () => {
         expect(aResult).toEqual('fulfilled');
         expect(Object.keys(notification.bulkSubscriptions)).toContain('topic?ok&bad');
       });
+    });
+
+    it('StreamingSubscriptionError should include missingPermissions property', async () => {
+      const client = new Client({
+        apiHost: 'example.com',
+        channelId: 'notification-test-channel'
+      });
+
+      const notification = new Notifications(client, { enablePartialBulkResubscribe: true } as IClientOptions);
+      notification.stanzaInstance = getFakeStanzaClient();
+
+      (notification.stanzaInstance as jest.Mocked<NamedAgent>).subscribeToNode.mockResolvedValue({
+        'test.topic': {
+          topic: 'test.topic',
+          state: 'Rejected',
+          rejectionReason: 'we dont know sorry',
+          missingPermissions: ['who', 'do', 'you', 'think', 'you', 'are']
+        }
+      } as any);
+
+      try {
+        const handler = jest.fn();
+        const firstSubs = notification.expose.subscribe('test.topic', handler, true);
+        client.emit('connected');
+        client.connected = true;
+        await firstSubs;
+      } catch (e: any) {
+        expect(e.name).toBe('StreamingSubscriptionError');
+        expect(e.topic).toBe('test.topic');
+        expect(e.message).toBe('we dont know sorry');
+        expect(e.operation).toBe('subscribe');
+        expect(e.missingPermissions).toEqual(['who', 'do', 'you', 'think', 'you', 'are']);
+      }
     });
   });
 

@@ -65,6 +65,7 @@ export type RequestApiOptions = {
   noAuthHeader?: boolean;
   requestTimeout?: number;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
+  maxAttempts?: number;
 };
 
 export interface IAxiosResponseError extends AxiosError {
@@ -171,6 +172,10 @@ export interface StreamingClientConnectOptions {
 
   // max delay for exponential backoff of attempts
   maxDelayBetweenConnectionAttempts?: number;
+}
+
+export interface StreamingSubscriptionErrorDetails {
+  missingPermissions?: string[];
 }
 
 export type GenesysWebrtcBaseParams = { sessionId: string };

@@ -67,4 +67,21 @@ describe('formatStatsEvent', () => {
 
     expect(result).toEqual(expected);
   });
+
+  it('should filter out IP addresses from ip, address, and relatedAddress fields', () => {
+    const result = formatStatsEvent(connectStatsEvent as any);
+    const details = JSON.stringify(result.details);
+
+    expect(details).not.toContain('candidatePairDetails_local_ip');
+    expect(details).not.toContain('candidatePairDetails_local_address');
+    expect(details).not.toContain('candidatePairDetails_local_relatedAddress');
+    expect(details).not.toContain('candidatePairDetails_remote_ip');
+    expect(details).not.toContain('candidatePairDetails_remote_address');
+    expect(details).not.toContain('candidatePairDetails_remote_relatedAddress');
+
+    expect(details).not.toContain('192.34.114.17');
+    expect(details).not.toContain('34.207.116.17');
+    expect(details).not.toContain('10.0.2.15');
+    expect(details).not.toContain('172.16.0.1');
+  });
 });
