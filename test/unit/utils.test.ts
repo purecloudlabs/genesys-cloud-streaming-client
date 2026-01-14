@@ -42,6 +42,37 @@ describe('Utils', () => {
     });
   });
 
+  describe('StreamingSubscriptionError', () => {
+    it('should create with missingPermissions property', () => {
+      const missingPermissions = ['abc.def', 'abc.def.ghi'];
+      const error = new utils.StreamingSubscriptionError(
+        'Subscription failed',
+        'test.topic',
+        'subscribe',
+        { missingPermissions }
+      );
+
+      expect(error.name).toBe('StreamingSubscriptionError');
+      expect(error.message).toBe('Subscription failed');
+      expect(error.topic).toBe('test.topic');
+      expect(error.operation).toBe('subscribe');
+      expect(error.missingPermissions).toEqual(missingPermissions);
+    });
+
+    it('should create without details argument', () => {
+      const error = new utils.StreamingSubscriptionError(
+        'Subscription failed',
+        'test.topic',
+        'subscribe'
+      );
+
+      expect(error.name).toBe('StreamingSubscriptionError');
+      expect(error.message).toBe('Subscription failed');
+      expect(error.topic).toBe('test.topic');
+      expect(error.operation).toBe('subscribe');
+    });
+  });
+
   describe('jid utils', () => {
     it('isAcdJid', () => {
       expect(utils.isAcdJid('acd-sdkfjk@test.com')).toBeTruthy();
