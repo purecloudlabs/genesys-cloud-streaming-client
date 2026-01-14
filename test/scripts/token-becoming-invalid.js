@@ -1,10 +1,4 @@
-interface Window {
-  GenesysCloudStreamingClient: any;
-  scConfig: any;
-  client: any;
-}
-
-let client: any;
+let client;
 
 const button = document.createElement('button');
 button.onclick = () => {
@@ -53,6 +47,11 @@ authButon.onclick = () => {
   client.on('error', (error) => {
     console.log('RECEIVED Streaming Client Error!!!!', error);
   });
+
+  client.on('disconnected', (e) => {
+    console.log('Client disconnected');
+    console.log(e);
+  })
 }
 document.body.appendChild(authButon);
 
@@ -74,4 +73,9 @@ disconnect.onclick = () => {
   window.client.disconnect();
 }
 document.body.appendChild(disconnect);
+
+
+//
+
+
 

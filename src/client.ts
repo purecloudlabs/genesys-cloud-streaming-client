@@ -260,7 +260,17 @@ export class Client extends EventEmitter {
 
     if (this.autoReconnect) {
       return this.connect({ keepTryingOnFailure: true })
-        .catch(e => this.emit('error', e));
+        .catch(error => {
+          this.logger.error('Failed autoReconnect', {
+            keepTryingOnFailure: true,
+            stanzaInstanceId: disconnectedInstance.id,
+            channelId: disconnectedInstance.channelId
+          });
+          this.emit('disconnected', {
+            error,
+            reconnecting: false
+          });
+        });
     }
   }
 
