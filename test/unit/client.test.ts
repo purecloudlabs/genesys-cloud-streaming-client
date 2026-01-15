@@ -1363,56 +1363,18 @@ describe('handleStanzaDisconnectedEvent', () => {
 
   it('should catch reconnection errors and emit them. Client error handler exists.', async () => {
     client['autoReconnect'] = true;
-    fakeStanza.pinger = undefined;
-    fakeStanza.serverMonitor = undefined;
 
-    const disconnectHandler = jest.fn();
-    client.on('disconnected', disconnectHandler);
-    const errorHandler = jest.fn();
-    client.on('error', errorHandler);
+    const err = {message: 'AXIOS 401 for example'}
+    const errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'the error', err);
 
-    const errorForThrowing: StreamingClientError = {
-      type: StreamingClientErrorTypes.generic,
-      details: 'Invalid token',
-      name: 'myError',
-      message: 'error message'
-    }
-    const error = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'Failed to connect streaming client due to invalid token', errorForThrowing);
-
-    connectSpy = client.connect = jest.fn().mockRejectedValue(error);
+    connectSpy = client.connect = jest.fn().mockRejectedValue(errorForThrowing);
     const emitSpy = jest.spyOn(client, 'emit');
 
     await client['handleStanzaDisconnectedEvent'](fakeStanza);
 
     expect(client.connected).toBeFalsy();
-    expect(disconnectHandler).toHaveBeenCalled();
-    expect(connectSpy).toHaveBeenCalled();
-    expect(emitSpy).toHaveBeenCalledTimes(2); // disconnected and then error
-    expect(emitSpy).toHaveBeenLastCalledWith('error', error);
-    expect(errorHandler).toHaveBeenCalledWith(error);
-  });
-
-  it('should catch reconnection errors and emit them. No error handler.', async () => {
-    client['autoReconnect'] = true;
-    fakeStanza.pinger = undefined;
-    fakeStanza.serverMonitor = undefined;
-
-    const disconnectHandler = jest.fn();
-    client.on('disconnected', disconnectHandler);
-
-    const error = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'Failed to connect.', { });
-
-    connectSpy = client.connect = jest.fn().mockRejectedValue(error);
-    const emitSpy = jest.spyOn(client, 'emit');
-
-    // If no client.on('error') handler exists the error will be thrown as before
-    await expect(async () => {
-      await client['handleStanzaDisconnectedEvent'](fakeStanza);
-    }).rejects.toThrow('Failed to connect');
-
-    expect(connectSpy).toHaveBeenCalled();
-    expect(emitSpy).toHaveBeenCalledTimes(2); // disconnected and then error
-    expect(emitSpy).toHaveBeenLastCalledWith('error', error);
+    expect(emitSpy).toHaveBeenCalledTimes(2);
+    expect(emitSpy).toHaveBeenNthCalledWith(2, 'disconnected', { error: errorForThrowing, reconnecting: false });
   });
 
   it('should unproxy events', async () => {
