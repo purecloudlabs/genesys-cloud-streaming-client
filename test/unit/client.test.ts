@@ -1361,6 +1361,22 @@ describe('handleStanzaDisconnectedEvent', () => {
     expect(connectSpy).toHaveBeenCalled();
   });
 
+  it('should catch reconnection errors and emit them', async () => {
+    client['autoReconnect'] = true;
+
+    const err = {message: 'AXIOS 401 for example'}
+    const errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'the error', err);
+
+    connectSpy = client.connect = jest.fn().mockRejectedValue(errorForThrowing);
+    const emitSpy = jest.spyOn(client, 'emit');
+
+    await client['handleStanzaDisconnectedEvent'](fakeStanza);
+
+    expect(client.connected).toBeFalsy();
+    expect(emitSpy).toHaveBeenCalledTimes(2);
+    expect(emitSpy).toHaveBeenNthCalledWith(2, 'disconnected', { error: errorForThrowing, reconnecting: false });
+  });
+
   it('should unproxy events', async () => {
     client['autoReconnect'] = false;
 

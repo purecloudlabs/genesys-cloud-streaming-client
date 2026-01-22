@@ -5,6 +5,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.5.0...HEAD)
+### Added
+* [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
 
 # [v19.5.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.1...v19.5.0)
 ### Added
