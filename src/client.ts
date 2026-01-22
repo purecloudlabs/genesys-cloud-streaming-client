@@ -261,7 +261,7 @@ export class Client extends EventEmitter {
     if (this.autoReconnect) {
       return this.connect({ keepTryingOnFailure: true })
         .catch(error => {
-          this.logger.error('Failed autoReconnect', {
+          this.logger.error('Failed to auto reconnect', {
             keepTryingOnFailure: true,
             stanzaInstanceId: disconnectedInstance.id,
             channelId: disconnectedInstance.channelId
