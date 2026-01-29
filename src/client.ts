@@ -4,6 +4,7 @@ import { TokenBucket } from 'limiter';
 import { Logger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
+import { AlertingLeaderExtension, AlertingLeaderApi } from './alerting-leader';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Ping } from './ping';
@@ -30,7 +31,8 @@ import UserCancelledError from './types/user-cancelled-error';
 const extensions = {
   notifications: Notifications,
   webrtcSessions: WebrtcExtension,
-  messenger: MessengerExtension
+  messenger: MessengerExtension,
+  alertingLeader: AlertingLeaderExtension
 };
 
 const STANZA_DISCONNECTED = 'stanzaDisconnected';
@@ -73,6 +75,8 @@ export class Client extends EventEmitter {
   _webrtcSessions!: WebrtcExtension;
   messenger!: MessengerExtension;
   _messenger!: MessengerExtensionApi;
+  alertingLeader!: AlertingLeaderApi;
+  _alertingLeader!: AlertingLeaderExtension;
 
   _ping!: Ping;
 
