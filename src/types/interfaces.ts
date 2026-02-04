@@ -25,10 +25,16 @@ export interface IClientOptions {
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
   /** Allow bulk topic resubscribe to succeed or fail per-topic rather than all or nothing */
   enablePartialBulkResubscribe?: boolean;
+  /** Genesys internal use only - non-Genesys apps that pass in `alertableInteractions` may experience unexpected behavior */
+  alertableInteractions?: IAlertableInteractions;
 }
 
 export interface ICustomHeader {
   [header: string]: string;
+}
+
+export interface IAlertableInteractions extends Object {
+  voice?: boolean;
 }
 
 export interface IClientConfig {
