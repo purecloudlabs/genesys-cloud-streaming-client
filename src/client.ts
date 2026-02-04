@@ -690,10 +690,10 @@ export class Client extends EventEmitter {
     }
 
     if (this.hardReconnectRequired) {
-      let jidPromise: Promise<any>;
+      let userPromise: Promise<any>;
 
-      if (this.config.jid) {
-        jidPromise = Promise.resolve(this.config.jid);
+      if (this.config.userId && this.config.jid) {
+        userPromise = Promise.resolve({ userId: this.config.userId, jid: this.config.jid });
       } else {
         const jidRequestOpts: RequestApiOptions = {
           method: 'get',
@@ -701,8 +701,13 @@ export class Client extends EventEmitter {
           authToken: this.config.authToken,
           logger: this.logger
         };
-        jidPromise = await this.http.requestApi('users/me', jidRequestOpts)
-          .then(res => res.data.chat.jabberId);
+        userPromise = this.http.requestApi('users/me', jidRequestOpts)
+          .then(res => {
+            return {
+              userId: res.data.id,
+              jid: res.data.chat.jabberId
+            };
+          });
       }
 
       // If no jidResource is provided, generate a random one to maintain ourselves.
@@ -717,7 +722,8 @@ export class Client extends EventEmitter {
       const channelPromise = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 
-      const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);
+      const [{ userId, jid }, channelId] = await Promise.all([userPromise, channelPromise]);
+      this.config.userId = userId;
       this.config.jid = jid;
       this.config.jidResource = this.jidResource;
       this.config.channelId = channelId;

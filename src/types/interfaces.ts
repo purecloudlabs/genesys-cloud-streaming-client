@@ -42,6 +42,7 @@ export interface IClientConfig {
   apiHost: string;
   authToken?: string;
   jwt?: string;
+  userId?: string;
   jid?: string;
   jidResource?: string;
   channelId: string;

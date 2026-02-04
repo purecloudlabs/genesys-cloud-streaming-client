@@ -1176,6 +1176,7 @@ describe('prepareForConnect', () => {
   });
 
   it('should not fetch jid if it already had one', async () => {
+    client.config.userId = 'abc123';
     client.config.jid = 'myJid';
 
     await client['prepareForConnect']();
@@ -1634,7 +1635,7 @@ describe('JID maintenance', () => {
     client.http = {
       requestApi: jest.fn().mockImplementation((path) => {
         if (path === 'users/me') {
-          return Promise.resolve({ data: { chat: { jabberId: 'test-jid' } } });
+          return Promise.resolve({ data: { id: 'abc123', chat: { jabberId: 'test-jid' } } });
         }
         if (path === 'notifications/channels?connectionType=streaming') {
           return Promise.resolve({ data: { id: 'test-channel' } });
@@ -1675,11 +1676,12 @@ describe('JID maintenance', () => {
       jid: 'provided-jid',
       jidResource: 'provided-jid-resource',
     });
+    client.config.userId = 'abc123';
 
     client.http = {
       requestApi: jest.fn().mockImplementation((path) => {
         if (path === 'users/me') {
-          return Promise.resolve({ data: { chat: { jabberId: 'test-jid' } } });
+          return Promise.resolve({ data: { id: 'abc123', chat: { jabberId: 'test-jid' } } });
         }
         if (path === 'notifications/channels?connectionType=streaming') {
           return Promise.resolve({ data: { id: 'test-channel' } });
