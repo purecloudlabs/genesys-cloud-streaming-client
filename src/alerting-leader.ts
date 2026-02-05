@@ -9,7 +9,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private connectionId?: string;
   private alertableInteractionTypes: AlertableInteractionTypes[];
   private abortController?: AbortController;
-  private leaderStatus: ILeaderStatus = { voice: { alerting: false, configured: false } };
+  private leaderStatus: ILeaderStatus = {};
 
   constructor (private client: Client, options: IClientOptions) {
     super();
