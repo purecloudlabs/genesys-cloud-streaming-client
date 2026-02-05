@@ -89,7 +89,7 @@ describe('AlertingLeader', () => {
       const expectedPayload = { voice: { alerting: true, configured: false } };
 
       expect.assertions(4);
-      alertingLeader.on('alertingLeaderChanged', (event) => {
+      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedPayload);
       });
 
@@ -159,7 +159,7 @@ describe('AlertingLeader', () => {
       const expectedEventPayload = { voice: { alerting: true, configured: true } };
 
       expect.assertions(2);
-      alertingLeader.on('alertingLeaderChanged', (event) => {
+      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedEventPayload);
       });
 
@@ -181,7 +181,7 @@ describe('AlertingLeader', () => {
 
       expect.assertions(1);
       const eventSpy = jest.fn();
-      alertingLeader.on('alertingLeaderChanged', eventSpy);
+      alertingLeader.expose.on('alertingLeaderChanged', eventSpy);
 
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
@@ -209,7 +209,7 @@ describe('AlertingLeader', () => {
       const axiosMock = new AxiosMockAdapter(axios);
       axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId });
       const eventSpy = jest.fn();
-      alertingLeader.on('alertingLeaderChanged', eventSpy);
+      alertingLeader.expose.on('alertingLeaderChanged', eventSpy);
 
       await alertingLeader['subscribeToAlertingLeader']();
       const getLeaderPromise = alertingLeader['getAlertingLeader']();
@@ -312,7 +312,7 @@ describe('AlertingLeader', () => {
       const expectedPayload = { voice: { alerting: true, configured: true } };
 
       expect.assertions(2);
-      alertingLeader.on('alertingLeaderChanged', (event) => {
+      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
@@ -333,7 +333,7 @@ describe('AlertingLeader', () => {
       const expectedPayload = { voice: { alerting: false, configured: true } };
 
       expect.assertions(2);
-      alertingLeader.on('alertingLeaderChanged', (event) => {
+      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
