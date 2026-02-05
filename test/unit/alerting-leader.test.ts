@@ -85,10 +85,11 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractions: { voice: true } };
       const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      const expectedPayload = { voice: { alerting: true, configured: false } };
 
-      expect.assertions(3);
+      expect.assertions(4);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: true, configured: false } });
+        expect(event).toMatchObject(expectedPayload);
       });
 
       alertingLeader['subscribeToAlertingLeader'] = jest.fn().mockRejectedValue({});
@@ -105,6 +106,8 @@ describe('AlertingLeader', () => {
       alertingLeader['markAsAlertable'] = jest.fn();
       alertingLeader['getAlertingLeader'] = jest.fn().mockRejectedValue({});
       await alertingLeader['setupAlertingLeader']();
+
+      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
     });
 
     it('should emit as not the alerting leader if any errors occur and the client is not connected', async () => {
@@ -113,13 +116,15 @@ describe('AlertingLeader', () => {
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['subscribeToAlertingLeader'] = jest.fn().mockRejectedValue({});
       fakeClient.connected = false;
+      const expectedPayload = { voice: { alerting: false, configured: false } };
 
-      expect.assertions(1);
+      expect.assertions(2);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: false, configured: false } });
+        expect(event).toMatchObject(expectedPayload);
       });
 
       await alertingLeader['setupAlertingLeader']();
+      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
     });
 
     it('should not setup alerting leader if not configured', async () => {
@@ -157,15 +162,18 @@ describe('AlertingLeader', () => {
       alertingLeader['markAsAlertable'] = jest.fn();
       alertingLeader['getAlertingLeader'] = jest.fn();
       jest.spyOn(alertingLeader, 'emit');
+      const expectedPayload = { voice: { alerting: false, configured: false } };
 
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: false, configured: false } });
+        expect(event).toMatchObject(expectedPayload);
       });
 
       await alertingLeader['setupAlertingLeader']();
       fakeClient.emit('disconnected', { reconnecting: true });
       fakeClient.emit('disconnected', { reconnecting: false });
       expect(alertingLeader.emit).toHaveBeenCalledTimes(1);
+
+      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
     });
   });
 
@@ -195,14 +203,17 @@ describe('AlertingLeader', () => {
         userId,
         connectionId
       };
+      const expectedEventPayload = { voice: { alerting: true, configured: true } };
 
-      expect.assertions(1);
+      expect.assertions(2);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: true, configured: true } });
+        expect(event).toMatchObject(expectedEventPayload);
       });
 
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, payload);
+
+      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedEventPayload);
     });
 
     it('should cancel the GET if an event arrives first', async () => {
@@ -309,12 +320,15 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractions: {} };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const expectedPayload = { voice: { alerting: true, configured: true } };
 
-      expect.assertions(1);
+      expect.assertions(2);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: true, configured: true } });
+        expect(event).toMatchObject(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
+
+      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
       axiosMock.restore();
     });
 
@@ -327,12 +341,15 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractions: {} };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const expectedPayload = { voice: { alerting: false, configured: true } };
 
-      expect.assertions(1);
+      expect.assertions(2);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: false, configured: true } });
+        expect(event).toMatchObject(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
+
+      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
       axiosMock.restore();
     });
 
@@ -417,15 +434,6 @@ describe('AlertingLeader', () => {
       }
 
       axiosMock.restore();
-    });
-  });
-
-  describe('currentLeader', () => {
-    it('should return the current alerting leader', () => {
-      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
-      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
-
-      expect(alertingLeader.currentLeader()).toMatchObject({ voice: { alerting: true } });
     });
   });
 });

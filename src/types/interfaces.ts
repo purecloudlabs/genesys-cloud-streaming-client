@@ -33,8 +33,17 @@ export interface ICustomHeader {
   [header: string]: string;
 }
 
-export interface IAlertableInteractions extends Object {
+export interface IAlertableInteractions {
   voice?: boolean;
+}
+
+export interface IAlertingStatus {
+  alerting: boolean;
+  configured: boolean;
+}
+
+export interface ILeaderStatus {
+  voice?: IAlertingStatus;
 }
 
 export interface IClientConfig {
