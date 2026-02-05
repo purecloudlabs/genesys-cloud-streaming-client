@@ -8,9 +8,7 @@ import { StreamingClientError, retryPromise } from './utils';
 export class AlertingLeaderExtension extends EventEmitter implements StreamingClientExtension {
   private connectionId?: string;
   private alertableInteractions?: IAlertableInteractions;
-  private currentLeaderConnectionId?: string;
   private abortController?: AbortController;
-
   private leaderStatus: ILeaderStatus = { voice: { alerting: false, configured: false } };
 
   constructor (private client: Client, options: IClientOptions) {
@@ -56,8 +54,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       this.abortController?.abort();
 
       if (event.connectionId) {
-        this.currentLeaderConnectionId = event.connectionId;
-        const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
+        const shouldAlert = event.connectionId === this.connectionId;
         this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
         this.emit('alertingLeaderChanged', this.leaderStatus);
       }
@@ -114,8 +111,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
     try {
       const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
-      this.currentLeaderConnectionId = currentLeader.data.connectionId;
-      const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
+      const shouldAlert = currentLeader.data.connectionId === this.connectionId;
 
       this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
       this.emit('alertingLeaderChanged', this.leaderStatus);
