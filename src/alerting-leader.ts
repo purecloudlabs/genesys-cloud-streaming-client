@@ -1,21 +1,26 @@
 import { AlertableInteractionTypes, IClientOptions, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
+import { EventEmitter } from 'events';
 import { NamedAgent } from './types/named-agent';
 import { StreamingClientError, retryPromise } from './utils';
 
-export class AlertingLeaderExtension implements StreamingClientExtension {
+export class AlertingLeaderExtension extends EventEmitter implements StreamingClientExtension {
   private connectionId?: string;
   private alertableInteractionTypes: AlertableInteractionTypes[];
+  private currentLeaderConnectionId?: string;
 
   constructor (private client: Client, options: IClientOptions) {
+    super();
+
     this.alertableInteractionTypes = options.alertableInteractionTypes ?? [];
   }
 
-  handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
+  async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
     this.connectionId = stanzaInstance.transport?.stream?.id;
 
     if (this.alertableInteractionTypes.length !== 0) {
-      this.markAsAlertable();
+      await this.markAsAlertable();
+      await this.getAlertingLeader();
     }
   }
 
@@ -54,6 +59,27 @@ export class AlertingLeaderExtension implements StreamingClientExtension {
       .catch(() => {
         this.client.logger.warn('Could not mark this connection as alertable; this client may not alert for incoming interactions');
       });
+  }
+
+  private async getAlertingLeader (): Promise<any> {
+    const leaderRequestOptions: RequestApiOptions = {
+      method: 'get',
+      host: this.client.config.apiHost,
+      authToken: this.client.config.authToken,
+      logger: this.client.logger
+    };
+
+    try {
+      const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
+      this.currentLeaderConnectionId = currentLeader.data.connectionId;
+      const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
+
+      this.emit('alertingLeaderChanged', { voice: { alerting: shouldAlert } });
+    } catch (err) {
+      // Fail 'open' so users don't miss calls
+      this.emit('alertingLeaderChanged', { voice: { alerting: true } });
+      throw err;
+    }
   }
 
   private async claimAlertingLeader (): Promise<void> {

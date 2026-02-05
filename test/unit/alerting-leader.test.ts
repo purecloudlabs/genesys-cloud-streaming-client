@@ -55,39 +55,33 @@ describe('AlertingLeader', () => {
       expect(alertingLeader['connectionId']).toBeUndefined();
     });
 
-    it('should mark the connection as alertable if configured for voice', () => {
+    it('should set up alerting leader if configured', async () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, clientOptions as IClientOptions);
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
+      const getLeaderSpy = jest.fn();
+      alertingLeader['getAlertingLeader'] = getLeaderSpy;
 
       const newStanza = getFakeStanzaClient();
-      alertingLeader.handleStanzaInstanceChange(newStanza);
+      await alertingLeader.handleStanzaInstanceChange(newStanza);
 
       expect(markAlertableSpy).toHaveBeenCalled();
+      expect(getLeaderSpy).toHaveBeenCalled();
     });
 
-    it('should not mark the connection as alertable if not configured', () => {
+    it('should not set up alerting leader if not configured', async () => {
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, {} as IClientOptions);
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
+      const getLeaderSpy = jest.fn();
+      alertingLeader['getAlertingLeader'] = getLeaderSpy;
 
       const newStanza = getFakeStanzaClient();
-      alertingLeader.handleStanzaInstanceChange(newStanza);
+      await alertingLeader.handleStanzaInstanceChange(newStanza);
 
       expect(markAlertableSpy).not.toHaveBeenCalled();
-    });
-
-    it('should not mark the connection as alertable if not configured for voice', () => {
-      const clientOptions = { alertableInteractionTypes: [] } as unknown as IClientOptions;
-      const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, clientOptions);
-      const markAlertableSpy = jest.fn();
-      alertingLeader['markAsAlertable'] = markAlertableSpy;
-
-      const newStanza = getFakeStanzaClient();
-      alertingLeader.handleStanzaInstanceChange(newStanza);
-
-      expect(markAlertableSpy).not.toHaveBeenCalled();
+      expect(getLeaderSpy).not.toHaveBeenCalled();
     });
   });
 
@@ -166,6 +160,73 @@ describe('AlertingLeader', () => {
       expect(warnSpy).toHaveBeenCalled();
       axiosMock.restore();
       jest.useRealTimers();
+    });
+  });
+
+  describe('getAlertingLeader', () => {
+    it('should get alerting leader and emit when client is the alerting leader', async () => {
+      const connectionId = 'connection123';
+      const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId });
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+
+      expect.assertions(1);
+      alertingLeader.on('alertingLeaderChanged', (event) => {
+        expect(event).toMatchObject({ voice: { alerting: true } });
+      });
+      await alertingLeader['getAlertingLeader']();
+      axiosMock.restore();
+    });
+
+    it('should emit when client is not the alerting leader', async () => {
+      const connectionId = 'connection123';
+      const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId: 'differentConnection' });
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+
+      expect.assertions(1);
+      alertingLeader.on('alertingLeaderChanged', (event) => {
+        expect(event).toMatchObject({ voice: { alerting: false } });
+      });
+      await alertingLeader['getAlertingLeader']();
+      axiosMock.restore();
+    });
+
+    it('should throw and emit as alerting leader if an error occurs', async () => {
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onGet(alertingLeaderUrl).reply(404);
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+
+      expect.assertions(3);
+      let receivedEvent: any;
+      alertingLeader.on('alertingLeaderChanged', (event) => {
+        receivedEvent = event;
+      });
+
+      try {
+        await alertingLeader['getAlertingLeader']();
+      } catch (err) {
+        expect(err).toBeTruthy();
+      }
+
+      expect(receivedEvent).toBeTruthy();
+      expect(receivedEvent).toEqual({ voice: { alerting: true } });
+      axiosMock.restore();
     });
   });
 
