@@ -111,23 +111,6 @@ describe('AlertingLeader', () => {
       expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
     });
 
-    it('should emit as not the alerting leader if any errors occur and the client is not connected', async () => {
-      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
-      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
-      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
-      alertingLeader['subscribeToAlertingLeader'] = jest.fn().mockRejectedValue({});
-      fakeClient.connected = false;
-      const expectedPayload = { voice: { alerting: false, configured: false } };
-
-      expect.assertions(2);
-      alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject(expectedPayload);
-      });
-
-      await alertingLeader['setupAlertingLeader']();
-      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
-    });
-
     it('should not set up alerting leader if not configured', async () => {
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, {} as IClientOptions);
       const subscribeSpy = jest.fn();
@@ -142,28 +125,6 @@ describe('AlertingLeader', () => {
       expect(subscribeSpy).not.toHaveBeenCalled();
       expect(markAlertableSpy).not.toHaveBeenCalled();
       expect(getLeaderSpy).not.toHaveBeenCalled();
-    });
-
-    it('should emit once as not the alerting leader if a disconnect occurs', async () => {
-      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
-      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
-      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
-      alertingLeader['subscribeToAlertingLeader'] = jest.fn();
-      alertingLeader['markAsAlertable'] = jest.fn();
-      alertingLeader['getAlertingLeader'] = jest.fn();
-      jest.spyOn(alertingLeader, 'emit');
-      const expectedPayload = { voice: { alerting: false, configured: false } };
-
-      alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject(expectedPayload);
-      });
-
-      await alertingLeader['setupAlertingLeader']();
-      fakeClient.emit('disconnected', { reconnecting: true });
-      fakeClient.emit('disconnected', { reconnecting: false });
-      expect(alertingLeader.emit).toHaveBeenCalledTimes(1);
-
-      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
     });
   });
 

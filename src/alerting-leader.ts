@@ -29,21 +29,10 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
         await this.subscribeToAlertingLeader();
         await this.markAsAlertable();
         await this.getAlertingLeader();
-
-        this.client.once('disconnected', () => {
-          // Treat disconnects as loss of alerting leader
-          this.leaderStatus = { voice: { alerting: false, configured: false } };
-          this.emit('alertingLeaderChanged', this.leaderStatus);
-        });
       } catch (err) {
-        if (this.client.connected) {
-          // Fail 'open' so users don't miss calls
-          this.leaderStatus = { voice: { alerting: true, configured: false } };
-          this.emit('alertingLeaderChanged', this.leaderStatus);
-        } else {
-          this.leaderStatus = { voice: { alerting: false, configured: false } };
-          this.emit('alertingLeaderChanged', this.leaderStatus);
-        }
+        // Fail 'open' so users don't miss calls
+        this.leaderStatus = { voice: { alerting: true, configured: false } };
+        this.emit('alertingLeaderChanged', this.leaderStatus);
       }
     }
   }
