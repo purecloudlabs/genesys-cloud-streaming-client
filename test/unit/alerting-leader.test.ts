@@ -366,4 +366,13 @@ describe('AlertingLeader', () => {
       axiosMock.restore();
     });
   });
+
+  describe('currentLeader', () => {
+    it('should return the current alerting leader', () => {
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+
+      expect(alertingLeader.currentLeader()).toMatchObject({ voice: { alerting: true } });
+    });
+  });
 });
