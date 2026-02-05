@@ -37,6 +37,15 @@ export enum AlertableInteractionTypes {
   voice = 'voice'
 }
 
+export interface IAlertingStatus {
+  alerting: boolean;
+  configured: boolean;
+}
+
+export interface ILeaderStatus {
+  voice?: IAlertingStatus;
+}
+
 export interface IClientConfig {
   host: string;
   apiHost: string;
