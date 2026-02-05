@@ -1,7 +1,7 @@
-import { AlertableInteractionTypes, IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
+import { AlertableInteractionTypes, IClientOptions, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
 import { NamedAgent } from './types/named-agent';
-import { retryPromise } from './utils';
+import { StreamingClientError, retryPromise } from './utils';
 
 export class AlertingLeaderExtension implements StreamingClientExtension {
   private connectionId?: string;
@@ -56,11 +56,38 @@ export class AlertingLeaderExtension implements StreamingClientExtension {
       });
   }
 
+  private async claimAlertingLeader (): Promise<void> {
+    if (this.alertableInteractionTypes.length === 0) {
+      this.client.logger.info('This client is not configured for any alertable interactions and will not attempt to claim alerting leader');
+
+      throw new StreamingClientError(StreamingClientErrorTypes.generic, 'Unable to claim alerting leader; this client is not configured for any alertable interactions');
+    }
+
+    const leaderRequestOptions: RequestApiOptions = {
+      method: 'put',
+      host: this.client.config.apiHost,
+      authToken: this.client.config.authToken,
+      logger: this.client.logger,
+      data: {
+        connectionId: this.connectionId
+      }
+    };
+
+    return this.client.http.requestApi('users/alertingleader', leaderRequestOptions)
+      .catch((err) => {
+        this.client.logger.warn('Unable to claim alerting leader; this client may not alert for incoming interactions');
+
+        throw new StreamingClientError(StreamingClientErrorTypes.generic, 'Unable to claim alerting leader', err);
+      });
+  }
+
   get expose (): AlertingLeaderApi {
     return {
+      claimAlertingLeader: this.claimAlertingLeader.bind(this)
     };
   }
 }
 
 export interface AlertingLeaderApi {
+  claimAlertingLeader (): Promise<void>;
 }
