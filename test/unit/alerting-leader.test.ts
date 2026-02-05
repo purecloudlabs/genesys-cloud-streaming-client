@@ -189,9 +189,11 @@ describe('AlertingLeader', () => {
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
       fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
-      const payload = {
-        userId,
-        connectionId
+      const hawkPayload = {
+        eventBody: {
+          userId,
+          connectionId
+        }
       };
       const expectedEventPayload = { voice: { alerting: true, configured: true } };
 
@@ -201,9 +203,29 @@ describe('AlertingLeader', () => {
       });
 
       await alertingLeader['subscribeToAlertingLeader']();
-      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, payload);
+      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
 
       expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedEventPayload);
+    });
+
+    it('should not emit its own event if there is no eventBody', async () => {
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
+      const hawkPayload = {};
+
+      expect.assertions(1);
+      const eventSpy = jest.fn();
+      alertingLeader.on('alertingLeaderChanged', eventSpy);
+
+      await alertingLeader['subscribeToAlertingLeader']();
+      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
+
+      expect(eventSpy).not.toHaveBeenCalled();
     });
 
     it('should cancel the GET if an event arrives first', async () => {
@@ -214,10 +236,12 @@ describe('AlertingLeader', () => {
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
       fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
-      const payload = {
-        userId,
-        connectionId,
-        clientType: 'desktop'
+      const hawkPayload = {
+        eventBody: {
+          userId,
+          connectionId,
+          clientType: 'desktop'
+        }
       };
 
       const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
@@ -228,7 +252,7 @@ describe('AlertingLeader', () => {
 
       await alertingLeader['subscribeToAlertingLeader']();
       const getLeaderPromise = alertingLeader['getAlertingLeader']();
-      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, payload);
+      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
 
       expect(await getLeaderPromise).toBeUndefined();
       expect(eventSpy).toHaveBeenCalledTimes(1);

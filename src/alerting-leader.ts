@@ -53,8 +53,8 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     this.client.on(`notify:${topic}`, (event) => {
       this.abortController?.abort();
 
-      if (event.connectionId) {
-        const shouldAlert = event.connectionId === this.connectionId;
+      if (event.eventBody?.connectionId) {
+        const shouldAlert = event.eventBody.connectionId === this.connectionId;
         this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
         this.emit('alertingLeaderChanged', this.leaderStatus);
       }
