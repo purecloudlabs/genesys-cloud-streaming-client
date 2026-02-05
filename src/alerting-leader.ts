@@ -135,13 +135,23 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       });
   }
 
+  currentLeader (): any {
+    return {
+      voice: {
+        alerting: this.currentLeaderConnectionId === this.connectionId
+      }
+    };
+  }
+
   get expose (): AlertingLeaderApi {
     return {
-      claimAlertingLeader: this.claimAlertingLeader.bind(this)
+      claimAlertingLeader: this.claimAlertingLeader.bind(this),
+      currentLeader: this.currentLeader.bind(this)
     };
   }
 }
 
 export interface AlertingLeaderApi {
   claimAlertingLeader (): Promise<void>;
+  currentLeader (): any;
 }
