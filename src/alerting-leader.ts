@@ -19,9 +19,27 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     this.connectionId = stanzaInstance.transport?.stream?.id;
 
     if (this.alertableInteractionTypes.length !== 0) {
+      await this.subscribeToAlertingLeader();
       await this.markAsAlertable();
       await this.getAlertingLeader();
     }
+  }
+
+  private async subscribeToAlertingLeader (): Promise<any> {
+    const topic = `v2.users.${this.client.config.userId}.alertingleader`;
+    this.client.on(`notify:${topic}`, (event) => {
+      if (event.connectionId) {
+        this.currentLeaderConnectionId = event.connectionId;
+        const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
+        const payload = {
+          voice: {
+            alerting: shouldAlert
+          }
+        };
+        this.emit('alertingLeaderChanged', payload);
+      }
+    });
+    return this.client._notifications._subscribeInternal(topic);
   }
 
   private async markAsAlertable (): Promise<any> {

@@ -8,7 +8,7 @@ import { StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Transport } from 'stanza';
 import { flushPromises } from '../helpers/testing-utils';
 
-class FakeClient {
+class FakeClient extends EventEmitter {
   http: HttpClient;
 
   logger = {
@@ -18,7 +18,11 @@ class FakeClient {
     error () { }
   };
 
+  _notifications = {};
+
   constructor (public config: any) {
+    super();
+
     this.http = new HttpClient();
   }
 }
@@ -58,6 +62,8 @@ describe('AlertingLeader', () => {
     it('should set up alerting leader if configured', async () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, clientOptions as IClientOptions);
+      const subscribeSpy = jest.fn();
+      alertingLeader['subscribeToAlertingLeader'] = subscribeSpy;
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
       const getLeaderSpy = jest.fn();
@@ -66,12 +72,15 @@ describe('AlertingLeader', () => {
       const newStanza = getFakeStanzaClient();
       await alertingLeader.handleStanzaInstanceChange(newStanza);
 
+      expect(subscribeSpy).toHaveBeenCalled();
       expect(markAlertableSpy).toHaveBeenCalled();
       expect(getLeaderSpy).toHaveBeenCalled();
     });
 
     it('should not set up alerting leader if not configured', async () => {
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, {} as IClientOptions);
+      const subscribeSpy = jest.fn();
+      alertingLeader['subscribeToAlertingLeader'] = subscribeSpy;
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
       const getLeaderSpy = jest.fn();
@@ -80,8 +89,46 @@ describe('AlertingLeader', () => {
       const newStanza = getFakeStanzaClient();
       await alertingLeader.handleStanzaInstanceChange(newStanza);
 
+      expect(subscribeSpy).not.toHaveBeenCalled();
       expect(markAlertableSpy).not.toHaveBeenCalled();
       expect(getLeaderSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('subscribeToAlertingLeader', () => {
+    it('should subscribe to the right topic', async () => {
+      const userId = 'abc123';
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      const subscribeSpy = jest.fn();
+      fakeClient._notifications._subscribeInternal = subscribeSpy;
+
+      await alertingLeader['subscribeToAlertingLeader']();
+
+      expect(subscribeSpy).toHaveBeenCalledWith(`v2.users.${userId}.alertingleader`);
+    });
+
+    it('should emit its own event for the alerting change', async () => {
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
+      const payload = {
+        userId,
+        connectionId
+      };
+
+      expect.assertions(1);
+      alertingLeader.on('alertingLeaderChanged', (event) => {
+        expect(event).toMatchObject({ voice: { alerting: true } });
+      });
+
+      await alertingLeader['subscribeToAlertingLeader']();
+      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, payload);
     });
   });
 
