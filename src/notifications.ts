@@ -28,10 +28,13 @@ export class Notifications implements StreamingClientExtension {
 
   enablePartialBulkResubscribe: boolean;
 
+  private internalSubscriptions: string[];
+
   constructor (client, options?: IClientOptions) {
     this.subscriptions = {};
     this.bulkSubscriptions = {};
     this.topicPriorities = {};
+    this.internalSubscriptions = [];
 
     this.client = client;
 
@@ -373,6 +376,18 @@ export class Notifications implements StreamingClientExtension {
     return topicResult;
   }
 
+  async _subscribeInternal (topic: string): Promise<PubsubSubscriptionWithOptions | void> {
+    if (this.internalSubscriptions.includes(topic)) {
+      return Promise.resolve();
+    }
+
+    this.setTopicPriorities({ [topic]: Number.MAX_VALUE });
+    const promise = this.xmppSubscribe(topic);
+    this.internalSubscriptions.push(topic);
+    this.bulkSubscriptions[topic] = true;
+    return promise;
+  }
+
   unsubscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean): Promise<any> {
     if (handler) {
       this.removeSubscription(topic, handler);
@@ -397,7 +412,7 @@ export class Notifications implements StreamingClientExtension {
   ): Promise<BulkSubscribeResult> {
     this.setTopicPriorities(priorities);
 
-    let toSubscribe = mergeAndDedup(topics, []);
+    let toSubscribe = mergeAndDedup(topics, this.internalSubscriptions);
 
     if (options.replace && !options.force) {
       // if this is a bulk subscription, but not a forcible one, keep all individual subscriptions
@@ -438,6 +453,10 @@ export class Notifications implements StreamingClientExtension {
     }
 
     topics.forEach(topic => {
+      this.bulkSubscriptions[topic] = true;
+    });
+
+    this.internalSubscriptions.forEach(topic => {
       this.bulkSubscriptions[topic] = true;
     });
 

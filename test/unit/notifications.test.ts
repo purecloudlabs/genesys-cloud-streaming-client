@@ -675,6 +675,75 @@ describe('Notifications', () => {
     expect(notification.subscriptions['test']).toBe(undefined);
   });
 
+  describe('_subscribeInternal', () => {
+    it('should use XMPP to subscribe and track subscription', async () => {
+      const fakeStanza = getFakeStanzaClient();
+      const client = new Client({
+        apiHost: 'example.com',
+        channelId: 'notification-test-channel'
+      });
+      const notification = new Notifications(client);
+      notification.stanzaInstance = fakeStanza;
+      const xmppSubscribeSpy = jest.fn().mockResolvedValue({});
+      notification.xmppSubscribe = xmppSubscribeSpy;
+
+      const result = await notification._subscribeInternal('topic.test');
+
+      expect(xmppSubscribeSpy).toHaveBeenCalled();
+      expect(notification.bulkSubscriptions['topic.test']).toBeTruthy();
+      expect(notification['internalSubscriptions'].length).toBe(1);
+      expect(result).toBeTruthy();
+    });
+
+    it('should resolve if topic is already subscribed', async () => {
+      const fakeStanza = getFakeStanzaClient();
+      const client = new Client({
+        apiHost: 'example.com',
+        channelId: 'notification-test-channel'
+      });
+      const notification = new Notifications(client);
+      notification.stanzaInstance = fakeStanza;
+      const xmppSubscribeSpy = jest.fn();
+      notification.xmppSubscribe = xmppSubscribeSpy;
+      notification['internalSubscriptions'].push('topic.test');
+
+      const result = await notification._subscribeInternal('topic.test');
+
+      expect(result).toBeUndefined();
+      expect(xmppSubscribeSpy).not.toHaveBeenCalled();
+    });
+
+    it('should cause internal subscriptions to be prioritized when bulk subscribing', async () => {
+      const fakeStanza = getFakeStanzaClient();
+      const client = new Client({
+        apiHost: 'example.com',
+        channelId: 'notification-test-channel'
+      });
+      const notification = new Notifications(client);
+      notification.stanzaInstance = fakeStanza;
+      const xmppSubscribeSpy = jest.fn().mockResolvedValue({});
+      notification.xmppSubscribe = xmppSubscribeSpy;
+      const bulkRequestSpy = jest.spyOn(notification, 'makeBulkSubscribeRequest');
+      const bulkSubscribeUrl = `https://api.example.com/api/v2/notifications/channels/${channelId}/subscriptions`;
+      let postedTopics = [{ id: '' }];
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onPost(bulkSubscribeUrl).reply((config) => {
+        postedTopics = JSON.parse(config.data);
+        return [200, {}];
+      });
+
+      await notification._subscribeInternal('topic.test');
+      await notification.bulkSubscribe(['bulkTopic.test?first?second']);
+
+      // Verify internal subscriptions are included
+      const topicsArgument = bulkRequestSpy.mock.calls[0][0] as string[];
+      expect(topicsArgument).toContain('topic.test');
+
+      // Verify internal subscriptions are prioritized first
+      expect(postedTopics[0]['id']).toBe('topic.test');
+    });
+  });
+
   test('notifications | mapCombineTopics should reduce multiple topics to combined topics', () => {
     const client = new Client({
       apiHost: 'inindca.com'
