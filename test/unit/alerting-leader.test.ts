@@ -3,7 +3,6 @@ import axios from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
 import Client, { HttpClient, IClientOptions } from '../../src';
 import { EventEmitter } from 'events';
-import { flushPromises } from '../helpers/testing-utils';
 import { NamedAgent } from '../../src/types/named-agent';
 import { Transport } from 'stanza';
 
@@ -82,29 +81,51 @@ describe('AlertingLeader', () => {
   });
 
   describe('markAsAlertable', () => {
-    it('should mark the connection as alertable', () => {
+    it('should mark the connection as alertable', async () => {
       const userId = 'abc123';
       const connectionId = 'connection123';
-      const markAlertablePath = `apps/users/${userId}/connections/${connectionId}`;
-      const httpSpy = jest.fn().mockResolvedValue({});
-      const fakeClient = new FakeClient({}) as unknown as Client;
+      const markAlertableUrl = `https://api.example.com/api/v2/apps/users/${userId}/connections/${connectionId}`;
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
       fakeClient.config.userId = userId;
-      fakeClient.http.requestApi = httpSpy;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
 
-      alertingLeader['markAsAlertable']();
+      let patchData = { alertable: false };
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onPatch(markAlertableUrl).reply((config) => {
+        patchData = JSON.parse(config.data);
+        return [204, {}];
+      });
 
-      expect(httpSpy.mock.calls[0][0]).toBe(markAlertablePath);
-      expect(httpSpy.mock.calls[0][1]).toMatchObject({ data: { alertable: true } });
+      const result = await alertingLeader['markAsAlertable']();
+
+      expect(result).toBeTruthy();
+      expect(patchData['alertable']).toBeTruthy();
+      axiosMock.restore();
     });
 
-    it('should log a warning if an error occurs', async () => {
+    it('should retry if an error occurs', async () => {
       const userId = 'abc123';
       const connectionId = 'connection123';
-      const markAlertablePath = `apps/users/${userId}/connections/${connectionId}`;
+      const markAlertableUrl = `https://api.example.com/api/v2/apps/users/${userId}/connections/${connectionId}`;
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+
       const axiosMock = new AxiosMockAdapter(axios);
-      axiosMock.onPatch(markAlertablePath).reply(404);
+      axiosMock.onPatch(markAlertableUrl).replyOnce(404).onPatch(markAlertableUrl).replyOnce(200, {});
+
+      const result = await alertingLeader['markAsAlertable']();
+
+      expect(result).toBeTruthy();
+      axiosMock.restore();
+    });
+
+    it('should log a warning if the max retries are reached', async () => {
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const markAlertableUrl = `https://api.example.com/api/v2/apps/users/${userId}/connections/${connectionId}`;
       const warnSpy = jest.fn();
       const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
       fakeClient.config.userId = userId;
@@ -112,10 +133,12 @@ describe('AlertingLeader', () => {
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
 
-      alertingLeader['markAsAlertable']();
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onPatch(markAlertableUrl).reply(404);
 
-      await flushPromises();
+      const result = await alertingLeader['markAsAlertable']();
 
+      expect(result).toBeFalsy();
       expect(warnSpy).toHaveBeenCalled();
       axiosMock.restore();
     });
