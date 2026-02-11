@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { IAlertableInteractions, IClientOptions, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
 import { EventEmitter } from 'events';
@@ -8,6 +9,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private connectionId?: string;
   private alertableInteractions?: IAlertableInteractions;
   private currentLeaderConnectionId?: string;
+  private abortController?: AbortController;
 
   constructor (private client: Client, options: IClientOptions) {
     super();
@@ -28,6 +30,8 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private async subscribeToAlertingLeader (): Promise<any> {
     const topic = `v2.users.${this.client.config.userId}.alertingleader`;
     this.client.on(`notify:${topic}`, (event) => {
+      this.abortController?.abort();
+
       if (event.connectionId) {
         this.currentLeaderConnectionId = event.connectionId;
         const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
@@ -80,11 +84,13 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   }
 
   private async getAlertingLeader (): Promise<any> {
+    this.abortController = new AbortController();
     const leaderRequestOptions: RequestApiOptions = {
       method: 'get',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
-      logger: this.client.logger
+      logger: this.client.logger,
+      signal: this.abortController.signal
     };
 
     try {
@@ -94,6 +100,10 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
       this.emit('alertingLeaderChanged', { voice: { alerting: shouldAlert } });
     } catch (err) {
+      if (axios.isCancel(err)) {
+        return;
+      }
+
       // Fail 'open' so users don't miss calls
       this.emit('alertingLeaderChanged', { voice: { alerting: true } });
       throw err;

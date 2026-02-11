@@ -141,6 +141,35 @@ describe('AlertingLeader', () => {
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, payload);
     });
+
+    it('should cancel the GET if an event arrives first', async () => {
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
+      const payload = {
+        userId,
+        connectionId,
+        clientType: 'desktop'
+      };
+
+      const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId });
+      const eventSpy = jest.fn();
+      alertingLeader.on('alertingLeaderChanged', eventSpy);
+
+      await alertingLeader['subscribeToAlertingLeader']();
+      const getLeaderPromise = alertingLeader['getAlertingLeader']();
+      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, payload);
+
+      expect(await getLeaderPromise).toBeUndefined();
+      expect(eventSpy).toHaveBeenCalledTimes(1);
+      axiosMock.restore();
+    });
   });
 
   describe('markAsAlertable', () => {

@@ -116,7 +116,8 @@ export class HttpClient {
       data: opts.data,
       responseType: opts.responseType,
       timeout: opts.requestTimeout || 30000,
-      headers
+      headers,
+      signal: opts.signal
     };
 
     // default to include auth header

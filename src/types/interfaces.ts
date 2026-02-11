@@ -73,6 +73,7 @@ export type RequestApiOptions = {
   requestTimeout?: number;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
   maxAttempts?: number;
+  signal?: AbortSignal;
 };
 
 export interface IAxiosResponseError extends AxiosError {
