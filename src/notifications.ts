@@ -376,6 +376,11 @@ export class Notifications implements StreamingClientExtension {
     return topicResult;
   }
 
+  /**
+   * Use `_subscribeInternal` when subscribing to a topic from within streaming-client itself.
+   * Internal subscriptions won't be overwritten by subscriptions from consumers and will be prioritized
+   * over subscriptions from consumers.
+   */
   async _subscribeInternal (topic: string): Promise<PubsubSubscriptionWithOptions | void> {
     if (this.internalSubscriptions.includes(topic)) {
       return Promise.resolve();
