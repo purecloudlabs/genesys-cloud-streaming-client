@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 * [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
 * [STREAM-1201](https://inindca.atlassian.net/browse/STREAM-1201) - Add ability to track internally-used subscriptions.
+* [STREAM-1179](https://inindca.atlassian.net/browse/STREAM-1179) - Add a config option to allow a streaming-client instance to be marked as alertable (internal-use only).
 
 ### Changed
 * [STREAM-1208](https://inindca.atlassian.net/browse/STREAM-1208) - Update axios to 1.13.5 to address vulnerability.
