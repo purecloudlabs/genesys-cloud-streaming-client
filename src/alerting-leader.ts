@@ -17,13 +17,22 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     this.alertableInteractionTypes = options.alertableInteractionTypes ?? [];
   }
 
-  async handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
+  handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
     this.connectionId = stanzaInstance.transport?.stream?.id;
 
+    this.setupAlertingLeader();
+  }
+
+  private async setupAlertingLeader () {
     if (this.alertableInteractionTypes.length !== 0) {
-      await this.subscribeToAlertingLeader();
-      await this.markAsAlertable();
-      await this.getAlertingLeader();
+      try {
+        await this.subscribeToAlertingLeader();
+        await this.markAsAlertable();
+        await this.getAlertingLeader();
+      } catch (err) {
+        // Fail 'open' so users don't miss calls
+        this.emit('alertingLeaderChanged', { voice: { alerting: true, configured: false } });
+      }
     }
   }
 
@@ -84,7 +93,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       });
   }
 
-  private async getAlertingLeader (): Promise<any> {
+  private async getAlertingLeader (): Promise<void> {
     this.abortController = new AbortController();
     const leaderRequestOptions: RequestApiOptions = {
       method: 'get',
@@ -105,8 +114,6 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
         return;
       }
 
-      // Fail 'open' so users don't miss calls
-      this.emit('alertingLeaderChanged', { voice: { alerting: true, configured: false } });
       throw err;
     }
   }
