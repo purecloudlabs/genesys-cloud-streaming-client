@@ -135,7 +135,7 @@ describe('AlertingLeader', () => {
 
       expect.assertions(1);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: true } });
+        expect(event).toMatchObject({ voice: { alerting: true, configured: true } });
       });
 
       await alertingLeader['subscribeToAlertingLeader']();
@@ -249,7 +249,7 @@ describe('AlertingLeader', () => {
 
       expect.assertions(1);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: true } });
+        expect(event).toMatchObject({ voice: { alerting: true, configured: true } });
       });
       await alertingLeader['getAlertingLeader']();
       axiosMock.restore();
@@ -267,13 +267,13 @@ describe('AlertingLeader', () => {
 
       expect.assertions(1);
       alertingLeader.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject({ voice: { alerting: false } });
+        expect(event).toMatchObject({ voice: { alerting: false, configured: true } });
       });
       await alertingLeader['getAlertingLeader']();
       axiosMock.restore();
     });
 
-    it('should throw and emit as alerting leader if an error occurs', async () => {
+    it('should throw and emit as alerting leader but not configured if an error occurs', async () => {
       const userId = 'abc123';
       const connectionId = 'connection123';
       const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
@@ -298,7 +298,7 @@ describe('AlertingLeader', () => {
       }
 
       expect(receivedEvent).toBeTruthy();
-      expect(receivedEvent).toEqual({ voice: { alerting: true } });
+      expect(receivedEvent).toEqual({ voice: { alerting: true, configured: false } });
       axiosMock.restore();
     });
   });
