@@ -37,7 +37,8 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
         const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
         const payload = {
           voice: {
-            alerting: shouldAlert
+            alerting: shouldAlert,
+            configured: true
           }
         };
         this.emit('alertingLeaderChanged', payload);
@@ -98,14 +99,14 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       this.currentLeaderConnectionId = currentLeader.data.connectionId;
       const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
 
-      this.emit('alertingLeaderChanged', { voice: { alerting: shouldAlert } });
+      this.emit('alertingLeaderChanged', { voice: { alerting: shouldAlert, configured: true } });
     } catch (err) {
       if (axios.isCancel(err)) {
         return;
       }
 
       // Fail 'open' so users don't miss calls
-      this.emit('alertingLeaderChanged', { voice: { alerting: true } });
+      this.emit('alertingLeaderChanged', { voice: { alerting: true, configured: false } });
       throw err;
     }
   }
