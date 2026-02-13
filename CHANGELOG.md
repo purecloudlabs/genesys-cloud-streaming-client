@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
 * [STREAM-1201](https://inindca.atlassian.net/browse/STREAM-1201) - Add ability to track internally-used subscriptions.
 
+### Changed
+* [STREAM-1208](https://inindca.atlassian.net/browse/STREAM-1208) - Update axios to 1.13.5 to address vulnerability.
+
 # [v19.5.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.1...v19.5.0)
 ### Added
 * [STREAM-995](https://inindca.atlassian.net/browse/STREAM-995) - Include `missingPermissions` on topic subscribe Error.
