@@ -8,6 +8,7 @@ import { StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Transport } from 'stanza';
 
 class FakeClient extends EventEmitter {
+  connected = true;
   http: HttpClient;
 
   logger = {
@@ -82,7 +83,8 @@ describe('AlertingLeader', () => {
 
     it('should emit as alerting leader but not configured if any errors occur', async () => {
       const clientOptions = { alertableInteractions: { voice: true } };
-      const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, clientOptions as IClientOptions);
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
 
       expect.assertions(3);
       alertingLeader.on('alertingLeaderChanged', (event) => {
@@ -102,6 +104,21 @@ describe('AlertingLeader', () => {
       alertingLeader['subscribeToAlertingLeader'] = jest.fn();
       alertingLeader['markAsAlertable'] = jest.fn();
       alertingLeader['getAlertingLeader'] = jest.fn().mockRejectedValue({});
+      await alertingLeader['setupAlertingLeader']();
+    });
+
+    it('should emit as not the alerting leader if any errors occur and the client is not connected', async () => {
+      const clientOptions = { alertableInteractions: { voice: true } };
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      alertingLeader['subscribeToAlertingLeader'] = jest.fn().mockRejectedValue({});
+      fakeClient.connected = false;
+
+      expect.assertions(1);
+      alertingLeader.on('alertingLeaderChanged', (event) => {
+        expect(event).toMatchObject({ voice: { alerting: false, configured: false } });
+      });
+
       await alertingLeader['setupAlertingLeader']();
     });
 
@@ -130,6 +147,25 @@ describe('AlertingLeader', () => {
       await alertingLeader['setupAlertingLeader']();
 
       expect(markAlertableSpy).not.toHaveBeenCalled();
+    });
+
+    it('should emit once as not the alerting leader if a disconnect occurs', async () => {
+      const clientOptions = { alertableInteractions: { voice: true } };
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      alertingLeader['subscribeToAlertingLeader'] = jest.fn();
+      alertingLeader['markAsAlertable'] = jest.fn();
+      alertingLeader['getAlertingLeader'] = jest.fn();
+      jest.spyOn(alertingLeader, 'emit');
+
+      alertingLeader.on('alertingLeaderChanged', (event) => {
+        expect(event).toMatchObject({ voice: { alerting: false, configured: false } });
+      });
+
+      await alertingLeader['setupAlertingLeader']();
+      fakeClient.emit('disconnected', { reconnecting: true });
+      fakeClient.emit('disconnected', { reconnecting: false });
+      expect(alertingLeader.emit).toHaveBeenCalledTimes(1);
     });
   });
 
