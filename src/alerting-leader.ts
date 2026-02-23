@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { IAlertableInteractions, IClientOptions, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
+import { IAlertableInteractions, IClientOptions, ILeaderStatus, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
 import { EventEmitter } from 'events';
 import { NamedAgent } from './types/named-agent';
@@ -8,8 +8,8 @@ import { StreamingClientError, retryPromise } from './utils';
 export class AlertingLeaderExtension extends EventEmitter implements StreamingClientExtension {
   private connectionId?: string;
   private alertableInteractions?: IAlertableInteractions;
-  private currentLeaderConnectionId?: string;
   private abortController?: AbortController;
+  private leaderStatus: ILeaderStatus = { voice: { alerting: false, configured: false } };
 
   constructor (private client: Client, options: IClientOptions) {
     super();
@@ -24,6 +24,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   }
 
   private async setupAlertingLeader () {
+    console.log('mMoo: setting up alerting leader with connectionId', this.connectionId, 'and alertableInteractions', this.alertableInteractions);
     if (this.alertableInteractions?.voice) {
       try {
         await this.subscribeToAlertingLeader();
@@ -33,16 +34,19 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
         this.client.once('disconnected', () => {
           // Treat disconnects as loss of alerting leader
           console.log('mMoo: client disconnected, emitting alertingLeaderChanged with alerting false');
-          this.emit('alertingLeaderChanged', { voice: { alerting: false, configured: false } });
+          this.leaderStatus = { voice: { alerting: false, configured: false } };
+          this.emit('alertingLeaderChanged', this.leaderStatus);
         });
       } catch (err) {
         if (this.client.connected) {
           // Fail 'open' so users don't miss calls
           console.log('mMoo: error setting up alerting leader, connected is true, emitting alertingLeaderChanged with alerting true', err);
-          this.emit('alertingLeaderChanged', { voice: { alerting: true, configured: false } });
+          this.leaderStatus = { voice: { alerting: true, configured: false } };
+          this.emit('alertingLeaderChanged', this.leaderStatus);
         } else {
           console.log('mMoo: error setting up alerting leader, connected is false, emitting alertingLeaderChanged with alerting false', err);
-          this.emit('alertingLeaderChanged', { voice: { alerting: false, configured: false } });
+          this.leaderStatus = { voice: { alerting: false, configured: false } };
+          this.emit('alertingLeaderChanged', this.leaderStatus);
         }
       }
     }
@@ -55,17 +59,11 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       console.log('mMoo: received alerting leader notification', event);
       this.abortController?.abort();
 
-      if (event.connectionId) {
-        this.currentLeaderConnectionId = event.connectionId;
-        const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
-        const payload = {
-          voice: {
-            alerting: shouldAlert,
-            configured: true
-          }
-        };
-        console.log('mMoo: emitting alertingLeaderChanged with payload from subscribeToAlertingLeader', payload);
-        this.emit('alertingLeaderChanged', payload);
+      if (event.eventBody.connectionId) {
+        const shouldAlert = event.eventBody.connectionId === this.connectionId;
+        this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
+        console.log('mMoo: emitting alertingLeaderChanged with payload from subscribeToAlertingLeader', this.leaderStatus);
+        this.emit('alertingLeaderChanged', this.leaderStatus);
       }
     });
     return this.client._notifications._subscribeInternal(topic);
@@ -120,12 +118,11 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
     try {
       const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
-      console.log('mMoo: current alerting leader', currentLeader);
-      this.currentLeaderConnectionId = currentLeader.data.connectionId;
-      const shouldAlert = this.currentLeaderConnectionId === this.connectionId;
+      const shouldAlert = currentLeader.data.connectionId === this.connectionId;
 
       console.log('mMoo: emitting alertingLeaderChanged with shouldAlert from getAlertingLeader', shouldAlert);
-      this.emit('alertingLeaderChanged', { voice: { alerting: shouldAlert, configured: true } });
+      this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
+      this.emit('alertingLeaderChanged', this.leaderStatus);
     } catch (err) {
       if (axios.isCancel(err)) {
         return;
@@ -160,23 +157,15 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       });
   }
 
-  currentLeader (): any {
-    return {
-      voice: {
-        alerting: this.currentLeaderConnectionId === this.connectionId
-      }
-    };
-  }
-
   get expose (): AlertingLeaderApi {
     return {
       claimAlertingLeader: this.claimAlertingLeader.bind(this),
-      currentLeader: this.currentLeader.bind(this)
+      leaderStatus: this.leaderStatus
     };
   }
 }
 
 export interface AlertingLeaderApi {
   claimAlertingLeader (): Promise<void>;
-  currentLeader (): any;
+  leaderStatus: ILeaderStatus;
 }
