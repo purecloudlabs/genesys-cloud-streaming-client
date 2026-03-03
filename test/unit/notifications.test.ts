@@ -84,7 +84,7 @@ describe('Notifications', () => {
       });
       notification = new Notifications(client);
       stanzaInstance = notification.stanzaInstance = getFakeStanzaClient();
-      resubSpy = notification.debouncedResubscribe = jest.fn();
+      resubSpy = notification.debouncedResubscribe = jest.fn().mockResolvedValue({});
     });
 
     it('should not resub if same channelId', () => {
@@ -107,6 +107,25 @@ describe('Notifications', () => {
       notification.stanzaInstance = undefined;
       notification.handleStanzaInstanceChange(newInstance);
       expect(resubSpy).not.toHaveBeenCalled();
+    });
+
+    it('should emit pubsub:error if hard reconnect resubscribe fails', async () => {
+      const newInstance = getFakeStanzaClient();
+      newInstance.channelId = 'newChannel';
+      const error = new Error('intentional test error');
+      resubSpy.mockRejectedValue(error);
+
+      const errorEvent = new Promise<void>((resolve) => {
+        (client as unknown as EventEmitter).on('pubsub:error', (err) => {
+          expect(err.msg).toBe('Error resubscribing to topics');
+          expect(err.err).toBe(error);
+          resolve();
+        });
+      });
+
+      notification.handleStanzaInstanceChange(newInstance);
+      await errorEvent;
+      expect(resubSpy).toHaveBeenCalledTimes(1);
     });
   });
 
