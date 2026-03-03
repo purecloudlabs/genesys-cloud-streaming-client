@@ -490,9 +490,7 @@ export class Notifications implements StreamingClientExtension {
 
 export interface NotificationsAPI {
   subscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean, priority?: number): Promise<any>;
-
   unsubscribe (topic: string, handler?: (..._: any[]) => void, immediate?: boolean): Promise<any>;
-
   bulkSubscribe (
     topics: string[],
     options?: BulkSubscribeOpts,
@@ -521,9 +519,7 @@ function isTopicSubscribeResult (value: unknown): value is TopicSubscribeResult 
   let hasValidState = false;
   if (value && typeof value === 'object') {
     hasTopic = 'topic' in value && typeof (value as { topic: unknown }).topic === 'string';
-    hasValidState = 'state' in value && ['Permitted', 'Rejected', 'Unknown'].includes((value as {
-      state: string
-    }).state);
+    hasValidState = 'state' in value && ['Permitted', 'Rejected', 'Unknown'].includes((value as { state: string }).state);
   }
   return hasTopic && hasValidState;
 }
