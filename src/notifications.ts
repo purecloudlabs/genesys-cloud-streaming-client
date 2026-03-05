@@ -63,7 +63,11 @@ export class Notifications implements StreamingClientExtension {
 
     if (needsToResub) {
       this.client.logger.info('resubscribing due to hard reconnect');
-      void this.debouncedResubscribe();
+      this.debouncedResubscribe().catch((err) => {
+        const msg = 'Error resubscribing to topics';
+        this.client.logger.error(msg, err);
+        this.client.emit('pubsub:error' as any, { msg, err });
+      });
     }
   }
 

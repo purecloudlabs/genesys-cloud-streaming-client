@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-1208](https://inindca.atlassian.net/browse/STREAM-1208) - Update axios to 1.13.5 to address vulnerability.
 
+### Fixed
+* [STREAM-1271](https://inindca.atlassian.net/browse/STREAM-1271) - Fix unhandled errors during hard reconnect resubscribe in `handleStanzaInstanceChange`
+
 # [v19.5.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.1...v19.5.0)
 ### Added
 * [STREAM-995](https://inindca.atlassian.net/browse/STREAM-995) - Include `missingPermissions` on topic subscribe Error.
