@@ -1,20 +1,20 @@
-import { IAlertableInteractions, IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
+import { AlertableInteractionTypes, IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
 import { Client } from './client';
 import { NamedAgent } from './types/named-agent';
 import { retryPromise } from './utils';
 
 export class AlertingLeaderExtension implements StreamingClientExtension {
   private connectionId?: string;
-  private alertableInteractions?: IAlertableInteractions;
+  private alertableInteractionTypes: AlertableInteractionTypes[];
 
   constructor (private client: Client, options: IClientOptions) {
-    this.alertableInteractions = options.alertableInteractions;
+    this.alertableInteractionTypes = options.alertableInteractionTypes ?? [];
   }
 
   handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
     this.connectionId = stanzaInstance.transport?.stream?.id;
 
-    if (this.alertableInteractions?.voice) {
+    if (this.alertableInteractionTypes.length !== 0) {
       this.markAsAlertable();
     }
   }

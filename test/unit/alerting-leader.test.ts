@@ -1,7 +1,7 @@
 import { AlertingLeaderExtension } from '../../src/alerting-leader';
 import axios from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
-import Client, { HttpClient, IClientOptions } from '../../src';
+import Client, { AlertableInteractionTypes, HttpClient, IClientOptions } from '../../src';
 import { EventEmitter } from 'events';
 import { NamedAgent } from '../../src/types/named-agent';
 import { Transport } from 'stanza';
@@ -46,7 +46,7 @@ describe('AlertingLeader', () => {
     });
 
     it('should mark the connection as alertable if configured for voice', () => {
-      const clientOptions = { alertableInteractions: { voice: true } };
+      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, clientOptions as IClientOptions);
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
@@ -69,7 +69,7 @@ describe('AlertingLeader', () => {
     });
 
     it('should not mark the connection as alertable if not configured for voice', () => {
-      const clientOptions = { alertableInteractions: {} };
+      const clientOptions = { alertableInteractionTypes: [] };
       const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, {} as IClientOptions);
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
