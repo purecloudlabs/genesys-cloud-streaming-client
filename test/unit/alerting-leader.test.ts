@@ -69,8 +69,8 @@ describe('AlertingLeader', () => {
     });
 
     it('should not mark the connection as alertable if not configured for voice', () => {
-      const clientOptions = { alertableInteractionTypes: [] };
-      const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, {} as IClientOptions);
+      const clientOptions = { alertableInteractionTypes: [] } as unknown as IClientOptions;
+      const alertingLeader = new AlertingLeaderExtension({} as unknown as Client, clientOptions);
       const markAlertableSpy = jest.fn();
       alertingLeader['markAsAlertable'] = markAlertableSpy;
 
