@@ -19,7 +19,6 @@ import { Client as StanzaClient } from 'stanza';
 import EventEmitter from 'events';
 import { ConnectionManager } from './connection-manager';
 import { backOff } from 'exponential-backoff';
-import OfflineError from './types/offline-error';
 import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
@@ -573,7 +572,7 @@ export class Client extends EventEmitter {
         // retry after comes in seconds, we need to return milliseconds
         const retryDelay = parseInt(retryAfter, 10) * 1000;
         additionalErrorDetails.retryDelay = retryDelay;
-        this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+        this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails);
         await delay(retryDelay);
 
         this.logger.debug('finished waiting for retry-after');
@@ -582,7 +581,7 @@ export class Client extends EventEmitter {
     }
 
     const connectionData = this.increaseBackoff();
-    this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+    this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails);
     this.logger.debug('debug: retry info', { expectedRetryInMs: connectionData.currentDelayMs, appName: this.config.appName, clientId: this.logger.clientId });
     return true;
   }
@@ -596,13 +595,50 @@ export class Client extends EventEmitter {
     return retryConditions.includes(error.condition);
   }
 
+  /**
+   * Performs an active network connectivity check by querying the API.
+   * navigator.onLine is unreliable (VPNs, virtual adapters, etc.), so we
+   * actually reach out to verify we can talk to the server.
+   *
+   * Returns true if connectivity is confirmed, false otherwise.
+   * This is advisory only — it does not gate connection attempts.
+   */
+  async checkNetworkConnectivity (): Promise<boolean> {
+    // Quick hint check first — if the browser says offline, that's a strong signal
+    if (!navigator.onLine) {
+      this.logger.warn('navigator.onLine reports offline — connectivity may be unavailable');
+      this.emit('networkConnectivityWarning', { reason: 'navigator.onLine is false' });
+      return false;
+    }
+
+    try {
+      const opts: RequestApiOptions = {
+        method: 'get',
+        host: this.config.apiHost,
+        authToken: this.config.authToken || this.config.jwt,
+        logger: this.logger,
+        requestTimeout: 10000
+      };
+      await this.http.requestApi('users/me', opts);
+      return true;
+    } catch (err) {
+      this.logger.warn('Active network connectivity check failed — connectivity may be unavailable', { error: err });
+      this.emit('networkConnectivityWarning', { reason: 'active connectivity check failed', error: err });
+      return false;
+    }
+  }
+
   private async makeConnectionAttempt () {
     if (this.cancelConnectionAttempt) {
       throw new UserCancelledError('Connection attempt cancelled');
     }
 
-    if (!navigator.onLine) {
-      throw new OfflineError('Browser is offline, skipping connection attempt');
+    // navigator.onLine is unreliable — use it as a hint, not a gate.
+    // Run an active connectivity check to verify real network access.
+    // Either way, we still proceed with the connection attempt.
+    const isConnected = await this.checkNetworkConnectivity();
+    if (!isConnected) {
+      this.logger.warn('Network connectivity check failed, but proceeding with connection attempt anyway');
     }
 
     let stanzaInstance: NamedAgent | undefined;
