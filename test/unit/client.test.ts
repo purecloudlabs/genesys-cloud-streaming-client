@@ -1120,6 +1120,36 @@ describe('checkNetworkConnectivity', () => {
     expect(requestSpy).not.toHaveBeenCalled();
     onLineSpy.mockRestore();
   });
+
+  it('should skip active check and return true in JWT mode without authToken', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    client.config.jwt = 'some.jwt.token';
+    client.config.authToken = undefined;
+    const requestSpy = jest.spyOn(client.http, 'requestApi');
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(true);
+    expect(requestSpy).not.toHaveBeenCalled();
+    expect(warningSpy).not.toHaveBeenCalled();
+    onLineSpy.mockRestore();
+  });
+
+  it('should still make active check when both jwt and authToken are present', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    client.config.jwt = 'some.jwt.token';
+    client.config.authToken = 'some-auth-token';
+    const requestSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue({ data: { id: 'user-123' } });
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(true);
+    expect(requestSpy).toHaveBeenCalledWith('users/me', expect.objectContaining({ authToken: 'some-auth-token' }));
+    onLineSpy.mockRestore();
+    requestSpy.mockRestore();
+  });
 });
 
 describe('setupConnectionMonitoring', () => {

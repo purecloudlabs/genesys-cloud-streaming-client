@@ -611,11 +611,18 @@ export class Client extends EventEmitter {
       return false;
     }
 
+    // JWT-based connections (e.g. background assistants) don't have an auth token
+    // that works with the users/me endpoint, so we can only rely on navigator.onLine
+    if (this.config.jwt && !this.config.authToken) {
+      this.logger.debug('Skipping active connectivity check in JWT mode, relying on navigator.onLine');
+      return true;
+    }
+
     try {
       const opts: RequestApiOptions = {
         method: 'get',
         host: this.config.apiHost,
-        authToken: this.config.authToken || this.config.jwt,
+        authToken: this.config.authToken,
         logger: this.logger,
         requestTimeout: 10000
       };
