@@ -641,12 +641,13 @@ export class Client extends EventEmitter {
     }
 
     // navigator.onLine is unreliable — use it as a hint, not a gate.
-    // Run an active connectivity check to verify real network access.
-    // Either way, we still proceed with the connection attempt.
-    const isConnected = await this.checkNetworkConnectivity();
-    if (!isConnected) {
-      this.logger.warn('Network connectivity check failed, but proceeding with connection attempt anyway');
-    }
+    // Fire off an active connectivity check in the background. It will
+    // log and emit warnings if there's an issue, but we don't wait for it.
+    this.checkNetworkConnectivity().then(isConnected => {
+      if (!isConnected) {
+        this.logger.warn('Network connectivity check failed, but proceeding with connection attempt anyway');
+      }
+    });
 
     let stanzaInstance: NamedAgent | undefined;
     const previousConnectingState = this.connecting;

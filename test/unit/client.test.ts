@@ -860,7 +860,7 @@ describe('makeConnectionAttempt', () => {
     expect(getConnectionSpy).not.toHaveBeenCalled();
   });
 
-  it('should call checkNetworkConnectivity and emit warning when navigator.onLine is false', async () => {
+  it('should fire checkNetworkConnectivity asynchronously and emit warning when navigator.onLine is false', async () => {
     // Let the real checkNetworkConnectivity run so navigator.onLine is checked
     connectivitySpy.mockRestore();
     const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
@@ -870,13 +870,14 @@ describe('makeConnectionAttempt', () => {
     prepareSpy.mockRejectedValue(new Error('some error'));
 
     await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    await flushPromises();
     expect(warningSpy).toHaveBeenCalledWith({ reason: 'navigator.onLine is false' });
     expect(prepareSpy).toHaveBeenCalled();
 
     onLineSpy.mockRestore();
   });
 
-  it('should call checkNetworkConnectivity and emit warning when active check fails despite navigator.onLine being true', async () => {
+  it('should fire checkNetworkConnectivity asynchronously and emit warning when active check fails despite navigator.onLine being true', async () => {
     connectivitySpy.mockRestore();
     const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
     const requestSpy = jest.spyOn(client.http, 'requestApi').mockRejectedValue(new Error('network error'));
@@ -886,11 +887,28 @@ describe('makeConnectionAttempt', () => {
     prepareSpy.mockRejectedValue(new Error('some error'));
 
     await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    await flushPromises();
     expect(warningSpy).toHaveBeenCalledWith(expect.objectContaining({ reason: 'active connectivity check failed' }));
     expect(prepareSpy).toHaveBeenCalled();
 
     onLineSpy.mockRestore();
     requestSpy.mockRestore();
+  });
+
+  it('should not block connection attempt while connectivity check is in progress', async () => {
+    // Make the connectivity check take a long time
+    let resolveConnectivity!: (value: boolean) => void;
+    connectivitySpy.mockReturnValue(new Promise<boolean>(r => { resolveConnectivity = r; }));
+
+    prepareSpy.mockRejectedValue(new Error('some error'));
+
+    // makeConnectionAttempt should not wait for the connectivity check
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    expect(prepareSpy).toHaveBeenCalled();
+
+    // Resolve the connectivity check after the fact
+    resolveConnectivity(true);
+    await flushPromises();
   });
 
   it('should proceed without warning when checkNetworkConnectivity succeeds', async () => {
@@ -901,6 +919,7 @@ describe('makeConnectionAttempt', () => {
     prepareSpy.mockRejectedValue(new Error('some error'));
 
     await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    await flushPromises();
     expect(connectivitySpy).toHaveBeenCalled();
     expect(warningSpy).not.toHaveBeenCalled();
     expect(prepareSpy).toHaveBeenCalled();
