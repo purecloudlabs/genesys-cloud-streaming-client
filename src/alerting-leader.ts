@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { AlertableInteractionTypes, IClientOptions, ILeaderStatus, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
+import { AlertableInteractionTypes, IAlertingStatus, IClientOptions, ILeaderStatus, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
 import { EventEmitter } from 'events';
 import { NamedAgent } from './types/named-agent';
@@ -43,8 +43,13 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       this.abortController?.abort();
 
       if (event.eventBody?.connectionId) {
-        const shouldAlert = event.eventBody.connectionId === this.connectionId;
-        this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
+        const alerting = event.eventBody.connectionId === this.connectionId;
+        const clientType = event.eventBody.clientType;
+        let voice: IAlertingStatus = { alerting, configured: true };
+        if (clientType) {
+          voice = { ...voice, clientType };
+        }
+        this.leaderStatus = { voice };
         this.emit('alertingLeaderChanged', this.leaderStatus);
       }
     });
@@ -100,9 +105,13 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
     try {
       const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
-      const shouldAlert = currentLeader.data.connectionId === this.connectionId;
-
-      this.leaderStatus = { voice: { alerting: shouldAlert, configured: true } };
+      const alerting = currentLeader.data.connectionId === this.connectionId;
+      const clientType = currentLeader.data.clientType;
+      let voice: IAlertingStatus = { alerting, configured: true };
+      if (clientType) {
+        voice = { ...voice, clientType };
+      }
+      this.leaderStatus = { voice };
       this.emit('alertingLeaderChanged', this.leaderStatus);
     } catch (err) {
       if (axios.isCancel(err)) {

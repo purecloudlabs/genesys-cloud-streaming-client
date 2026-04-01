@@ -40,6 +40,7 @@ export enum AlertableInteractionTypes {
 export interface IAlertingStatus {
   alerting: boolean;
   configured: boolean;
+  clientType?: string;
 }
 
 export interface ILeaderStatus {

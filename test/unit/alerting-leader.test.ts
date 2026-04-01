@@ -34,6 +34,22 @@ function getFakeStanzaClient (): NamedAgent {
 }
 
 describe('AlertingLeader', () => {
+  it('should no include this property', () => {
+    const eventBody = {} as any;
+    const clientType = eventBody.clientType;
+    let voice = { configured: true } as any;
+    if (clientType) {
+      voice = {
+        clientType,
+        ...voice
+      };
+    }
+    // const leaderStatus = { voice: { configured: true, clientType } };
+
+    console.log(voice);
+    expect(voice.clientType).toBeFalsy();
+  });
+
   describe('handleStanzaInstanceChange', () => {
     it('should update the connectionId and set up alerting leader', () => {
       const connectionId = 'connection123';
@@ -166,7 +182,36 @@ describe('AlertingLeader', () => {
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
 
-      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedEventPayload);
+      expect(alertingLeader.expose.leaderStatus).toStrictEqual(expectedEventPayload);
+    });
+
+    it('should include the clientType if present', async () => {
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const clientType = 'thirdParty';
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
+      const hawkPayload = {
+        eventBody: {
+          userId,
+          connectionId,
+          clientType
+        }
+      };
+      const expectedEventPayload = { voice: { alerting: true, configured: true, clientType } };
+
+      expect.assertions(2);
+      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
+        expect(event).toMatchObject(expectedEventPayload);
+      });
+
+      await alertingLeader['subscribeToAlertingLeader']();
+      fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
+
+      expect(alertingLeader.expose.leaderStatus).toStrictEqual(expectedEventPayload);
     });
 
     it('should not emit its own event if there is no eventBody', async () => {
@@ -302,18 +347,19 @@ describe('AlertingLeader', () => {
   describe('getAlertingLeader', () => {
     it('should get alerting leader and emit when client is the alerting leader', async () => {
       const connectionId = 'connection123';
+      const clientType = 'thirdParty';
       const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
       const axiosMock = new AxiosMockAdapter(axios);
-      axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId });
+      axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId, clientType });
       const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
-      const expectedPayload = { voice: { alerting: true, configured: true } };
+      const expectedPayload = { voice: { alerting: true, configured: true, clientType } };
 
       expect.assertions(2);
       alertingLeader.expose.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject(expectedPayload);
+        expect(event).toStrictEqual(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
 
@@ -334,7 +380,7 @@ describe('AlertingLeader', () => {
 
       expect.assertions(2);
       alertingLeader.expose.on('alertingLeaderChanged', (event) => {
-        expect(event).toMatchObject(expectedPayload);
+        expect(event).toStrictEqual(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
 
