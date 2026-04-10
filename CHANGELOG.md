@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-1208](https://inindca.atlassian.net/browse/STREAM-1208) - Update axios to 1.13.5 to address vulnerability.
 * [STREAM-838](https://inindca.atlassian.net/browse/STREAM-838) - Add API based connectivity check for Auth Token clients
+* [STREAM-1422](https://inindca.atlassian.net/browse/STREAM-1422) - Update axios to 1.15.0 to address vulnerability.
 
 ### Fixed
 * [STREAM-1271](https://inindca.atlassian.net/browse/STREAM-1271) - Fix unhandled errors during hard reconnect resubscribe in `handleStanzaInstanceChange`
