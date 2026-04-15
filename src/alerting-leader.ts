@@ -30,6 +30,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
         await this.markAsAlertable();
         await this.getAlertingLeader();
       } catch (err) {
+        this.client.logger.warn('Failed to setup alerting leader; falling back to the default of acting as the alerting leader');
         // Fail 'open' so users don't miss calls
         this.leaderStatus = { voice: { alerting: true, configured: false } };
         this.emit('alertingLeaderChanged', this.leaderStatus);
@@ -43,7 +44,8 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       this.abortController?.abort();
 
       if (event.eventBody?.connectionId) {
-        const alerting = event.eventBody.connectionId === this.connectionId;
+        // We should alert if our connection is the alerting leader connection
+        const alerting: boolean = event.eventBody.connectionId === this.connectionId;
         const clientType = event.eventBody.clientType;
         let voice: IAlertingStatus = { alerting, configured: true };
         if (clientType) {
@@ -105,7 +107,8 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
     try {
       const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
-      const alerting = currentLeader.data.connectionId === this.connectionId;
+      // We should alert if our connection is the alerting leader connection
+      const alerting: boolean = currentLeader.data.connectionId === this.connectionId;
       const clientType = currentLeader.data.clientType;
       let voice: IAlertingStatus = { alerting, configured: true };
       if (clientType) {
