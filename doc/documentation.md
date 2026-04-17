@@ -73,6 +73,14 @@ connectivity with Genesys Cloud. `connect` must be called before any events will
 `client.disconnect() : Promise<void>` - Disconnect from the streaming
 service
 
+`client.checkNetworkConnectivity() : Promise<boolean>` - Performs an active network
+connectivity check. First checks `navigator.onLine` as a quick hint, then makes a
+request to the API to verify real connectivity. Returns `true` if connectivity is
+confirmed, `false` otherwise. Emits `networkConnectivityWarning` on failure. This is
+called automatically during connection attempts but can also be called directly.
+In JWT-only mode (no auth token), the active API check is skipped and only
+`navigator.onLine` is used.
+
 `client.on(eventName, handler) : void` - register an event handler for the client
 
 - parameters
@@ -80,6 +88,8 @@ service
       - Events Supported:
         - 'connected' - when the streaming service is connected AND authenticated
         - 'disconnected' - when the streaming service is disconnected
+        - 'networkConnectivityWarning' - emitted when a network connectivity issue is detected
+          before a connection attempt.
   - `Function handler` - handler to evoke when event is emitted
 
 `client.once(eventName, handler) : void` - like `on` but handler will be called only once

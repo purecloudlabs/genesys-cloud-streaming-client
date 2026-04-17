@@ -690,7 +690,7 @@ describe('backoffConnectRetryHandler', () => {
     const promise = client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
 
     await flushPromises();
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('respecting retry-after header'), expect.anything(), expect.anything());
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('respecting retry-after header'), expect.anything());
     expect(debugSpy).not.toHaveBeenCalled();
 
     await flushPromises();
@@ -722,7 +722,7 @@ describe('backoffConnectRetryHandler', () => {
     const promise = client['backoffConnectRetryHandler']({ maxConnectionAttempts: 10 }, error, 1);
 
     await flushPromises();
-    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('respecting retry-after header'), expect.anything(), expect.anything());
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('respecting retry-after header'), expect.anything());
     expect(debugSpy).not.toHaveBeenCalled();
 
     await flushPromises();
@@ -803,14 +803,14 @@ describe('backoffConnectRetryHandler', () => {
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message
-    }), { skipServer: false });
+    }));
   });
 
   it('should handle undefined error', async () => {
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, undefined, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: expect.objectContaining({ message: 'streaming client backoff handler received undefined error' })
-    }), { skipServer: false });
+    }));
   });
 
   it('should log additional details if included in timeout error', async () => {
@@ -820,15 +820,15 @@ describe('backoffConnectRetryHandler', () => {
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error: error.message,
       details
-    }), { skipServer: false });
+    }));
   });
 
-  it('should skip server logging if offline error', async () => {
+  it('should retry on offline error without skipServer flag', async () => {
     const error = new OfflineError('here we go');
     expect(await client['backoffConnectRetryHandler']({ maxConnectionAttempts: 2 }, error, 1)).toBeTruthy();
     expect(errorSpy).toHaveBeenCalledWith('Failed streaming client connection attempt, retrying', expect.objectContaining({
       error
-    }), { skipServer: true });
+    }));
   });
 });
 
@@ -837,6 +837,7 @@ describe('makeConnectionAttempt', () => {
   let prepareSpy: jest.SpyInstance;
   let getConnectionSpy: jest.SpyInstance;
   let pingerMock: jest.Mock<Ping> = Ping as any;
+  let connectivitySpy: jest.SpyInstance;
 
   beforeEach(() => {
     client = new Client({
@@ -844,6 +845,8 @@ describe('makeConnectionAttempt', () => {
     });
     prepareSpy = client['prepareForConnect'] = jest.fn();
     getConnectionSpy = client['connectionManager'].getNewStanzaConnection = jest.fn();
+    // default: connectivity check passes
+    connectivitySpy = jest.spyOn(client, 'checkNetworkConnectivity').mockResolvedValue(true);
 
     pingerMock.mockClear();
   });
@@ -852,18 +855,74 @@ describe('makeConnectionAttempt', () => {
     client['cancelConnectionAttempt'] = true;
 
     await expect(client['makeConnectionAttempt']()).rejects.toThrow(UserCancelledError);
+    expect(connectivitySpy).not.toHaveBeenCalled();
     expect(prepareSpy).not.toHaveBeenCalled();
     expect(getConnectionSpy).not.toHaveBeenCalled();
   });
 
-  it('should not attempt if offline', async () => {
-    const spy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+  it('should fire checkNetworkConnectivity asynchronously and emit warning when navigator.onLine is false', async () => {
+    // Let the real checkNetworkConnectivity run so navigator.onLine is checked
+    connectivitySpy.mockRestore();
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
 
-    await expect(client['makeConnectionAttempt']()).rejects.toThrow(OfflineError);
-    expect(prepareSpy).not.toHaveBeenCalled();
-    expect(getConnectionSpy).not.toHaveBeenCalled();
+    prepareSpy.mockRejectedValue(new Error('some error'));
 
-    spy.mockRestore();
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    await flushPromises();
+    expect(warningSpy).toHaveBeenCalledWith({ reason: 'navigator.onLine is false' });
+    expect(prepareSpy).toHaveBeenCalled();
+
+    onLineSpy.mockRestore();
+  });
+
+  it('should fire checkNetworkConnectivity asynchronously and emit warning when active check fails despite navigator.onLine being true', async () => {
+    connectivitySpy.mockRestore();
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const requestSpy = jest.spyOn(client.http, 'requestApi').mockRejectedValue(new Error('network error'));
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    prepareSpy.mockRejectedValue(new Error('some error'));
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    await flushPromises();
+    expect(warningSpy).toHaveBeenCalledWith(expect.objectContaining({ reason: 'active connectivity check failed' }));
+    expect(prepareSpy).toHaveBeenCalled();
+
+    onLineSpy.mockRestore();
+    requestSpy.mockRestore();
+  });
+
+  it('should not block connection attempt while connectivity check is in progress', async () => {
+    // Make the connectivity check take a long time
+    let resolveConnectivity!: (value: boolean) => void;
+    connectivitySpy.mockReturnValue(new Promise<boolean>(r => { resolveConnectivity = r; }));
+
+    prepareSpy.mockRejectedValue(new Error('some error'));
+
+    // makeConnectionAttempt should not wait for the connectivity check
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    expect(prepareSpy).toHaveBeenCalled();
+
+    // Resolve the connectivity check after the fact
+    resolveConnectivity(true);
+    await flushPromises();
+  });
+
+  it('should proceed without warning when checkNetworkConnectivity succeeds', async () => {
+    connectivitySpy.mockResolvedValue(true);
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    prepareSpy.mockRejectedValue(new Error('some error'));
+
+    await expect(client['makeConnectionAttempt']()).rejects.toThrow('some error');
+    await flushPromises();
+    expect(connectivitySpy).toHaveBeenCalled();
+    expect(warningSpy).not.toHaveBeenCalled();
+    expect(prepareSpy).toHaveBeenCalled();
   });
 
   it('should not set up a stanza instance if the connection attempt is cancelled after preparing to connect', async () => {
@@ -1022,6 +1081,96 @@ describe('makeConnectionAttempt', () => {
   });
 });
 
+describe('checkNetworkConnectivity', () => {
+  let client: Client;
+
+  beforeEach(() => {
+    client = new Client({ host: 'wss://streaming.example.com' });
+  });
+
+  it('should return false and emit warning when navigator.onLine is false', async () => {
+    const spy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(false);
+    expect(warningSpy).toHaveBeenCalledWith({ reason: 'navigator.onLine is false' });
+    spy.mockRestore();
+  });
+
+  it('should return true when navigator.onLine is true and API request succeeds', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const requestSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue({ data: { id: 'user-123' } });
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(true);
+    expect(requestSpy).toHaveBeenCalledWith('users/me', expect.objectContaining({ method: 'get' }));
+    expect(warningSpy).not.toHaveBeenCalled();
+    onLineSpy.mockRestore();
+    requestSpy.mockRestore();
+  });
+
+  it('should return false and emit warning when navigator.onLine is true but API request fails', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    const networkError = new Error('network error');
+    const requestSpy = jest.spyOn(client.http, 'requestApi').mockRejectedValue(networkError);
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(false);
+    expect(warningSpy).toHaveBeenCalledWith({ reason: 'active connectivity check failed', error: networkError });
+    onLineSpy.mockRestore();
+    requestSpy.mockRestore();
+  });
+
+  it('should not make an API request when navigator.onLine is false', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const requestSpy = jest.spyOn(client.http, 'requestApi');
+
+    await client.checkNetworkConnectivity();
+
+    expect(requestSpy).not.toHaveBeenCalled();
+    onLineSpy.mockRestore();
+  });
+
+  it('should skip active check and return true in JWT mode without authToken', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    client.config.jwt = 'some.jwt.token';
+    client.config.authToken = undefined;
+    const requestSpy = jest.spyOn(client.http, 'requestApi');
+    const warningSpy = jest.fn();
+    client.on('networkConnectivityWarning', warningSpy);
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(true);
+    expect(requestSpy).not.toHaveBeenCalled();
+    expect(warningSpy).not.toHaveBeenCalled();
+    onLineSpy.mockRestore();
+  });
+
+  it('should still make active check when both jwt and authToken are present', async () => {
+    const onLineSpy = jest.spyOn(navigator, 'onLine', 'get').mockReturnValue(true);
+    client.config.jwt = 'some.jwt.token';
+    client.config.authToken = 'some-auth-token';
+    const requestSpy = jest.spyOn(client.http, 'requestApi').mockResolvedValue({ data: { id: 'user-123' } });
+
+    const result = await client.checkNetworkConnectivity();
+
+    expect(result).toBe(true);
+    expect(requestSpy).toHaveBeenCalledWith('users/me', expect.objectContaining({ authToken: 'some-auth-token' }));
+    onLineSpy.mockRestore();
+    requestSpy.mockRestore();
+  });
+});
+
 describe('setupConnectionMonitoring', () => {
   let pingerMock: jest.Mock<Ping>;
   let serverMonitorMock: jest.Mock<ServerMonitor>;
@@ -1176,6 +1325,7 @@ describe('prepareForConnect', () => {
   });
 
   it('should not fetch jid if it already had one', async () => {
+    client.config.userId = 'abc123';
     client.config.jid = 'myJid';
 
     await client['prepareForConnect']();
@@ -1359,6 +1509,22 @@ describe('handleStanzaDisconnectedEvent', () => {
     expect(client.connected).toBeFalsy();
     expect(disconnectHandler).toHaveBeenCalled();
     expect(connectSpy).toHaveBeenCalled();
+  });
+
+  it('should catch reconnection errors and emit them', async () => {
+    client['autoReconnect'] = true;
+
+    const err = {message: 'AXIOS 401 for example'}
+    const errorForThrowing = new StreamingClientError(StreamingClientErrorTypes.invalid_token, 'the error', err);
+
+    connectSpy = client.connect = jest.fn().mockRejectedValue(errorForThrowing);
+    const emitSpy = jest.spyOn(client, 'emit');
+
+    await client['handleStanzaDisconnectedEvent'](fakeStanza);
+
+    expect(client.connected).toBeFalsy();
+    expect(emitSpy).toHaveBeenCalledTimes(2);
+    expect(emitSpy).toHaveBeenNthCalledWith(2, 'disconnected', { error: errorForThrowing, reconnecting: false });
   });
 
   it('should unproxy events', async () => {
@@ -1618,7 +1784,7 @@ describe('JID maintenance', () => {
     client.http = {
       requestApi: jest.fn().mockImplementation((path) => {
         if (path === 'users/me') {
-          return Promise.resolve({ data: { chat: { jabberId: 'test-jid' } } });
+          return Promise.resolve({ data: { id: 'abc123', chat: { jabberId: 'test-jid' } } });
         }
         if (path === 'notifications/channels?connectionType=streaming') {
           return Promise.resolve({ data: { id: 'test-channel' } });
@@ -1659,11 +1825,12 @@ describe('JID maintenance', () => {
       jid: 'provided-jid',
       jidResource: 'provided-jid-resource',
     });
+    client.config.userId = 'abc123';
 
     client.http = {
       requestApi: jest.fn().mockImplementation((path) => {
         if (path === 'users/me') {
-          return Promise.resolve({ data: { chat: { jabberId: 'test-jid' } } });
+          return Promise.resolve({ data: { id: 'abc123', chat: { jabberId: 'test-jid' } } });
         }
         if (path === 'notifications/channels?connectionType=streaming') {
           return Promise.resolve({ data: { id: 'test-channel' } });

@@ -4,7 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.5.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
+
+# [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
+### Added
+* [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
+* [STREAM-1201](https://inindca.atlassian.net/browse/STREAM-1201) - Add ability to track internally-used subscriptions.
+* [STREAM-1179](https://inindca.atlassian.net/browse/STREAM-1179) - Add a config option to allow a streaming-client instance to be marked as alertable (internal-use only).
+
+### Changed
+* [STREAM-1208](https://inindca.atlassian.net/browse/STREAM-1208) - Update axios to 1.13.5 to address vulnerability.
+* [STREAM-838](https://inindca.atlassian.net/browse/STREAM-838) - Add API based connectivity check for Auth Token clients
+* [STREAM-1422](https://inindca.atlassian.net/browse/STREAM-1422) - Update axios to 1.15.0 to address vulnerability.
+
+### Fixed
+* [STREAM-1271](https://inindca.atlassian.net/browse/STREAM-1271) - Fix unhandled errors during hard reconnect resubscribe in `handleStanzaInstanceChange`
 
 # [v19.5.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.4.1...v19.5.0)
 ### Added

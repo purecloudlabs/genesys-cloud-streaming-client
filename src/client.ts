@@ -4,6 +4,7 @@ import { TokenBucket } from 'limiter';
 import { Logger } from 'genesys-cloud-client-logger';
 
 import './polyfills';
+import { AlertingLeaderExtension, AlertingLeaderApi } from './alerting-leader';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
 import { Ping } from './ping';
@@ -18,7 +19,6 @@ import { Client as StanzaClient } from 'stanza';
 import EventEmitter from 'events';
 import { ConnectionManager } from './connection-manager';
 import { backOff } from 'exponential-backoff';
-import OfflineError from './types/offline-error';
 import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
@@ -30,7 +30,8 @@ import UserCancelledError from './types/user-cancelled-error';
 const extensions = {
   notifications: Notifications,
   webrtcSessions: WebrtcExtension,
-  messenger: MessengerExtension
+  messenger: MessengerExtension,
+  alertingLeader: AlertingLeaderExtension
 };
 
 const STANZA_DISCONNECTED = 'stanzaDisconnected';
@@ -73,6 +74,8 @@ export class Client extends EventEmitter {
   _webrtcSessions!: WebrtcExtension;
   messenger!: MessengerExtension;
   _messenger!: MessengerExtensionApi;
+  alertingLeader!: AlertingLeaderApi;
+  _alertingLeader!: AlertingLeaderExtension;
 
   _ping!: Ping;
 
@@ -259,7 +262,18 @@ export class Client extends EventEmitter {
     this.emit('disconnected', { reconnecting: this.autoReconnect });
 
     if (this.autoReconnect) {
-      return this.connect({ keepTryingOnFailure: true });
+      return this.connect({ keepTryingOnFailure: true })
+        .catch(error => {
+          this.logger.error('Failed to auto reconnect', {
+            keepTryingOnFailure: true,
+            stanzaInstanceId: disconnectedInstance.id,
+            channelId: disconnectedInstance.channelId
+          });
+          this.emit('disconnected', {
+            error,
+            reconnecting: false
+          });
+        });
     }
   }
 
@@ -558,7 +572,7 @@ export class Client extends EventEmitter {
         // retry after comes in seconds, we need to return milliseconds
         const retryDelay = parseInt(retryAfter, 10) * 1000;
         additionalErrorDetails.retryDelay = retryDelay;
-        this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+        this.logger.error('Failed streaming client connection attempt, respecting retry-after header and will retry afterwards.', additionalErrorDetails);
         await delay(retryDelay);
 
         this.logger.debug('finished waiting for retry-after');
@@ -567,7 +581,7 @@ export class Client extends EventEmitter {
     }
 
     const connectionData = this.increaseBackoff();
-    this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails, { skipServer: err instanceof OfflineError });
+    this.logger.error('Failed streaming client connection attempt, retrying', additionalErrorDetails);
     this.logger.debug('debug: retry info', { expectedRetryInMs: connectionData.currentDelayMs, appName: this.config.appName, clientId: this.logger.clientId });
     return true;
   }
@@ -581,14 +595,59 @@ export class Client extends EventEmitter {
     return retryConditions.includes(error.condition);
   }
 
+  /**
+   * Performs an active network connectivity check by querying the API.
+   * navigator.onLine is unreliable (VPNs, virtual adapters, etc.), so we
+   * actually reach out to verify we can talk to the server.
+   *
+   * Returns true if connectivity is confirmed, false otherwise.
+   * This is advisory only — it does not gate connection attempts.
+   */
+  async checkNetworkConnectivity (): Promise<boolean> {
+    // Quick hint check first — if the browser says offline, that's a strong signal
+    if (!navigator.onLine) {
+      this.logger.warn('navigator.onLine reports offline — connectivity may be unavailable');
+      this.emit('networkConnectivityWarning', { reason: 'navigator.onLine is false' });
+      return false;
+    }
+
+    // JWT-based connections (e.g. background assistants) don't have an auth token
+    // that works with the users/me endpoint, so we can only rely on navigator.onLine
+    if (this.config.jwt && !this.config.authToken) {
+      this.logger.debug('Skipping active connectivity check in JWT mode, relying on navigator.onLine');
+      return true;
+    }
+
+    try {
+      const opts: RequestApiOptions = {
+        method: 'get',
+        host: this.config.apiHost,
+        authToken: this.config.authToken,
+        logger: this.logger,
+        requestTimeout: 10000
+      };
+      await this.http.requestApi('users/me', opts);
+      return true;
+    } catch (err) {
+      this.logger.warn('Active network connectivity check failed — connectivity may be unavailable', { error: err });
+      this.emit('networkConnectivityWarning', { reason: 'active connectivity check failed', error: err });
+      return false;
+    }
+  }
+
   private async makeConnectionAttempt () {
     if (this.cancelConnectionAttempt) {
       throw new UserCancelledError('Connection attempt cancelled');
     }
 
-    if (!navigator.onLine) {
-      throw new OfflineError('Browser is offline, skipping connection attempt');
-    }
+    // navigator.onLine is unreliable — use it as a hint, not a gate.
+    // Fire off an active connectivity check in the background. It will
+    // log and emit warnings if there's an issue, but we don't wait for it.
+    this.checkNetworkConnectivity().then(isConnected => {
+      if (!isConnected) {
+        this.logger.warn('Network connectivity check failed, but proceeding with connection attempt anyway');
+      }
+    });
 
     let stanzaInstance: NamedAgent | undefined;
     const previousConnectingState = this.connecting;
@@ -675,10 +734,10 @@ export class Client extends EventEmitter {
     }
 
     if (this.hardReconnectRequired) {
-      let jidPromise: Promise<any>;
+      let userPromise: Promise<any>;
 
-      if (this.config.jid) {
-        jidPromise = Promise.resolve(this.config.jid);
+      if (this.config.userId && this.config.jid) {
+        userPromise = Promise.resolve({ userId: this.config.userId, jid: this.config.jid });
       } else {
         const jidRequestOpts: RequestApiOptions = {
           method: 'get',
@@ -686,8 +745,13 @@ export class Client extends EventEmitter {
           authToken: this.config.authToken,
           logger: this.logger
         };
-        jidPromise = await this.http.requestApi('users/me', jidRequestOpts)
-          .then(res => res.data.chat.jabberId);
+        userPromise = this.http.requestApi('users/me', jidRequestOpts)
+          .then(res => {
+            return {
+              userId: res.data.id,
+              jid: res.data.chat.jabberId
+            };
+          });
       }
 
       // If no jidResource is provided, generate a random one to maintain ourselves.
@@ -702,7 +766,8 @@ export class Client extends EventEmitter {
       const channelPromise = await this.http.requestApi('notifications/channels?connectionType=streaming', channelRequestOpts)
         .then(res => res.data.id);
 
-      const [jid, channelId] = await Promise.all([jidPromise, channelPromise]);
+      const [{ userId, jid }, channelId] = await Promise.all([userPromise, channelPromise]);
+      this.config.userId = userId;
       this.config.jid = jid;
       this.config.jidResource = this.jidResource;
       this.config.channelId = channelId;
