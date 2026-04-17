@@ -37,6 +37,31 @@ export enum AlertableInteractionTypes {
   voice = 'voice'
 }
 
+/** The alerting status for an interaction type */
+export interface IAlertingStatus {
+  /**
+   * Indicates whether this client should be alerting. This can be because this client is the alerting
+   * leader for this interaction type, alerting leader functionality is not configured by an admin,
+   * or because setup for alerting leader failed and we fallback to `alerting: true` so interactions
+   * don't go unnoticed.
+   */
+  alerting: boolean;
+
+  /**
+   * Indicates if alerting leader functionality is configured by an admin. This will also be `false`
+   * if setup for alerting leader failed.
+  */
+  configured: boolean;
+
+  /** A string representing the client type of the alerting leader, based on OAuth client ID. */
+  clientType?: string;
+}
+
+/** The alerting leader status for this client. Currently only `voice` interactions are supported. */
+export interface ILeaderStatus {
+  voice?: IAlertingStatus;
+}
+
 export interface IClientConfig {
   host: string;
   apiHost: string;
@@ -73,6 +98,7 @@ export type RequestApiOptions = {
   requestTimeout?: number;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
   maxAttempts?: number;
+  signal?: AbortSignal;
 };
 
 export interface IAxiosResponseError extends AxiosError {

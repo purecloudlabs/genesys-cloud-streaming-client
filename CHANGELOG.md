@@ -5,6 +5,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
+* [STREAM-1155](https://inindca.atlassian.net/browse/STREAM-1155) - Allow clients to become the alerting leader and listen for alerting leader events.
 
 # [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
 ### Added
