@@ -5,13 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
+* [STREAM-1155](https://inindca.atlassian.net/browse/STREAM-1155) - Allow clients to become the alerting leader and listen for alerting leader events.
 
 # [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
 ### Added
 * [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
 * [STREAM-1201](https://inindca.atlassian.net/browse/STREAM-1201) - Add ability to track internally-used subscriptions.
 * [STREAM-1179](https://inindca.atlassian.net/browse/STREAM-1179) - Add a config option to allow a streaming-client instance to be marked as alertable (internal-use only).
-* [STREAM-1155](https://inindca.atlassian.net/browse/STREAM-1155) - Allow clients to become the alerting leader and listen for alerting leader events.
 
 ### Changed
 * [STREAM-1208](https://inindca.atlassian.net/browse/STREAM-1208) - Update axios to 1.13.5 to address vulnerability.
