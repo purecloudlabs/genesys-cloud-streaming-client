@@ -1,22 +1,61 @@
-import { AlertableInteractionTypes, IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
+import axios from 'axios';
+import { AlertableInteractionTypes, IAlertingStatus, IClientOptions, ILeaderStatus, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
+import { EventEmitter } from 'events';
 import { NamedAgent } from './types/named-agent';
-import { retryPromise } from './utils';
+import { StreamingClientError, retryPromise } from './utils';
 
-export class AlertingLeaderExtension implements StreamingClientExtension {
+export class AlertingLeaderExtension extends EventEmitter implements StreamingClientExtension {
   private connectionId?: string;
   private alertableInteractionTypes: AlertableInteractionTypes[];
+  private abortController?: AbortController;
+  private leaderStatus: ILeaderStatus = {};
 
   constructor (private client: Client, options: IClientOptions) {
+    super();
+
     this.alertableInteractionTypes = options.alertableInteractionTypes ?? [];
   }
 
   handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
     this.connectionId = stanzaInstance.transport?.stream?.id;
 
+    this.setupAlertingLeader();
+  }
+
+  private async setupAlertingLeader () {
     if (this.alertableInteractionTypes.length !== 0) {
-      this.markAsAlertable();
+      try {
+        await this.subscribeToAlertingLeader();
+        await this.markAsAlertable();
+        await this.getAlertingLeader();
+      } catch (err) {
+        this.client.logger.warn('Failed to setup alerting leader; falling back to the default of acting as the alerting leader');
+        // Fail 'open' so users don't miss calls
+        this.leaderStatus = { voice: { alerting: true, configured: false } };
+        this.emit('alertingLeaderChanged', this.leaderStatus);
+      }
     }
+  }
+
+  private async subscribeToAlertingLeader (): Promise<any> {
+    const topic = `v2.users.${this.client.config.userId}.alertingleader`;
+    this.client.on(`notify:${topic}`, (event) => {
+      this.abortController?.abort();
+
+      if (event.eventBody?.connectionId) {
+        // We should alert if our connection is the alerting leader connection
+        const alerting: boolean = event.eventBody.connectionId === this.connectionId;
+        const clientType = event.eventBody.clientType;
+        let voice: IAlertingStatus = { alerting, configured: true };
+        if (clientType) {
+          voice = { ...voice, clientType };
+        }
+        this.leaderStatus = { voice };
+        this.emit('alertingLeaderChanged', this.leaderStatus);
+      }
+    });
+    return this.client._notifications._subscribeInternal(topic);
   }
 
   private async markAsAlertable (): Promise<any> {
@@ -56,11 +95,74 @@ export class AlertingLeaderExtension implements StreamingClientExtension {
       });
   }
 
+  private async getAlertingLeader (): Promise<void> {
+    this.abortController = new AbortController();
+    const leaderRequestOptions: RequestApiOptions = {
+      method: 'get',
+      host: this.client.config.apiHost,
+      authToken: this.client.config.authToken,
+      logger: this.client.logger,
+      signal: this.abortController.signal
+    };
+
+    try {
+      const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
+      // We should alert if our connection is the alerting leader connection
+      const alerting: boolean = currentLeader.data.connectionId === this.connectionId;
+      const clientType = currentLeader.data.clientType;
+      let voice: IAlertingStatus = { alerting, configured: true };
+      if (clientType) {
+        voice = { ...voice, clientType };
+      }
+      this.leaderStatus = { voice };
+      this.emit('alertingLeaderChanged', this.leaderStatus);
+    } catch (err) {
+      if (axios.isCancel(err)) {
+        return;
+      }
+
+      throw err;
+    }
+  }
+
+  private async claimAlertingLeader (): Promise<void> {
+    if (this.alertableInteractionTypes.length === 0) {
+      this.client.logger.info('This client is not configured for any alertable interactions and will not attempt to claim alerting leader');
+
+      throw new StreamingClientError(StreamingClientErrorTypes.generic, 'Unable to claim alerting leader; this client is not configured for any alertable interactions');
+    }
+
+    const leaderRequestOptions: RequestApiOptions = {
+      method: 'put',
+      host: this.client.config.apiHost,
+      authToken: this.client.config.authToken,
+      logger: this.client.logger,
+      data: {
+        connectionId: this.connectionId
+      }
+    };
+
+    return this.client.http.requestApi('users/alertingleader', leaderRequestOptions)
+      .catch((err) => {
+        this.client.logger.warn('Unable to claim alerting leader; this client may not alert for incoming interactions');
+
+        throw new StreamingClientError(StreamingClientErrorTypes.generic, 'Unable to claim alerting leader', err);
+      });
+  }
+
   get expose (): AlertingLeaderApi {
     return {
+      on: this.on.bind(this),
+      off: this.off.bind(this),
+      claimAlertingLeader: this.claimAlertingLeader.bind(this),
+      leaderStatus: this.leaderStatus
     };
   }
 }
 
 export interface AlertingLeaderApi {
+  on: (event: string, handler: (...args: any) => void) => void;
+  off: (event: string, handler: (...args: any) => void) => void;
+  claimAlertingLeader (): Promise<void>;
+  leaderStatus: ILeaderStatus;
 }
