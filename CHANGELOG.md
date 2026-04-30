@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
 * [STREAM-1155](https://inindca.atlassian.net/browse/STREAM-1155) - Allow clients to become the alerting leader and listen for alerting leader events.
 
+### Documentation
+* Fixed incorrect import name in docs — constructor was documented as `GenesysCloudStreamingClient` but the actual default export is `Client` (conventionally imported as `StreamingClient`).
+* Added "Browser Usage & Polyfills" section covering required polyfills for `global`, `events` (EventEmitter), and `process` when using bundlers like Vite or Webpack 5.
+* Added missing constructor options to API docs (`apiHost`, `reconnectOnNoLongerSubscribed`, `appName`, `appVersion`, `appId`).
+* Documented `connect()` options (`maxConnectionAttempts`, `maxDelayBetweenConnectionAttempts`).
+* Added quick start example with correct import and usage.
+* Updated README with correct import name and a pointer to the polyfill docs.
+
 # [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
 ### Added
 * [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
