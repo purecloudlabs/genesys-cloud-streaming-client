@@ -215,7 +215,8 @@ export class Notifications implements StreamingClientExtension {
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
       data: JSON.stringify(this.mapCombineTopics(topics)),
-      logger: this.client.logger
+      logger: this.client.logger,
+      maxAttempts: 3
     };
     const channelId = this.stanzaInstance!.channelId;
     let path = `notifications/channels/${channelId}/subscriptions`;
@@ -224,7 +225,7 @@ export class Notifications implements StreamingClientExtension {
       path += '?ignoreErrors=true';
     }
 
-    return this.client.http.requestApi(path, requestOptions);
+    return this.client.http.requestApiWithRetry(path, requestOptions, 2000).promise;
   }
 
   createSubscription (topic: string, handler: (obj?: any) => void): void {
