@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 * [STREAM-1155](https://inindca.atlassian.net/browse/STREAM-1155) - Allow clients to become the alerting leader and listen for alerting leader events.
+* [STREAM-1003](https://inindca.atlassian.net/browse/STREAM-1003) - Update and modernize documentation.
 
 ### Changed
 * [STREAM-1488](https://inindca.atlassian.net/browse/STREAM-1488) - Update `axios` to v1.15.2
