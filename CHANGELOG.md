@@ -16,6 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [STREAM-1322](https://inindca.atlassian.net/browse/STREAM-1322) - Fix `logLevel` option being ignored. The value was not copied from `IClientOptions` into the internal config, so the logger always defaulted to `'info'`.
 
 # [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.7.0...HEAD)
+
+# [v19.7.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...v19.7.0)
+### Added
+* [STREAM-1155](https://inindca.atlassian.net/browse/STREAM-1155) - Allow clients to become the alerting leader and listen for alerting leader events.
+
+# [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.5.0...v19.6.0)
 ### Added
 * [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
 * [STREAM-1201](https://inindca.atlassian.net/browse/STREAM-1201) - Add ability to track internally-used subscriptions.
