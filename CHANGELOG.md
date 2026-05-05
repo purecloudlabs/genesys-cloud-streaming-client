@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-1488](https://inindca.atlassian.net/browse/STREAM-1488) - Update `axios` to v1.15.2
 
+### Fixed
+* [STREAM-1322](https://inindca.atlassian.net/browse/STREAM-1322) - Fix `logLevel` option being ignored. The value was not copied from `IClientOptions` into the internal config, so the logger always defaulted to `'info'`.
+
 # [v19.6.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...HEAD)
 ### Added
 * [STREAM-949](https://inindca.atlassian.net/browse/STREAM-949) - Catch errors and emit them as a `disconnected` event and include error.
