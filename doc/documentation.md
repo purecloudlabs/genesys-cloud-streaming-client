@@ -10,11 +10,10 @@ Features:
 - [x] WebRTC
     - [x] Softphone
     - [x] Screen Recording
-    - [ ] Video/Screen Share※
-    - [ ] ACD Screen Share※
+    - [x] Video/Screen Share
+    - [x] ACD Screen Share
+    - [x] Live Screen Monitoring
 - [x] Messenger (media message broadcasting)
-
-※ Not yet roadmapped
 
 ## Installation
 
