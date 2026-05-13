@@ -1,6 +1,7 @@
 'use strict';
 
 import { Ping } from '../../src/ping';
+import { setImmediate } from "node:timers";
 
 const DEFAULT_PING_INTERVAL = 14 * 1000 + 10;
 const PING_INTERVAL_WITH_BUFFER = DEFAULT_PING_INTERVAL + 100;

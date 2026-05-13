@@ -60,11 +60,12 @@ describe('StanzaMediaSession', () => {
       };
       (session.pc.connectionState as any)  = 'connecting';
       const spy = jest.spyOn(session, 'send').mockImplementation();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       session.end('success');
       jest.runAllTimers();
 
       expect(spy).toHaveBeenCalledWith('session-terminate', reason);
-      expect(setTimeout).toHaveBeenCalledTimes(1);
+      expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
       expect(session.pc.close).toHaveBeenCalled();
     });
 
@@ -84,11 +85,12 @@ describe('StanzaMediaSession', () => {
       };
       (session.pc.connectionState as any)  = 'connected';
       const spy = jest.spyOn(session, 'send').mockImplementation();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       session.end('success');
       jest.runAllTimers();
 
       expect(spy).toHaveBeenCalledWith('session-terminate', reason);
-      expect(setTimeout).toHaveBeenCalledTimes(1);
+      expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
       expect(session.pc.close).toHaveBeenCalled();
     });
 
@@ -108,11 +110,12 @@ describe('StanzaMediaSession', () => {
       };
       (session.pc.connectionState as any)  = 'closed';
       const spy = jest.spyOn(session, 'send').mockImplementation();
+      const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
       session.end('success');
       jest.runAllTimers();
 
       expect(spy).toHaveBeenCalledWith('session-terminate', reason);
-      expect(setTimeout).toHaveBeenCalledTimes(1);
+      expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
       expect(session.pc.close).not.toHaveBeenCalled();
     });
   });

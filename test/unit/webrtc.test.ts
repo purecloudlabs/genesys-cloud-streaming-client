@@ -5,6 +5,7 @@ import { SessionOpts } from 'stanza/jingle/Session';
 import { v4 } from 'uuid';
 import { EventEmitter } from 'events';
 import browserama from 'browserama';
+import { setImmediate } from "node:timers";
 
 import { WebrtcExtension } from '../../src/webrtc';
 import * as utils from '../../src/utils';

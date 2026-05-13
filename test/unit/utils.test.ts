@@ -2,6 +2,7 @@ import { StreamingClientErrorTypes } from '../../src';
 import * as utils from '../../src/utils';
 import { retryPromise } from '../../src/utils';
 import { flushPromises } from '../helpers/testing-utils';
+import { setImmediate } from "node:timers";
 
 const sdp: Readonly<String> =
 `
@@ -121,7 +122,8 @@ describe('Utils', () => {
       jest.clearAllTimers();
     });
 
-    it('should keep retrying function until it passes', async (done) => {
+    // it('should keep retrying function until it passes', async (done) => {
+    it('should keep retrying function until it passes', async () => {
       const DELAY = 1000;
       let retryCount = 0;
       let retryFn = jest.fn().mockImplementation(() => {
@@ -133,7 +135,7 @@ describe('Utils', () => {
       /* do not finish the test until this completes */
       retry.promise.then(value => {
         expect(value).toBe('Yeet');
-        done();
+        // done();
       });
 
       /* expected to be called right away */
