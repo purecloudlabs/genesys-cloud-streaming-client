@@ -4,7 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.7.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.7.1...HEAD)
+
+# [v19.7.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.7.0...v19.7.1)
+### Changed
+* [STREAM-1488](https://inindca.atlassian.net/browse/STREAM-1488) - Update `axios` to v1.15.2
+
+### Fixed
+* [STREAM-1322](https://inindca.atlassian.net/browse/STREAM-1322) - Fix `logLevel` option being ignored. The value was not copied from `IClientOptions` into the internal config, so the logger always defaulted to `'info'`.
 
 # [v19.7.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.6.0...v19.7.0)
 ### Added

@@ -97,6 +97,7 @@ export class Client extends EventEmitter {
       appName: options.appName,
       appVersion: options.appVersion,
       appId: options.appId,
+      logLevel: options.logLevel,
       customHeaders: options.customHeaders
     };
 
