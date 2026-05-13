@@ -57,6 +57,7 @@
     "debounce-promise": "^3.1.2",
     "exponential-backoff": "^3.1.1",
     "genesys-cloud-client-logger": "^4.2.18",
+    "jest-environment-jsdom": "^30.4.1",
     "limiter": "^1.1.0",
     "lodash.throttle": "^4.1.1",
     "lru-cache": "^11.0.1",
