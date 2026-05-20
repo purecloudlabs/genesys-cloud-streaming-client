@@ -1125,4 +1125,96 @@ describe('Notifications', () => {
     expect(spy).toHaveBeenCalledWith('notify', { topic: 'duplicate_id', data: payload });
     expect(spy).toHaveBeenCalledWith('notify:duplicate_id', payload);
   });
+
+  describe('bulk subscribe retry supersession', () => {
+    let client: Client;
+    let notification: Notifications;
+
+    beforeEach(() => {
+      client = new Client({
+        apiHost: 'example.com',
+        channelId: 'notification-test-channel'
+      });
+      notification = new Notifications(client);
+      notification.stanzaInstance = getFakeStanzaClient();
+    });
+
+    it('should cancel a pending retry when a new bulk subscribe request is made', async () => {
+      // First request: simulate a pending retry that hasn't completed
+      const cancelFn = jest.fn();
+      const firstRetry = {
+        promise: new Promise(() => {}), // never resolves (simulates in-flight retry)
+        cancel: cancelFn,
+        complete: jest.fn(),
+        hasCompleted: () => false,
+        _id: 'test-id'
+      };
+      jest.spyOn(client.http, 'requestApiWithRetry').mockReturnValueOnce(firstRetry as any);
+
+      // Start first request (don't await — it will never resolve)
+      const firstPromise = notification.makeBulkSubscribeRequest(['topicA'], { replace: true });
+
+      // Second request: should cancel the first
+      const secondRetry = {
+        promise: Promise.resolve({ data: { entities: [] } }),
+        cancel: jest.fn(),
+        complete: jest.fn(),
+        hasCompleted: () => false,
+        _id: 'test-id-2'
+      };
+      jest.spyOn(client.http, 'requestApiWithRetry').mockReturnValueOnce(secondRetry as any);
+
+      await notification.makeBulkSubscribeRequest(['topicA', 'topicB'], { replace: true });
+
+      expect(cancelFn).toHaveBeenCalledWith(expect.objectContaining({
+        message: expect.stringContaining('Superseded by newer bulk subscribe request')
+      }));
+    });
+
+    it('should not cancel a retry that has already completed', async () => {
+      const cancelFn = jest.fn();
+      const completedRetry = {
+        promise: Promise.resolve({ data: { entities: [] } }),
+        cancel: cancelFn,
+        complete: jest.fn(),
+        hasCompleted: () => true,
+        _id: 'test-id'
+      };
+      jest.spyOn(client.http, 'requestApiWithRetry').mockReturnValueOnce(completedRetry as any);
+
+      await notification.makeBulkSubscribeRequest(['topicA'], { replace: true });
+
+      // Second request
+      const secondRetry = {
+        promise: Promise.resolve({ data: { entities: [] } }),
+        cancel: jest.fn(),
+        complete: jest.fn(),
+        hasCompleted: () => false,
+        _id: 'test-id-2'
+      };
+      jest.spyOn(client.http, 'requestApiWithRetry').mockReturnValueOnce(secondRetry as any);
+
+      await notification.makeBulkSubscribeRequest(['topicA', 'topicB'], { replace: true });
+
+      expect(cancelFn).not.toHaveBeenCalled();
+    });
+
+    it('should return Unknown state for all topics when bulk subscribe is superseded', async () => {
+      jest.spyOn(notification, 'makeBulkSubscribeRequest')
+        .mockRejectedValueOnce(new Error('Superseded by newer bulk subscribe request'));
+
+      const result = await notification.bulkSubscribe(['topicA', 'topicB'], { replace: true });
+
+      expect(result['topicA']).toEqual({ topic: 'topicA', state: 'Unknown' });
+      expect(result['topicB']).toEqual({ topic: 'topicB', state: 'Unknown' });
+    });
+
+    it('should still throw non-supersession errors from bulk subscribe', async () => {
+      jest.spyOn(notification, 'makeBulkSubscribeRequest')
+        .mockRejectedValueOnce(new Error('Network failure'));
+
+      await expect(notification.bulkSubscribe(['topicA'], { replace: true }))
+        .rejects.toThrow('Network failure');
+    });
+  });
 });

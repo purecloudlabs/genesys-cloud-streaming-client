@@ -8,6 +8,7 @@ import { NamedAgent } from './types/named-agent';
 import { splitIntoIndividualTopics } from './utils';
 import { StreamingSubscriptionError } from './';
 import { AxiosResponse } from 'axios';
+import { RetryPromise } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 const MAX_SUBSCRIBABLE_TOPICS = 1000;
@@ -29,6 +30,7 @@ export class Notifications implements StreamingClientExtension {
   enablePartialBulkResubscribe: boolean;
 
   private internalSubscriptions: string[];
+  private pendingBulkSubscribeRetry?: RetryPromise<any>;
 
   constructor (client, options?: IClientOptions) {
     this.subscriptions = {};
@@ -210,6 +212,15 @@ export class Notifications implements StreamingClientExtension {
   }
 
   makeBulkSubscribeRequest (topics: string[], options): Promise<AxiosResponse<ChannelTopicsEntityListing>> {
+    // Cancel any in-flight retry from a previous bulk subscribe. If the topic list has changed
+    // (subscribe/unsubscribe called between retries), the stale request would send an outdated
+    // topic list. Since bulk subscribes with replace=true use PUT (full replacement), only the
+    // most recent request matters.
+    if (this.pendingBulkSubscribeRetry && !this.pendingBulkSubscribeRetry.hasCompleted()) {
+      this.client.logger.info('Cancelling previous bulk subscribe retry — new request supersedes it');
+      this.pendingBulkSubscribeRetry.cancel(new Error('Superseded by newer bulk subscribe request'));
+    }
+
     const requestOptions: RequestApiOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
@@ -225,7 +236,10 @@ export class Notifications implements StreamingClientExtension {
       path += '?ignoreErrors=true';
     }
 
-    return this.client.http.requestApiWithRetry(path, requestOptions, 2000).promise;
+    const retry = this.client.http.requestApiWithRetry(path, requestOptions, 2000);
+    this.pendingBulkSubscribeRetry = retry;
+
+    return retry.promise;
   }
 
   createSubscription (topic: string, handler: (obj?: any) => void): void {
@@ -432,7 +446,24 @@ export class Notifications implements StreamingClientExtension {
       this.subscriptions = {};
     }
 
-    const response = await this.makeBulkSubscribeRequest(toSubscribe, options);
+    let response: AxiosResponse<ChannelTopicsEntityListing> | undefined;
+    try {
+      response = await this.makeBulkSubscribeRequest(toSubscribe, options);
+    } catch (err: any) {
+      // If this request was cancelled because a newer bulk subscribe superseded it,
+      // return an 'Unknown' state for all topics. The superseding request will carry
+      // the current desired topic list and handle the actual subscription.
+      if (err?.message?.includes('Superseded by newer bulk subscribe request')) {
+        this.client.logger.debug('Bulk subscribe was superseded, deferring to newer request');
+        const result: BulkSubscribeResult = {};
+        for (const topic of toSubscribe) {
+          result[topic] = { topic, state: 'Unknown' };
+        }
+        return result;
+      }
+      throw err;
+    }
+
     let topicResponseEntities: ChannelTopicResponseEntity[] = [];
     if (response && response.data && 'entities' in response.data && Array.isArray(response.data.entities)) {
       topicResponseEntities = response.data.entities;
