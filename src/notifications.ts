@@ -5,10 +5,9 @@ import debounce from 'debounce-promise';
 import { Client } from './client';
 import { IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
-import { splitIntoIndividualTopics } from './utils';
+import { splitIntoIndividualTopics, RetryPromise } from './utils';
 import { StreamingSubscriptionError } from './';
 import { AxiosResponse } from 'axios';
-import { RetryPromise } from './utils';
 
 const PUBSUB_HOST_DEFAULT = 'notifications.mypurecloud.com';
 const MAX_SUBSCRIBABLE_TOPICS = 1000;
