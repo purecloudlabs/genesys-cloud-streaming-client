@@ -1216,5 +1216,22 @@ describe('Notifications', () => {
       await expect(notification.bulkSubscribe(['topicA'], { replace: true }))
         .rejects.toThrow('Network failure');
     });
+
+    it('should rethrow when error has no message property', async () => {
+      const errorWithoutMessage = { code: 'ECONNRESET' };
+      jest.spyOn(notification, 'makeBulkSubscribeRequest')
+        .mockRejectedValueOnce(errorWithoutMessage);
+
+      await expect(notification.bulkSubscribe(['topicA'], { replace: true }))
+        .rejects.toEqual(errorWithoutMessage);
+    });
+
+    it('should rethrow when error is null', async () => {
+      jest.spyOn(notification, 'makeBulkSubscribeRequest')
+        .mockRejectedValueOnce(null);
+
+      await expect(notification.bulkSubscribe(['topicA'], { replace: true }))
+        .rejects.toBeNull();
+    });
   });
 });
