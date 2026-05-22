@@ -2,7 +2,6 @@ import WildEmitter from 'wildemitter';
 import { Agent, createClient } from 'stanza';
 import { JingleAction } from 'stanza/Constants';
 import { SessionOpts } from 'stanza/jingle/Session';
-import { v4 } from 'uuid';
 import { EventEmitter } from 'events';
 import browserama from 'browserama';
 
@@ -29,7 +28,7 @@ function getFakeStanzaClient (): NamedAgent {
     instance,
     {
       config: {},
-      id: v4(),
+      id: globalThis.crypto.randomUUID(),
       getServices: jest.fn(),
       stanzas: {
         define: jest.fn()
@@ -538,7 +537,7 @@ describe('configureNewStanzaInstance', () => {
     ];
 
     for (const e of events) {
-      const fakeData = { str: v4() };
+      const fakeData = { str: globalThis.crypto.randomUUID() };
       fakeStanza.jingle.emit(e, fakeSession, fakeData);
       expect(fakeSession.emit).toHaveBeenCalledWith(e, fakeData);
       fakeSession.emit.mockReset();
@@ -578,7 +577,7 @@ describe('configureNewStanzaInstance', () => {
     ];
 
     for (const e of events) {
-      const fakeData = { str: v4() };
+      const fakeData = { str: globalThis.crypto.randomUUID() };
       fakeStanza.jingle.emit(e, fakeSession, fakeData);
       expect(fakeSession.emit).not.toHaveBeenCalled();
     }
@@ -617,8 +616,8 @@ describe('handlePropose', () => {
       from: 'myJid',
       propose: {
         autoAnswer: false,
-        conversationId: v4(),
-        sessionId: v4()
+        conversationId: globalThis.crypto.randomUUID(),
+        sessionId: globalThis.crypto.randomUUID()
       },
       to: 'myJid'
     });
@@ -637,8 +636,8 @@ describe('handlePropose', () => {
 
     const propose = {
       autoAnswer: false,
-      conversationId: v4(),
-      sessionId: v4()
+      conversationId: globalThis.crypto.randomUUID(),
+      sessionId: globalThis.crypto.randomUUID()
     };
 
     webrtc['handlePropose']({
@@ -666,13 +665,13 @@ describe('handlePropose', () => {
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     const spy = jest.spyOn(webrtc, 'acceptRtcSession');
-    const sessionId = v4();
+    const sessionId = globalThis.crypto.randomUUID();
 
     webrtc.pendingSessions[sessionId] = { accepted: true } as any;
 
     const propose = {
       autoAnswer: false,
-      conversationId: v4(),
+      conversationId: globalThis.crypto.randomUUID(),
       sessionId
     };
 
