@@ -23,7 +23,6 @@ import SaslError from './types/sasl-error';
 import { TimeoutError } from './types/timeout-error';
 import { MessengerExtensionApi, MessengerExtension } from './messenger';
 import { SASLFailureCondition } from 'stanza/Constants';
-import { v4 } from 'uuid';
 import { ConnectionTransfer } from './connection-transfer';
 import UserCancelledError from './types/user-cancelled-error';
 
@@ -756,7 +755,7 @@ export class Client extends EventEmitter {
       }
 
       // If no jidResource is provided, generate a random one to maintain ourselves.
-      this.jidResource = this.config.jidResource || v4();
+      this.jidResource = this.config.jidResource || globalThis.crypto.randomUUID();
 
       const channelRequestOpts: RequestApiOptions = {
         method: 'post',
