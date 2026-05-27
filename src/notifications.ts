@@ -30,6 +30,7 @@ export class Notifications implements StreamingClientExtension {
 
   private internalSubscriptions: string[];
   private pendingBulkSubscribeRetry?: RetryPromise<any>;
+  private pendingConnectedWait?: { cancel: (reason?: any) => void };
 
   constructor (client, options?: IClientOptions) {
     this.subscriptions = {};
@@ -210,14 +211,41 @@ export class Notifications implements StreamingClientExtension {
     return keptTopics;
   }
 
-  makeBulkSubscribeRequest (topics: string[], options): Promise<AxiosResponse<ChannelTopicsEntityListing>> {
-    // Cancel any in-flight retry from a previous bulk subscribe. If the topic list has changed
-    // (subscribe/unsubscribe called between retries), the stale request would send an outdated
-    // topic list. Since bulk subscribes with replace=true use PUT (full replacement), only the
-    // most recent request matters.
+  async makeBulkSubscribeRequest (topics: string[], options): Promise<AxiosResponse<ChannelTopicsEntityListing>> {
+    // Cancel any in-flight retry or connected-wait from a previous bulk subscribe.
+    // If the topic list has changed (subscribe/unsubscribe called between retries),
+    // the stale request would send an outdated topic list. Since bulk subscribes with
+    // replace=true use PUT (full replacement), only the most recent request matters.
+    if (this.pendingConnectedWait) {
+      this.pendingConnectedWait.cancel(new Error('Superseded by newer bulk subscribe request'));
+      this.pendingConnectedWait = undefined;
+    }
     if (this.pendingBulkSubscribeRetry && !this.pendingBulkSubscribeRetry.hasCompleted()) {
       this.client.logger.info('Cancelling previous bulk subscribe retry — new request supersedes it');
       this.pendingBulkSubscribeRetry.cancel(new Error('Superseded by newer bulk subscribe request'));
+    }
+
+    // If the client is not connected, wait for reconnection before attempting the request.
+    // This prevents firing requests against a dead/stale channel ID which would result in
+    // 400 errors (notification.unable.to.get.channel.id). After reconnection, the stanza
+    // instance will have the fresh channel ID from the new connection.
+    if (!this.client.connected) {
+      this.client.logger.info('Client not connected, waiting for reconnection before bulk subscribe', {
+        topicCount: topics.length
+      });
+      await new Promise<void>((resolve, reject) => {
+        const onConnected = () => {
+          this.pendingConnectedWait = undefined;
+          resolve();
+        };
+        this.client.once('connected', onConnected);
+        this.pendingConnectedWait = {
+          cancel: (reason?: any) => {
+            this.client.off('connected', onConnected);
+            reject(reason);
+          }
+        };
+      });
     }
 
     const requestOptions: RequestApiOptions = {
