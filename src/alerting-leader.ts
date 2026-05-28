@@ -155,6 +155,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       on: this.on.bind(this),
       off: this.off.bind(this),
       claimAlertingLeader: this.claimAlertingLeader.bind(this),
+      getLeaderStatus: () => { return this.leaderStatus; },
       leaderStatus: this.leaderStatus
     };
   }
@@ -164,5 +165,8 @@ export interface AlertingLeaderApi {
   on: (event: string, handler: (...args: any) => void) => void;
   off: (event: string, handler: (...args: any) => void) => void;
   claimAlertingLeader (): Promise<void>;
+  getLeaderStatus (): ILeaderStatus;
+
+  /* @deprecated Use {@link getLeaderStatus} */
   leaderStatus: ILeaderStatus;
 }
