@@ -4,7 +4,6 @@ import { toBare } from 'stanza/JID';
 import { LRUCache } from 'lru-cache';
 import { JingleAction } from 'stanza/Constants';
 import { SessionManager } from 'stanza/jingle';
-import { v4 } from 'uuid';
 import { StatsEvent } from 'webrtc-stats-gatherer';
 import throttle from 'lodash.throttle';
 import JingleSession, { SessionOpts } from 'stanza/jingle/Session';
@@ -724,7 +723,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const session: any = {
       to: opts.jid,
       propose: {
-        id: v4(),
+        id: globalThis.crypto.randomUUID(),
         descriptions: []
       }
     };
@@ -767,7 +766,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
       const mediaPresence = {
         type: 'upgradeMedia' as any,
         to: opts.jid,
-        id: v4(),
+        id: globalThis.crypto.randomUUID(),
         from: this.jid,
         media: {
           conversationId: opts.conversationId,

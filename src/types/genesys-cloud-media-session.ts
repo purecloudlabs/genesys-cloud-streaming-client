@@ -5,7 +5,6 @@ import { JingleReason, IQ } from 'stanza/protocol';
 import { ConnectionState, IGenesysCloudMediaSessionParams, IMediaSession, IMediaSessionParams, SessionState } from './media-session';
 import Logger, { ILogMessageOptions } from 'genesys-cloud-client-logger';
 import { WebrtcExtension } from '../webrtc';
-import { v4 } from 'uuid';
 import { timeoutPromise } from '../utils';
 import { SessionTypes, GenesysSessionTerminateParams, GenesysInfoActiveParams, GenesysWebrtcSdpParams, GenesysWebrtcMuteParams, GenesysWebrtcJsonRpcMessage } from './interfaces';
 
@@ -129,7 +128,7 @@ export class GenesysCloudMediaSession {
   }
 
   private async sendGenesysWebrtc (info: GenesysWebrtcJsonRpcMessage): Promise<any> {
-    info.id = info.id || v4();
+    info.id = info.id || globalThis.crypto.randomUUID();
     info.jsonrpc = info.jsonrpc || '2.0';
 
     const iq: IQ = {
