@@ -7,7 +7,6 @@ import { Agent } from 'stanza';
 import { HttpClient } from '../../src/http-client';
 import { EventEmitter } from 'stream';
 import { NamedAgent } from '../../src/types/named-agent';
-import { v4 } from 'uuid';
 import axios, { AxiosResponse } from 'axios';
 import AxiosMockAdapter from 'axios-mock-adapter';
 import { splitIntoIndividualTopics } from '../../src/utils';
@@ -22,7 +21,7 @@ function getFakeStanzaClient (): NamedAgent {
   return Object.assign(
     instance,
     {
-      id: v4(),
+      id: globalThis.crypto.randomUUID(),
       subscribeToNode: jest.fn(),
       unsubscribeFromNode: jest.fn(),
       channelId

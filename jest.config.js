@@ -9,6 +9,7 @@ module.exports = {
     '<rootDir>/test/unit/**/*.(ts|js)'
   ],
   setupFiles: [
+    '<rootDir>/test/helpers/setup-browser-env.js'
   ],
   transform: {
     '^.+\\.jsx?$': 'babel-jest',

@@ -10,7 +10,6 @@
 import Logger from 'genesys-cloud-client-logger';
 import { AgentConfig, createClient } from 'stanza';
 import { SASL } from 'stanza/protocol';
-import { v4 } from 'uuid';
 import { IClientConfig } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
 import SaslError from './types/sasl-error';
@@ -35,7 +34,7 @@ export class ConnectionManager {
     (stanza.sasl as any).mechanisms = (stanza.sasl as any).mechanisms.sort((a, b) => b.priority - a.priority);
 
     // we are going to give the stanza instance an id for tracking and logging purposes
-    stanza.id = v4();
+    stanza.id = globalThis.crypto.randomUUID();
     const channelId = stanza.channelId = this.config.channelId;
 
     let boundCheckForErrorStanza: (rawString: string) => void;
