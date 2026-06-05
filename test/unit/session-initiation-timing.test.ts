@@ -1,7 +1,6 @@
 import { EventEmitter } from "events";
 import { Agent, createClient } from "stanza";
 import { IQ } from 'stanza/protocol';
-import { v4 as uuidv4 } from 'uuid';
 
 import { HttpClient } from "../../src/http-client";
 import { GenesysCloudMediaSession } from '../../src/types/genesys-cloud-media-session';
@@ -50,7 +49,7 @@ function getFakeStanzaClient (): NamedAgent {
     instance,
     {
       config: {},
-      id: uuidv4(),
+      id: globalThis.crypto.randomUUID(),
       getServices: jest.fn(),
       stanzas: {
         define: jest.fn()

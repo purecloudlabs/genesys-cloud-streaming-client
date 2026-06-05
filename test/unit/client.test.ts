@@ -19,9 +19,7 @@ import UserCancelledError from '../../src/types/user-cancelled-error';
 jest.mock('genesys-cloud-client-logger');
 jest.mock('../../src/ping');
 jest.mock('../../src/server-monitor');
-jest.mock('uuid', () => ({
-  v4: jest.fn(() => 'mocked-uuid'),
-}));
+jest.spyOn(globalThis.crypto, 'randomUUID').mockReturnValue('mocked-uuid' as any);
 
 const defaultOptions = {
   jid: 'anon@example.mypurecloud.com',
