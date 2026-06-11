@@ -91,7 +91,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
     return retry.promise
       .catch(() => {
-        this.client.logger.warn('Could not mark this connection as alertable; this client may not alert for incoming interactions');
+        this.client.logger.warn('Could not mark this connection as alertable');
       });
   }
 
