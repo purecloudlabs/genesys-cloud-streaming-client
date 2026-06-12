@@ -484,6 +484,23 @@ describe('AlertingLeader', () => {
 
       axiosMock.restore();
     });
+
+    it('should cancel any earlier requests', async () => {
+      const connectionId = 'connection123';
+      const alertingLeaderUrl = 'https://api.example.com/api/v2/users/alertingleader';
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId: 'differentConnection' });
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      const abortSpy = jest.fn();
+      alertingLeader['getLeaderAbortController'] = { abort: abortSpy } as unknown as AbortController;
+
+      await alertingLeader['getAlertingLeader']();
+
+      expect(abortSpy).toHaveBeenCalled();
+      axiosMock.restore();
+    });
   });
 
   describe('claimAlertingLeader', () => {

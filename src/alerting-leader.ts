@@ -109,6 +109,8 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   }
 
   private async getAlertingLeader (): Promise<void> {
+    // If an early request is still in-flight, cancel it and get more recent data
+    this.getLeaderAbortController?.abort();
     this.getLeaderAbortController = new AbortController();
     const leaderRequestOptions: RequestApiOptions = {
       method: 'get',
