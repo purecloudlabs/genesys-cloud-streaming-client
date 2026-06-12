@@ -26,6 +26,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private async setupAlertingLeader () {
     if (this.alertableInteractionTypes.length !== 0) {
       try {
+        this.getAlertingLeaderEarly();
         await this.subscribeToAlertingLeader();
         await this.markAsAlertable();
         await this.getAlertingLeader();
@@ -93,6 +94,18 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       .catch(() => {
         this.client.logger.warn('Could not mark this connection as alertable');
       });
+  }
+
+  private async getAlertingLeaderEarly (): Promise<void> {
+    try {
+      await this.getAlertingLeader();
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.status === 400) {
+        this.client.logger.info('The org has not configured alerting leader functionality or there are not yet any active alertable connections; falling back to acting as the leader');
+        this.leaderStatus = { voice: { alerting: true, configured: false } };
+        this.emit('alertingLeaderChanged', this.leaderStatus);
+      }
+    }
   }
 
   private async getAlertingLeader (): Promise<void> {
