@@ -121,7 +121,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     };
 
     try {
-      const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
+      const currentLeader = await this.client.http.requestApiWithRetry('users/alertingleader', leaderRequestOptions, 1000).promise;
       // The consuming client should be the one alerting if our connection is the current leader
       const alerting: boolean = currentLeader.data.connectionId === this.connectionId;
       const clientType = currentLeader.data.clientType;
