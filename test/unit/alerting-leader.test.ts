@@ -34,22 +34,6 @@ function getFakeStanzaClient (): NamedAgent {
 }
 
 describe('AlertingLeader', () => {
-  it('should no include this property', () => {
-    const eventBody = {} as any;
-    const clientType = eventBody.clientType;
-    let voice = { configured: true } as any;
-    if (clientType) {
-      voice = {
-        clientType,
-        ...voice
-      };
-    }
-    // const leaderStatus = { voice: { configured: true, clientType } };
-
-    console.log(voice);
-    expect(voice.clientType).toBeFalsy();
-  });
-
   describe('handleStanzaInstanceChange', () => {
     it('should update the connectionId and set up alerting leader', () => {
       const connectionId = 'connection123';
