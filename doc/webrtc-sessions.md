@@ -20,7 +20,6 @@ Listen for events using `client.webrtcSessions.on(event, handler)`:
 | `incomingRtcSession` | A Jingle session was created for an incoming call |
 | `outgoingRtcSession` | A Jingle session was created for an outgoing call |
 | `rtcSessionError` | An error occurred during session negotiation |
-| `requestWebrtcDump` | A WebRTC dump was requested by another participant |
 
 ## Methods
 

@@ -1,19 +1,8 @@
-# Genesys Cloud Streaming Client (SDK)
+# Genesys Cloud Streaming Client
 
-The Genesys Cloud Streaming Client serves as the Javascript Web SDK. It handles
-establishing and maintaining a websocket connection to the Genesys Cloud streaming
-services. This project uses our new XMPP based signaling for real time APIs.
-
-Features:
-
-- [x] PubSub (notifications)
-- [x] WebRTC
-    - [x] Softphone
-    - [x] Screen Recording
-    - [x] Video/Screen Share
-    - [x] ACD Screen Share
-    - [x] Live Screen Monitoring
-- [x] Messenger (media message broadcasting)
+The Genesys Cloud Streaming Client handles establishing and maintaining a websocket
+connection to the Genesys Cloud streaming services. This project uses our new XMPP
+based signaling for real time APIs.
 
 ## Installation
 
@@ -276,13 +265,10 @@ Useful for refreshing tokens without reconnecting.
 
 #### Extensions
 
-> For details on implementing new extensions, see [extensions.md].
+> For details on implementing new extensions, see [Extensions](extensions.md).
 
 The following extensions are currently bundled with the client:
 
- - Ping (for keepalive on the socket sent from the client)
- - ServerMonitor (for keepalive on the socket sent from the server)
- - ConnectionTransfer (for automatic reconnecting when the WebSocket host requests the client to reconnect)
  - Messenger (for media message broadcasting between clients)
  - [Notifications](notifications.md)
  - [WebRTC Sessions](webrtc-sessions.md)

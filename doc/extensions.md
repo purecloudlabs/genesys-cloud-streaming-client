@@ -10,9 +10,6 @@ The following extensions ship with the client and are available immediately:
 
 | Extension | Property | Description |
 |-----------|----------|-------------|
-| Ping | `client._ping` | Client-side keepalive pings (used when server-side pings are unavailable) |
-| ServerMonitor | — | Server-side keepalive monitoring |
-| ConnectionTransfer | — | Automatic reconnection when the WebSocket host requests a transfer |
 | Messenger | `client.messenger` | Media message broadcasting between clients on the same user |
 | Notifications | `client.notifications` | PubSub topic subscription and notification handling ([docs](notifications.md)) |
 | WebRTC Sessions | `client.webrtcSessions` | WebRTC session management for softphone and other media ([docs](webrtc-sessions.md)) |
