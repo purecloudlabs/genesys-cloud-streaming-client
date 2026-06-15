@@ -1,5 +1,4 @@
 import { definitions } from '../../../src/stanza-definitions/webrtc-signaling';
-import { v4 } from 'uuid';
 import { createClient } from 'stanza';
 
 const stanza = createClient({});
@@ -10,7 +9,7 @@ describe('upgradeMediaPresenceDefinition', () => {
     const mediaPresence = {
       type: 'upgradeMedia' as any,
       to: 'tojid@conference.com',
-      id: v4(),
+      id: globalThis.crypto.randomUUID(),
       from: 'fromjid@conference.com',
       media: {
         conversationId: 'myconversationid',

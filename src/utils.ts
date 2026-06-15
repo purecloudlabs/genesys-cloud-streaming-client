@@ -1,4 +1,3 @@
-import { v4 } from 'uuid';
 import { TimeoutError } from './types/timeout-error';
 import { StreamingClientErrorTypes, StreamingSubscriptionErrorDetails } from './types/interfaces';
 
@@ -160,7 +159,7 @@ export function retryPromise<T = any> (
     promise,
     cancel,
     complete,
-    _id: v4(),
+    _id: globalThis.crypto.randomUUID(),
     hasCompleted: () => _hasCompleted
   };
 }

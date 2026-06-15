@@ -1,6 +1,5 @@
 import EventEmitter from "events";
 import { Agent, createClient } from "stanza";
-import { v4 } from "uuid";
 import { HttpClient } from "../../src/http-client";
 import { MediaMessageEvent, MessengerExtension } from "../../src/messenger";
 import { NamedAgent } from "../../src/types/named-agent";
@@ -11,7 +10,7 @@ function getFakeStanzaClient (): NamedAgent {
     instance,
     {
       config: {},
-      id: v4(),
+      id: globalThis.crypto.randomUUID(),
       jid: 'myuser@asdf.com/client1',
       send: jest.fn().mockResolvedValue(null),
     }

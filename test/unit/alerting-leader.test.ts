@@ -102,10 +102,11 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      const alertingLeaderExposedApi = alertingLeader.expose;
       const expectedPayload = { voice: { alerting: true, configured: false } };
 
       expect.assertions(4);
-      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
+      alertingLeaderExposedApi.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedPayload);
       });
 
@@ -124,7 +125,7 @@ describe('AlertingLeader', () => {
       alertingLeader['getAlertingLeader'] = jest.fn().mockRejectedValue({});
       await alertingLeader['setupAlertingLeader']();
 
-      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
+      expect(alertingLeaderExposedApi.getLeaderStatus()).toMatchObject(expectedPayload);
     });
 
     it('should not set up alerting leader if not configured', async () => {
@@ -165,6 +166,7 @@ describe('AlertingLeader', () => {
       fakeClient.config.userId = userId;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
       fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
       const hawkPayload = {
         eventBody: {
@@ -175,14 +177,14 @@ describe('AlertingLeader', () => {
       const expectedEventPayload = { voice: { alerting: true, configured: true } };
 
       expect.assertions(2);
-      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
+      alertingLeaderExposedApi.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedEventPayload);
       });
 
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
 
-      expect(alertingLeader.expose.leaderStatus).toStrictEqual(expectedEventPayload);
+      expect(alertingLeaderExposedApi.getLeaderStatus()).toStrictEqual(expectedEventPayload);
     });
 
     it('should include the clientType if present', async () => {
@@ -193,6 +195,7 @@ describe('AlertingLeader', () => {
       fakeClient.config.userId = userId;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
       fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
       const hawkPayload = {
         eventBody: {
@@ -204,14 +207,14 @@ describe('AlertingLeader', () => {
       const expectedEventPayload = { voice: { alerting: true, configured: true, clientType } };
 
       expect.assertions(2);
-      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
+      alertingLeaderExposedApi.on('alertingLeaderChanged', (event) => {
         expect(event).toMatchObject(expectedEventPayload);
       });
 
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
 
-      expect(alertingLeader.expose.leaderStatus).toStrictEqual(expectedEventPayload);
+      expect(alertingLeaderExposedApi.getLeaderStatus()).toStrictEqual(expectedEventPayload);
     });
 
     it('should not emit its own event if there is no eventBody', async () => {
@@ -221,12 +224,13 @@ describe('AlertingLeader', () => {
       fakeClient.config.userId = userId;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
       fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
       const hawkPayload = {};
 
       expect.assertions(1);
       const eventSpy = jest.fn();
-      alertingLeader.expose.on('alertingLeaderChanged', eventSpy);
+      alertingLeaderExposedApi.on('alertingLeaderChanged', eventSpy);
 
       await alertingLeader['subscribeToAlertingLeader']();
       fakeClient.emit(`notify:v2.users.${userId}.alertingleader`, hawkPayload);
@@ -241,6 +245,7 @@ describe('AlertingLeader', () => {
       fakeClient.config.userId = userId;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
       fakeClient._notifications._subscribeInternal = jest.fn().mockResolvedValue({});
       const hawkPayload = {
         eventBody: {
@@ -254,7 +259,7 @@ describe('AlertingLeader', () => {
       const axiosMock = new AxiosMockAdapter(axios);
       axiosMock.onGet(alertingLeaderUrl).reply(200, { connectionId });
       const eventSpy = jest.fn();
-      alertingLeader.expose.on('alertingLeaderChanged', eventSpy);
+      alertingLeaderExposedApi.on('alertingLeaderChanged', eventSpy);
 
       await alertingLeader['subscribeToAlertingLeader']();
       const getLeaderPromise = alertingLeader['getAlertingLeader']();
@@ -355,15 +360,16 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
       const expectedPayload = { voice: { alerting: true, configured: true, clientType } };
 
       expect.assertions(2);
-      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
+      alertingLeaderExposedApi.on('alertingLeaderChanged', (event) => {
         expect(event).toStrictEqual(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
 
-      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
+      expect(alertingLeaderExposedApi.getLeaderStatus()).toMatchObject(expectedPayload);
       axiosMock.restore();
     });
 
@@ -376,15 +382,16 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
       const expectedPayload = { voice: { alerting: false, configured: true } };
 
       expect.assertions(2);
-      alertingLeader.expose.on('alertingLeaderChanged', (event) => {
+      alertingLeaderExposedApi.on('alertingLeaderChanged', (event) => {
         expect(event).toStrictEqual(expectedPayload);
       });
       await alertingLeader['getAlertingLeader']();
 
-      expect(alertingLeader.expose.leaderStatus).toMatchObject(expectedPayload);
+      expect(alertingLeaderExposedApi.getLeaderStatus()).toMatchObject(expectedPayload);
       axiosMock.restore();
     });
 
@@ -421,8 +428,9 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
 
-      alertingLeader.expose.claimAlertingLeader();
+      alertingLeaderExposedApi.claimAlertingLeader();
 
       expect(httpSpy.mock.calls[0][0]).toBe(alertingLeaderPath);
       expect(httpSpy.mock.calls[0][1]).toMatchObject({ data: { connectionId: connectionId } });
@@ -437,9 +445,10 @@ describe('AlertingLeader', () => {
       fakeClient.http.requestApi = httpSpy;
       const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
 
       try {
-        await alertingLeader.expose.claimAlertingLeader();
+        await alertingLeaderExposedApi.claimAlertingLeader();
       } catch (err) {
         expect(err).toBeInstanceOf(StreamingClientError);
         expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);
@@ -459,9 +468,10 @@ describe('AlertingLeader', () => {
       const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
       const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
       alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
 
       try {
-        await alertingLeader.expose.claimAlertingLeader();
+        await alertingLeaderExposedApi.claimAlertingLeader();
       } catch (err) {
         expect(err).toBeInstanceOf(StreamingClientError);
         expect((err as any)['type']).toBe(StreamingClientErrorTypes.generic);

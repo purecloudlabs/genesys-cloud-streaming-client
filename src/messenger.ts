@@ -7,7 +7,6 @@ import { GenesysMediaMessage, StreamingClientExtension } from './types/interface
 
 import { Emitter } from 'strict-event-emitter';
 import { toBare } from 'stanza/JID';
-import { v4 } from 'uuid';
 
 type MessageWithMediaMessage = {
   from?: string;
@@ -58,7 +57,7 @@ export class MessengerExtension extends Emitter<MessengerEvents> implements Stre
    * @returns Promise<messageId>
    */
   async broadcastMessage (msg: MessageWithMediaMessage): Promise<string> {
-    const id = v4();
+    const id = globalThis.crypto.randomUUID();
     msg.id = id;
     msg.from = this.stanzaInstance.jid;
 
