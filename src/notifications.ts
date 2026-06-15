@@ -5,7 +5,7 @@ import debounce from 'debounce-promise';
 import { Client } from './client';
 import { IClientOptions, RequestApiOptions, StreamingClientExtension } from './types/interfaces';
 import { NamedAgent } from './types/named-agent';
-import { splitIntoIndividualTopics } from './utils';
+import { splitIntoIndividualTopics, RetryPromise } from './utils';
 import { StreamingSubscriptionError } from './';
 import { AxiosResponse } from 'axios';
 
@@ -29,6 +29,8 @@ export class Notifications implements StreamingClientExtension {
   enablePartialBulkResubscribe: boolean;
 
   private internalSubscriptions: string[];
+  private pendingBulkSubscribeRetry?: RetryPromise<any>;
+  private pendingConnectedWait?: { cancel: (reason?: any) => void };
 
   constructor (client, options?: IClientOptions) {
     this.subscriptions = {};
@@ -209,13 +211,50 @@ export class Notifications implements StreamingClientExtension {
     return keptTopics;
   }
 
-  makeBulkSubscribeRequest (topics: string[], options): Promise<AxiosResponse<ChannelTopicsEntityListing>> {
+  async makeBulkSubscribeRequest (topics: string[], options): Promise<AxiosResponse<ChannelTopicsEntityListing>> {
+    // Cancel any in-flight retry or connected-wait from a previous bulk subscribe.
+    // If the topic list has changed (subscribe/unsubscribe called between retries),
+    // the stale request would send an outdated topic list. Since bulk subscribes with
+    // replace=true use PUT (full replacement), only the most recent request matters.
+    if (this.pendingConnectedWait) {
+      this.pendingConnectedWait.cancel(new Error('Superseded by newer bulk subscribe request'));
+      this.pendingConnectedWait = undefined;
+    }
+    if (this.pendingBulkSubscribeRetry && !this.pendingBulkSubscribeRetry.hasCompleted()) {
+      this.client.logger.info('Cancelling previous bulk subscribe retry — new request supersedes it');
+      this.pendingBulkSubscribeRetry.cancel(new Error('Superseded by newer bulk subscribe request'));
+    }
+
+    // If the client is not connected, wait for reconnection before attempting the request.
+    // This prevents firing requests against a dead/stale channel ID which would result in
+    // 400 errors (notification.unable.to.get.channel.id). After reconnection, the stanza
+    // instance will have the fresh channel ID from the new connection.
+    if (!this.client.connected) {
+      this.client.logger.info('Client not connected, waiting for reconnection before bulk subscribe', {
+        topicCount: topics.length
+      });
+      await new Promise<void>((resolve, reject) => {
+        const onConnected = () => {
+          this.pendingConnectedWait = undefined;
+          resolve();
+        };
+        this.client.once('connected', onConnected);
+        this.pendingConnectedWait = {
+          cancel: (reason?: any) => {
+            this.client.off('connected', onConnected);
+            reject(reason);
+          }
+        };
+      });
+    }
+
     const requestOptions: RequestApiOptions = {
       method: options.replace ? 'put' : 'post',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
       data: JSON.stringify(this.mapCombineTopics(topics)),
-      logger: this.client.logger
+      logger: this.client.logger,
+      maxAttempts: 3
     };
     const channelId = this.stanzaInstance!.channelId;
     let path = `notifications/channels/${channelId}/subscriptions`;
@@ -224,7 +263,10 @@ export class Notifications implements StreamingClientExtension {
       path += '?ignoreErrors=true';
     }
 
-    return this.client.http.requestApi(path, requestOptions);
+    const retry = this.client.http.requestApiWithRetry(path, requestOptions, 2000);
+    this.pendingBulkSubscribeRetry = retry;
+
+    return retry.promise;
   }
 
   createSubscription (topic: string, handler: (obj?: any) => void): void {
@@ -431,7 +473,24 @@ export class Notifications implements StreamingClientExtension {
       this.subscriptions = {};
     }
 
-    const response = await this.makeBulkSubscribeRequest(toSubscribe, options);
+    let response: AxiosResponse<ChannelTopicsEntityListing> | undefined;
+    try {
+      response = await this.makeBulkSubscribeRequest(toSubscribe, options);
+    } catch (err: any) {
+      // If this request was cancelled because a newer bulk subscribe superseded it,
+      // return an 'Unknown' state for all topics. The superseding request will carry
+      // the current desired topic list and handle the actual subscription.
+      if (err?.message?.includes('Superseded by newer bulk subscribe request')) {
+        this.client.logger.debug('Bulk subscribe was superseded, deferring to newer request');
+        const result: BulkSubscribeResult = {};
+        for (const topic of toSubscribe) {
+          result[topic] = { topic, state: 'Unknown' };
+        }
+        return result;
+      }
+      throw err;
+    }
+
     let topicResponseEntities: ChannelTopicResponseEntity[] = [];
     if (response && response.data && 'entities' in response.data && Array.isArray(response.data.entities)) {
       topicResponseEntities = response.data.entities;
