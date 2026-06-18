@@ -4,9 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.8.0...HEAD)
+# [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.0.0...HEAD)
+### Changed
+* [STREAM-1362](https://inindca.atlassian.net/browse/STREAM-1362) - Retry notification subscription
+
+# [v20.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.8.0...v20.0.0)
 ### Breaking Changes
-* [STREAM-1604](https://inindca.atlassian.net/browse/STREAM-1604) - Replace `uuid` with native `globalThis.crypto.randomUUID()`. `randomUUID()` has been widely available in browsers since 2022, so this should only affect you if you use streaming-client in an older browser. Also update `genesys-cloud-client-logger` from v4.2.18 to v5.
+* [STREAM-1604](https://inindca.atlassian.net/browse/STREAM-1604) - Replace `uuid` with native `globalThis.crypto.randomUUID()`. `randomUUID()` has been widely available in browsers since 2022, so this should only affect you if you use streaming-client in an older browser. Also update `genesys-cloud-client-logger` from v4.2.18 to v5. Bump genesys-cloud-client-logger to v5.0.0.
 
 # [v19.8.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.7.1...v19.8.0)
 ### Added
@@ -15,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [v19.7.1](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.7.0...v19.7.1)
 ### Changed
 * [STREAM-1488](https://inindca.atlassian.net/browse/STREAM-1488) - Update `axios` to v1.15.2
-* [STREAM-1362](https://inindca.atlassian.net/browse/STREAM-1362) - Retry notification subscription
 
 ### Fixed
 * [STREAM-1322](https://inindca.atlassian.net/browse/STREAM-1322) - Fix `logLevel` option being ignored. The value was not copied from `IClientOptions` into the internal config, so the logger always defaulted to `'info'`.
