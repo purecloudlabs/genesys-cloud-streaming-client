@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.0.0...HEAD)
 ### Changed
 * [STREAM-1362](https://inindca.atlassian.net/browse/STREAM-1362) - Retry notification subscription
+* [STREAM-1711](https://inindca.atlassian.net/browse/STREAM-1711) - Fetch current alerting leader status sooner and add retry; upgrade `axios` to v1.17.0 and `ws` to v8.21.0.
 
 # [v20.0.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v19.8.0...v20.0.0)
 ### Breaking Changes
