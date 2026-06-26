@@ -8,7 +8,7 @@ import { StreamingClientError, retryPromise } from './utils';
 export class AlertingLeaderExtension extends EventEmitter implements StreamingClientExtension {
   private connectionId?: string;
   private alertableInteractionTypes: AlertableInteractionTypes[];
-  private abortController?: AbortController;
+  private getLeaderAbortController?: AbortController;
   private leaderStatus: ILeaderStatus = {};
 
   constructor (private client: Client, options: IClientOptions) {
@@ -26,11 +26,12 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private async setupAlertingLeader () {
     if (this.alertableInteractionTypes.length !== 0) {
       try {
+        this.getAlertingLeaderEarly();
         await this.subscribeToAlertingLeader();
         await this.markAsAlertable();
         await this.getAlertingLeader();
       } catch (err) {
-        this.client.logger.warn('Failed to setup alerting leader; falling back to the default of acting as the alerting leader');
+        this.client.logger.warn('Failed to setup alerting leader; falling back to acting as the leader');
         // Fail 'open' so users don't miss calls
         this.leaderStatus = { voice: { alerting: true, configured: false } };
         this.emit('alertingLeaderChanged', this.leaderStatus);
@@ -41,10 +42,10 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private async subscribeToAlertingLeader (): Promise<any> {
     const topic = `v2.users.${this.client.config.userId}.alertingleader`;
     this.client.on(`notify:${topic}`, (event) => {
-      this.abortController?.abort();
+      this.getLeaderAbortController?.abort();
 
       if (event.eventBody?.connectionId) {
-        // We should alert if our connection is the alerting leader connection
+        // The consuming client should be the one alerting if our connection is the current leader
         const alerting: boolean = event.eventBody.connectionId === this.connectionId;
         const clientType = event.eventBody.clientType;
         let voice: IAlertingStatus = { alerting, configured: true };
@@ -91,23 +92,37 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
 
     return retry.promise
       .catch(() => {
-        this.client.logger.warn('Could not mark this connection as alertable; this client may not alert for incoming interactions');
+        this.client.logger.warn('Could not mark this connection as alertable');
       });
   }
 
+  private async getAlertingLeaderEarly (): Promise<void> {
+    try {
+      await this.getAlertingLeader();
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.status === 400) {
+        this.client.logger.info('The org has not configured alerting leader functionality or there are not yet any active alertable connections; falling back to acting as the leader');
+        this.leaderStatus = { voice: { alerting: true, configured: false } };
+        this.emit('alertingLeaderChanged', this.leaderStatus);
+      }
+    }
+  }
+
   private async getAlertingLeader (): Promise<void> {
-    this.abortController = new AbortController();
+    // If an early request is still in-flight, cancel it and get more recent data
+    this.getLeaderAbortController?.abort();
+    this.getLeaderAbortController = new AbortController();
     const leaderRequestOptions: RequestApiOptions = {
       method: 'get',
       host: this.client.config.apiHost,
       authToken: this.client.config.authToken,
       logger: this.client.logger,
-      signal: this.abortController.signal
+      signal: this.getLeaderAbortController.signal
     };
 
     try {
-      const currentLeader = await this.client.http.requestApi('users/alertingleader', leaderRequestOptions);
-      // We should alert if our connection is the alerting leader connection
+      const currentLeader = await this.client.http.requestApiWithRetry('users/alertingleader', leaderRequestOptions, 1000).promise;
+      // The consuming client should be the one alerting if our connection is the current leader
       const alerting: boolean = currentLeader.data.connectionId === this.connectionId;
       const clientType = currentLeader.data.clientType;
       let voice: IAlertingStatus = { alerting, configured: true };
