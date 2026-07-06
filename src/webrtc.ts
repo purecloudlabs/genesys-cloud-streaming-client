@@ -352,7 +352,13 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     const message = iq.genesysWebrtc!;
     const params: GenesysSessionTerminateParams = message.params as GenesysSessionTerminateParams;
 
-    const session = this.getSessionById(params.sessionId);
+    const session = this.getSessionById(params.sessionId, true);
+
+    if (!session) {
+      this.logger.warn('Received terminate for session that does not exist', { sessionId: params.sessionId });
+      return;
+    }
+
     (session as GenesysCloudMediaSession).onSessionTerminate(params.reason);
   }
 
