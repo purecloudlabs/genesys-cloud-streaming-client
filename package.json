@@ -122,5 +122,10 @@
     "webpack-cli": "^6.0.1",
     "webpack-node-externals": "^2.5.0"
   },
-  "false": {}
+  "false": {},
+  "//overrides": "CVE-2026-41907 (uuid via stanza.io/jxt). CVE-2026-12143 (form-data via superagent). Remove when upstream deps update.",
+  "overrides": {
+    "uuid@<11.1.1": "11.1.1",
+    "form-data@<4.0.6": "4.0.6"
+  }
 }
