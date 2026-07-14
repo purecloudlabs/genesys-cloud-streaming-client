@@ -28,11 +28,15 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       try {
         this.getAlertingLeaderEarly();
         await this.subscribeToAlertingLeader();
+        this.client.logger.debug('setupAlertingLeader: Done subscribing to topi');
         await this.markAsAlertable();
+        this.client.logger.debug('setupAlertingLeader: Done marking connection as alertable');
         await this.getAlertingLeader();
+        this.client.logger.debug('setupAlertingLeader: Done getting current leader');
       } catch (err) {
         this.client.logger.warn('Failed to setup alerting leader; falling back to acting as the leader');
         // Fail 'open' so users don't miss calls
+        this.client.logger.debug('setupAlertingLeader: Saving and emitting { voice: { alerting: true, configured: false } }');
         this.leaderStatus = { voice: { alerting: true, configured: false } };
         this.emit('alertingLeaderChanged', this.leaderStatus);
       }
@@ -52,6 +56,9 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
         if (clientType) {
           voice = { ...voice, clientType };
         }
+        const message = 'subscribeToAlertingLeader event: Event connection ID: ' + event.eventBody?.connectionId ?? 'N/A';
+        this.client.logger.debug(message);
+        this.client.logger.debug('subscribeToAlertingLeader event: Saving and emitting { voice: { alerting: ' + alerting + ', configured: true } }');
         this.leaderStatus = { voice };
         this.emit('alertingLeaderChanged', this.leaderStatus);
       }
@@ -102,6 +109,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     } catch (error) {
       if (axios.isAxiosError(error) && error.status === 400) {
         this.client.logger.info('The org has not configured alerting leader functionality or there are not yet any active alertable connections; falling back to acting as the leader');
+        this.client.logger.debug('getAlertingLeaderEarly: Saving and emitting { voice: { alerting: true, configured: false } }');
         this.leaderStatus = { voice: { alerting: true, configured: false } };
         this.emit('alertingLeaderChanged', this.leaderStatus);
       }
@@ -129,6 +137,9 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
       if (clientType) {
         voice = { ...voice, clientType };
       }
+      const message = 'getAlertingLeader: Event connection ID: ' + currentLeader.data?.connectionId ?? 'N/A';
+      this.client.logger.debug(message);
+      this.client.logger.debug('getAlertingLeader: Saving and emitting { voice: { alerting: ' + alerting + ', configured: true } }');
       this.leaderStatus = { voice };
       this.emit('alertingLeaderChanged', this.leaderStatus);
     } catch (err) {
