@@ -121,6 +121,7 @@ export class Client extends EventEmitter {
       logLevel: this.config.logLevel || 'info',
       logger: options.logger || console,
       formatters: options.logFormatters,
+      useUniqueLogUploader: options.useUniqueLogUploader,
       /* secondary/parent app info */
       originAppName: options.appName,
       originAppVersion: options.appVersion,
