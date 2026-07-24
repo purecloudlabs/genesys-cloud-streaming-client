@@ -23,6 +23,8 @@ export interface IClientOptions {
   appVersion?: string;
   appId?: string;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
+  /** When true, creates a unique log uploader instance rather than sharing a singleton per URL. */
+  useUniqueLogUploader?: boolean;
   /** Allow bulk topic resubscribe to succeed or fail per-topic rather than all or nothing */
   enablePartialBulkResubscribe?: boolean;
   /** Genesys internal use only - non-Genesys apps that pass in `alertableInteractionTypes` may experience unexpected behavior */
