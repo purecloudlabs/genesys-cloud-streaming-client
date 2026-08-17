@@ -63,6 +63,7 @@
     "stanza": "^12.21.1",
     "strict-event-emitter": "^0.5.0",
     "strict-event-emitter-types": "^2.0.0",
+    "tslib": "^2.8.1",
     "unorm": "^1.6.0",
     "webrtc-stats-gatherer": "^9.0.10",
     "whatwg-fetch": "^3.0.0",
