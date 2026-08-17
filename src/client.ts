@@ -16,6 +16,7 @@ import { RequestApiOptions, IClientOptions, IClientConfig, StreamingClientConnec
 import { AxiosError } from 'axios';
 import { NamedAgent } from './types/named-agent';
 import { Client as StanzaClient } from 'stanza';
+import { IQ } from 'stanza/protocol';
 import EventEmitter from 'events';
 import { ConnectionManager } from './connection-manager';
 import { backOff } from 'exponential-backoff';
@@ -41,6 +42,9 @@ const SESSION_STORE_KEY = 'sc_connectionData';
 const BACKOFF_DECREASE_DELAY_MULTIPLIER = 5;
 const INITIAL_DELAY = 2000;
 
+// hjon:upgrade
+// hjon:iq:result
+
 export class Client extends EventEmitter {
   activeStanzaInstance?: NamedAgent;
   connected = false;
@@ -65,6 +69,7 @@ export class Client extends EventEmitter {
   private boundStanzaDisconnect?: () => Promise<any>;
   private boundStanzaNoLongerSubscribed?: () => void;
   private boundStanzaDuplicateId?: () => void;
+  private boundHandleIQResult?: (iq: IQ) => void;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
@@ -180,9 +185,16 @@ export class Client extends EventEmitter {
     return false;
   }
 
+  private async handleIQResult (iq: IQ) {
+    this.logger.warn(`Hjon: IQ result with id ${iq.id} received: ${iq}`);
+  }
+
   private addInateEventHandlers (stanza: NamedAgent) {
     // make sure we don't stack event handlers. There should only ever be *at most* one handler
     this.removeStanzaBoundEventHandlers();
+
+    this.boundHandleIQResult = this.handleIQResult.bind(this);
+    stanza.on('hjon:iq:result' as any, this.boundHandleIQResult);
 
     this.boundStanzaDisconnect = this.handleStanzaDisconnectedEvent.bind(this, stanza);
     this.boundStanzaNoLongerSubscribed = this.handleNoLongerSubscribed.bind(this, stanza);
@@ -203,6 +215,10 @@ export class Client extends EventEmitter {
   }
 
   private removeStanzaBoundEventHandlers () {
+    if (this.boundHandleIQResult) {
+      this.activeStanzaInstance?.off('hjon:iq:result', this.boundHandleIQResult);
+      this.boundHandleIQResult = undefined;
+    }
     if (this.boundStanzaDisconnect) {
       this.off(STANZA_DISCONNECTED, this.boundStanzaDisconnect);
       this.boundStanzaDisconnect = undefined;
