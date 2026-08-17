@@ -60,7 +60,7 @@
     "limiter": "^1.1.0",
     "lodash.throttle": "^4.1.1",
     "lru-cache": "^11.0.1",
-    "stanza": "^12.22.1",
+    "stanza": "github:hjon/stanza#moreEvents",
     "strict-event-emitter": "^0.5.0",
     "strict-event-emitter-types": "^2.0.0",
     "tslib": "^2.8.1",
