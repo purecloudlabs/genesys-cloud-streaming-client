@@ -70,6 +70,8 @@ export class Client extends EventEmitter {
   private boundStanzaNoLongerSubscribed?: () => void;
   private boundStanzaDuplicateId?: () => void;
   private boundHandleIQResult?: (iq: IQ) => void;
+  private boundHandleSocketError?: (error: any) => void;
+  private boundHandleSocketReset?: (error: any) => void;
 
   http: HttpClient;
   notifications!: NotificationsAPI;
@@ -189,12 +191,24 @@ export class Client extends EventEmitter {
     this.logger.warn(`Hjon: IQ result with id ${iq.id} received: ${iq}`);
   }
 
+  private handleSocketError (error: any) {
+    this.logger.warn(`Hjon: socket error: ${error}`);
+  }
+
+  private handleSocketReset (error: any) {
+    this.logger.warn(`Hjon: socket error seems to be a RST: ${error}`);
+  }
+
   private addInateEventHandlers (stanza: NamedAgent) {
     // make sure we don't stack event handlers. There should only ever be *at most* one handler
     this.removeStanzaBoundEventHandlers();
 
     this.boundHandleIQResult = this.handleIQResult.bind(this);
     stanza.on('hjon:iq:result' as any, this.boundHandleIQResult);
+    this.boundHandleSocketError = this.handleSocketError.bind(this);
+    stanza.on('hjon:socketerror' as any, this.boundHandleSocketError);
+    this.boundHandleSocketReset = this.handleSocketReset.bind(this);
+    stanza.on('hjon:socketerror:reset' as any, this.boundHandleSocketReset);
 
     this.boundStanzaDisconnect = this.handleStanzaDisconnectedEvent.bind(this, stanza);
     this.boundStanzaNoLongerSubscribed = this.handleNoLongerSubscribed.bind(this, stanza);
@@ -219,6 +233,17 @@ export class Client extends EventEmitter {
       this.activeStanzaInstance?.off('hjon:iq:result', this.boundHandleIQResult);
       this.boundHandleIQResult = undefined;
     }
+
+    if (this.boundHandleSocketError) {
+      this.activeStanzaInstance?.on('hjon:socketerror' as any, this.boundHandleSocketError);
+      this.boundHandleSocketError = undefined;
+    }
+
+    if (this.boundHandleSocketReset) {
+      this.activeStanzaInstance?.on('hjon:socketerror:reset' as any, this.boundHandleSocketReset);
+      this.boundHandleSocketReset = undefined;
+    }
+
     if (this.boundStanzaDisconnect) {
       this.off(STANZA_DISCONNECTED, this.boundStanzaDisconnect);
       this.boundStanzaDisconnect = undefined;
