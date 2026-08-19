@@ -2,7 +2,10 @@
   "name": "genesys-cloud-streaming-client",
   "version": "20.0.2",
   "description": "client for the Genesys Cloud Streaming APIs (websocket/xmpp interface)",
-  "repository": "https:github.com/purecloudlabs/genesys-cloud-streaming-client",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/purecloudlabs/genesys-cloud-streaming-client.git"
+  },
   "license": "MIT",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
