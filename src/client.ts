@@ -92,6 +92,7 @@ export class Client extends EventEmitter {
       jwt: options.jwt,
       jid: options.jid,
       jidResource: options.jidResource,
+      userId: options.userId,
       channelId: null as any, // created on connect
       appName: options.appName,
       appVersion: options.appVersion,
