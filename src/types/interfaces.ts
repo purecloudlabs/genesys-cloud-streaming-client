@@ -9,6 +9,7 @@ export interface IClientOptions {
   authToken?: string;
   jwt?: string;
   jid?: string;
+  userId?: string;
   jidResource?: string;
   reconnectOnNoLongerSubscribed?: boolean;
   optOutOfWebrtcStatsTelemetry?: boolean;
