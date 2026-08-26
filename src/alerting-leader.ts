@@ -1,4 +1,5 @@
 import axios from 'axios';
+import debounce from 'debounce-promise';
 import { AlertableInteractionTypes, IAlertingStatus, IClientOptions, ILeaderStatus, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
 import { EventEmitter } from 'events';
@@ -10,11 +11,13 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
   private alertableInteractionTypes: AlertableInteractionTypes[];
   private getLeaderAbortController?: AbortController;
   private leaderStatus: ILeaderStatus = {};
+  private debouncedClaimAlertingLeader: () => Promise<void>;
 
   constructor (private client: Client, options: IClientOptions) {
     super();
 
     this.alertableInteractionTypes = options.alertableInteractionTypes ?? [];
+    this.debouncedClaimAlertingLeader = debounce(this.claimAlertingLeader.bind(this), 300);
   }
 
   handleStanzaInstanceChange (stanzaInstance: NamedAgent) {
@@ -169,7 +172,7 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     return {
       on: this.on.bind(this),
       off: this.off.bind(this),
-      claimAlertingLeader: this.claimAlertingLeader.bind(this),
+      claimAlertingLeader: this.debouncedClaimAlertingLeader,
       getLeaderStatus: () => { return this.leaderStatus; },
       leaderStatus: this.leaderStatus
     };

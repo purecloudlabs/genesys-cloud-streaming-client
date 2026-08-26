@@ -512,7 +512,24 @@ describe('AlertingLeader', () => {
   });
 
   describe('claimAlertingLeader', () => {
-    it('should claim alerting leader', () => {
+    it('should claim alerting leader', async () => {
+      const connectionId = 'connection123';
+      const alertingLeaderPath = 'users/alertingleader';
+      const httpSpy = jest.fn().mockResolvedValue({});
+      const fakeClient = new FakeClient({}) as unknown as Client;
+      fakeClient.http.requestApi = httpSpy;
+      const clientOptions = { alertableInteractionTypes: [ AlertableInteractionTypes.voice ] };
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, clientOptions as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      const alertingLeaderExposedApi = alertingLeader.expose;
+
+      await alertingLeaderExposedApi.claimAlertingLeader();
+
+      expect(httpSpy.mock.calls[0][0]).toBe(alertingLeaderPath);
+      expect(httpSpy.mock.calls[0][1]).toMatchObject({ data: { connectionId: connectionId } });
+    });
+
+    it('should debounce multiple claim requests', async () => {
       const connectionId = 'connection123';
       const alertingLeaderPath = 'users/alertingleader';
       const httpSpy = jest.fn().mockResolvedValue({});
@@ -524,9 +541,10 @@ describe('AlertingLeader', () => {
       const alertingLeaderExposedApi = alertingLeader.expose;
 
       alertingLeaderExposedApi.claimAlertingLeader();
+      alertingLeaderExposedApi.claimAlertingLeader();
+      await alertingLeaderExposedApi.claimAlertingLeader();
 
-      expect(httpSpy.mock.calls[0][0]).toBe(alertingLeaderPath);
-      expect(httpSpy.mock.calls[0][1]).toMatchObject({ data: { connectionId: connectionId } });
+      expect(httpSpy.mock.calls).toHaveLength(1);
     });
 
     it('should throw generic StreamingClientError if client is not configured for any alertable interactions', async () => {
