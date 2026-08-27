@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.0.1...HEAD)
 ### Changed
+* [STREAM-1992](https://inindca.atlassian.net/browse/STREAM-1992) - Upgraded axios to v1.18.0 to fix Snyk vulnerabilities
 * [STREAM-1784](https://inindca.atlassian.net/browse/STREAM-1784) - Properly handle session not found for terminate stanza
 * [STREAM-2184](https://inindca.atlassian.net/browse/STREAM-2184) - Update stanza to v12.22.1
 * [STREAM-2176](https://inindca.atlassian.net/browse/STREAM-2176) - Allow userId to be passed in as a client option so it doesn't need to be fetched again
