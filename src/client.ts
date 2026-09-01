@@ -7,7 +7,7 @@ import './polyfills';
 import { AlertingLeaderExtension, AlertingLeaderApi } from './alerting-leader';
 import { Notifications, NotificationsAPI } from './notifications';
 import { WebrtcExtension, WebrtcExtensionAPI } from './webrtc';
-import { Ping } from './ping';
+import { Ping, PingOptions } from './ping';
 import { ServerMonitor } from './server-monitor';
 import { StreamingClientError, delay, parseJwt, timeoutPromise } from './utils';
 import { StreamingClientExtension } from './types/streaming-client-extension';
@@ -104,7 +104,8 @@ export class Client extends EventEmitter {
       appVersion: options.appVersion,
       appId: options.appId,
       logLevel: options.logLevel,
-      customHeaders: options.customHeaders
+      customHeaders: options.customHeaders,
+      experimentalOptions: options.experimentalOptions
     };
 
     this.backgroundAssistantMode = this.checkIsBackgroundAssistant();
@@ -746,7 +747,22 @@ export class Client extends EventEmitter {
       stanzaInstance.pinger = new Ping(this, stanzaInstance);
     };
 
-    if (this.useServerSidePings) {
+    const useHybridPings = !!this.config.experimentalOptions?.useHybridPings;
+    if (useHybridPings) {
+      try {
+        // if this fails, then hawk doesn't support serverside pinging and we'll only do client side pings
+        await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');
+        stanzaInstance.serverMonitor = new ServerMonitor(this, stanzaInstance);
+      } catch (err) {
+        this.logger.warn('hybrid pings: failed to establish server-side pinging, only client-side pings will be used', { stanzaInstanceId: stanzaInstance.id, channelId: stanzaInstance.channelId });
+      }
+
+      const options: PingOptions = {
+        pingInterval: 5 * 1000,
+        failedPingsBeforeDisconnect: 2
+      };
+      stanzaInstance.pinger = new Ping(this, stanzaInstance, options);
+    } else if (this.useServerSidePings) {
       try {
         // if this fails, then hawk doesn't support serverside pinging and we need to do client side pings
         await stanzaInstance.subscribeToNode(this._notifications.pubsubHost, 'enable.server.side.pings');

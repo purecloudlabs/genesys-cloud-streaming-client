@@ -29,6 +29,8 @@ export interface IClientOptions {
   enablePartialBulkResubscribe?: boolean;
   /** Genesys internal use only - non-Genesys apps that pass in `alertableInteractionTypes` may experience unexpected behavior */
   alertableInteractionTypes?: AlertableInteractionTypes[];
+  /** Genesys internal use only - These options may change or be removed at any time without communication. */
+  experimentalOptions?: Record<string, any>;
 }
 
 export interface ICustomHeader {
@@ -78,6 +80,7 @@ export interface IClientConfig {
   appId?: string;
   logLevel?: LogLevel;
   customHeaders?: ICustomHeader; // Genesys internal use only - non-Genesys apps that pass in custom headers will be ignored.
+  experimentalOptions?: Record<string, any>; // Genesys internal use only as these options may change or be removed at any time.
 }
 
 export interface IHttpClientOptions {
