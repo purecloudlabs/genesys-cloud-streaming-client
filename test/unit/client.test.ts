@@ -967,6 +967,52 @@ describe('makeConnectionAttempt', () => {
     expect(client.connecting).toBeFalsy();
   });
 
+  /*
+  *  This is to guard an issue where an extension checked the `connected` property but didn't have
+  *  the new stanza instance via `handleStanzaInstanceChange` yet. The extension could be more defensive
+  *  but it seemed like a good idea for the property and the event to be more closely tied.
+  */
+  it('should not set `connected` to `true` until just before emitting the event', async () => {
+    expect.assertions(12);
+    const fakeInstance = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
+    getConnectionSpy.mockResolvedValue(fakeInstance);
+    prepareSpy.mockResolvedValue(null);
+
+    const verifyConnectedIsFalsy = () => {
+      expect(client.connected).toBeFalsy();
+    };
+    const addHandlersSpy = client['addInateEventHandlers'] = jest.fn().mockImplementation(verifyConnectedIsFalsy);
+    const proxyEventsSpy = client['proxyStanzaEvents'] = jest.fn().mockImplementation(verifyConnectedIsFalsy);
+
+    const fakeExtension = {
+      configureNewStanzaInstance: jest.fn().mockImplementation(() => {
+        expect(client.connected).toBeFalsy();
+        return Promise.resolve(null);
+      }),
+      handleStanzaInstanceChange: jest.fn().mockImplementation(verifyConnectedIsFalsy)
+    }
+
+    client['extensions'] = [fakeExtension];
+
+    client.on('connected', () => {
+      expect(true).toBeTruthy();
+    });
+
+    await client['makeConnectionAttempt']();
+    expect(client.activeStanzaInstance).toBe(fakeInstance);
+    expect(addHandlersSpy).toHaveBeenCalled();
+    expect(proxyEventsSpy).toHaveBeenCalled();
+    expect(fakeExtension.configureNewStanzaInstance).toHaveBeenCalled();
+    expect(fakeExtension.handleStanzaInstanceChange).toHaveBeenCalled();
+    expect(client.connected).toBeTruthy();
+    expect(client.connecting).toBeFalsy();
+  });
+
   it('should clean up connection if an extension fails configureNewStanzaInstance', async () => {
     const disconnectSpy = jest.fn();
     const fakeEmit = jest.fn();
