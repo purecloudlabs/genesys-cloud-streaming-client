@@ -969,48 +969,52 @@ describe('makeConnectionAttempt', () => {
 
   /*
   *  This is to guard an issue where an extension checked the `connected` property but didn't have
-  *  the new stanza instance via `handleStanzaInstanceChange` yet. The extension could be more defensive
+  *  the new stanza instance via `handleStanzaInstanceChange` yet. There are other ways to fix this
   *  but it seemed like a good idea for the property and the event to be more closely tied.
   */
-  it('should not set `connected` to `true` until just before emitting the event', async () => {
-    expect.assertions(12);
-    const fakeInstance = {
+  it('should not set `connected` to `true` until emitting the event', async () => {
+    interface Trace {
+      label: string;
+      connected: boolean;
+      connecting: boolean;
+    }
+    const traces: Trace[] = [];
+    const record = (label: string) => traces.push({ label, connected: client.connected, connecting: client.connecting });
+
+    const fakeStanzaInstance = {
       on: jest.fn(),
       stanzas: {
         define: jest.fn()
       }
     };
-    getConnectionSpy.mockResolvedValue(fakeInstance);
+    getConnectionSpy.mockResolvedValue(fakeStanzaInstance);
     prepareSpy.mockResolvedValue(null);
 
-    const verifyConnectedIsFalsy = () => {
-      expect(client.connected).toBeFalsy();
-    };
-    const addHandlersSpy = client['addInateEventHandlers'] = jest.fn().mockImplementation(verifyConnectedIsFalsy);
-    const proxyEventsSpy = client['proxyStanzaEvents'] = jest.fn().mockImplementation(verifyConnectedIsFalsy);
-
+    // Setup tracing
+    client['addInateEventHandlers'] = jest.fn().mockImplementation(() => record('addInateEventHandlers'));
+    client['proxyStanzaEvents'] = jest.fn().mockImplementation(() => record('proxyStanzaEvents'));
     const fakeExtension = {
       configureNewStanzaInstance: jest.fn().mockImplementation(() => {
-        expect(client.connected).toBeFalsy();
+        record('configureNewStanzaInstance');
         return Promise.resolve(null);
       }),
-      handleStanzaInstanceChange: jest.fn().mockImplementation(verifyConnectedIsFalsy)
-    }
+      handleStanzaInstanceChange: jest.fn().mockImplementation(() => record('handleStanzaInstanceChange'))
+    };
+    client.on('connected', () => record('connected event'));
 
+    // Setup client state
+    client.connecting = true;
     client['extensions'] = [fakeExtension];
 
-    client.on('connected', () => {
-      expect(true).toBeTruthy();
-    });
-
     await client['makeConnectionAttempt']();
-    expect(client.activeStanzaInstance).toBe(fakeInstance);
-    expect(addHandlersSpy).toHaveBeenCalled();
-    expect(proxyEventsSpy).toHaveBeenCalled();
-    expect(fakeExtension.configureNewStanzaInstance).toHaveBeenCalled();
-    expect(fakeExtension.handleStanzaInstanceChange).toHaveBeenCalled();
-    expect(client.connected).toBeTruthy();
-    expect(client.connecting).toBeFalsy();
+
+    expect(traces).toEqual([
+      { label: 'addInateEventHandlers', connected: false, connecting: true },
+      { label: 'proxyStanzaEvents', connected: false, connecting: true },
+      { label: 'configureNewStanzaInstance', connected: false, connecting: true },
+      { label: 'handleStanzaInstanceChange', connected: false, connecting: true },
+      { label: 'connected event', connected: true, connecting: false },
+    ]);
   });
 
   it('should clean up connection if an extension fails configureNewStanzaInstance', async () => {
