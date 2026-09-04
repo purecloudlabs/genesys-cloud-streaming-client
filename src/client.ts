@@ -661,8 +661,6 @@ export class Client extends EventEmitter {
       }
 
       stanzaInstance = await this.connectionManager.getNewStanzaConnection();
-      this.connected = true;
-      this.connecting = false;
       this.addInateEventHandlers(stanzaInstance);
       this.proxyStanzaEvents(stanzaInstance);
 
@@ -677,9 +675,11 @@ export class Client extends EventEmitter {
         extension.handleStanzaInstanceChange(stanzaInstance);
       }
 
-      this.activeStanzaInstance = stanzaInstance;
-
       await this.setupConnectionMonitoring(stanzaInstance);
+
+      this.activeStanzaInstance = stanzaInstance;
+      this.connected = true;
+      this.connecting = false;
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {
