@@ -254,7 +254,7 @@ export class Notifications implements StreamingClientExtension {
       authToken: this.client.config.authToken,
       data: JSON.stringify(this.mapCombineTopics(topics)),
       logger: this.client.logger,
-      maxAttempts: 3
+      maxAttempts: 4
     };
     const channelId = this.stanzaInstance!.channelId;
     let path = `notifications/channels/${channelId}/subscriptions`;
