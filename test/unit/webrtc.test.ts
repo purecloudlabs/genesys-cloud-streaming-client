@@ -1954,6 +1954,24 @@ describe('handleGenesysTerminate', () => {
     await webrtc['handleGenesysTerminate'](iq);
     expect(session.onSessionTerminate).toHaveBeenCalledWith('general-error');
   });
+
+  it('should not throw when session does not exist', async () => {
+    webrtc['getSessionById'] = jest.fn().mockReturnValue(undefined);
+
+    const iq: IQ = {
+      type: 'set',
+      genesysWebrtc: {
+        jsonrpc: '2.0',
+        method: 'terminate',
+        params: {
+          sessionId: 'session24',
+          reason: 'general-error'
+        } as GenesysSessionTerminateParams
+      }
+    };
+
+    await expect(webrtc['handleGenesysTerminate'](iq)).resolves.toBeUndefined();
+  });
 });
 
 describe('handleGenesysIceCandidate', () => {

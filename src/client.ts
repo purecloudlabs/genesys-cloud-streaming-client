@@ -92,6 +92,7 @@ export class Client extends EventEmitter {
       jwt: options.jwt,
       jid: options.jid,
       jidResource: options.jidResource,
+      userId: options.userId,
       channelId: null as any, // created on connect
       appName: options.appName,
       appVersion: options.appVersion,
@@ -121,6 +122,7 @@ export class Client extends EventEmitter {
       logLevel: this.config.logLevel || 'info',
       logger: options.logger || console,
       formatters: options.logFormatters,
+      useUniqueLogUploader: options.useUniqueLogUploader,
       /* secondary/parent app info */
       originAppName: options.appName,
       originAppVersion: options.appVersion,
@@ -659,8 +661,6 @@ export class Client extends EventEmitter {
       }
 
       stanzaInstance = await this.connectionManager.getNewStanzaConnection();
-      this.connected = true;
-      this.connecting = false;
       this.addInateEventHandlers(stanzaInstance);
       this.proxyStanzaEvents(stanzaInstance);
 
@@ -675,9 +675,11 @@ export class Client extends EventEmitter {
         extension.handleStanzaInstanceChange(stanzaInstance);
       }
 
-      this.activeStanzaInstance = stanzaInstance;
-
       await this.setupConnectionMonitoring(stanzaInstance);
+
+      this.activeStanzaInstance = stanzaInstance;
+      this.connected = true;
+      this.connecting = false;
       this.emit('connected');
     } catch (err) {
       if (stanzaInstance) {

@@ -967,6 +967,56 @@ describe('makeConnectionAttempt', () => {
     expect(client.connecting).toBeFalsy();
   });
 
+  /*
+  *  This is to guard an issue where an extension checked the `connected` property but didn't have
+  *  the new stanza instance via `handleStanzaInstanceChange` yet. There are other ways to fix this
+  *  but it seemed like a good idea for the property and the event to be more closely tied.
+  */
+  it('should not set `connected` to `true` until emitting the event', async () => {
+    interface Trace {
+      label: string;
+      connected: boolean;
+      connecting: boolean;
+    }
+    const traces: Trace[] = [];
+    const record = (label: string) => traces.push({ label, connected: client.connected, connecting: client.connecting });
+
+    const fakeStanzaInstance = {
+      on: jest.fn(),
+      stanzas: {
+        define: jest.fn()
+      }
+    };
+    getConnectionSpy.mockResolvedValue(fakeStanzaInstance);
+    prepareSpy.mockResolvedValue(null);
+
+    // Setup tracing
+    client['addInateEventHandlers'] = jest.fn().mockImplementation(() => record('addInateEventHandlers'));
+    client['proxyStanzaEvents'] = jest.fn().mockImplementation(() => record('proxyStanzaEvents'));
+    const fakeExtension = {
+      configureNewStanzaInstance: jest.fn().mockImplementation(() => {
+        record('configureNewStanzaInstance');
+        return Promise.resolve(null);
+      }),
+      handleStanzaInstanceChange: jest.fn().mockImplementation(() => record('handleStanzaInstanceChange'))
+    };
+    client.on('connected', () => record('connected event'));
+
+    // Setup client state
+    client.connecting = true;
+    client['extensions'] = [fakeExtension];
+
+    await client['makeConnectionAttempt']();
+
+    expect(traces).toEqual([
+      { label: 'addInateEventHandlers', connected: false, connecting: true },
+      { label: 'proxyStanzaEvents', connected: false, connecting: true },
+      { label: 'configureNewStanzaInstance', connected: false, connecting: true },
+      { label: 'handleStanzaInstanceChange', connected: false, connecting: true },
+      { label: 'connected event', connected: true, connecting: false },
+    ]);
+  });
+
   it('should clean up connection if an extension fails configureNewStanzaInstance', async () => {
     const disconnectSpy = jest.fn();
     const fakeEmit = jest.fn();
@@ -1281,7 +1331,7 @@ describe('prepareForConnect', () => {
     httpSpy = client.http.requestApi = jest.fn().mockImplementation((path) => {
       const promise = new Promise((resolve, reject) => {
         if (path === 'users/me') {
-          return resolve({ data: { chat: { jabberId: 'myRequestedJid' } } });
+          return resolve({ data: { id: 'abc123', chat: { jabberId: 'myRequestedJid' } } });
         } else if (path.startsWith('notifications/channels')) {
           return resolve({ data: { id: 'myNotiChannel' } });
         }
@@ -1310,7 +1360,9 @@ describe('prepareForConnect', () => {
     expect(httpSpy).not.toHaveBeenCalled();
   });
 
-  it('should fetch jid if it doesnt have one', async () => {
+  it('should fetch jid if not present in config', async () => {
+    client.config.userId = 'abc123';
+
     await client['prepareForConnect']();
     expect(httpSpy).toHaveBeenCalledTimes(2);
     expect(client.config).toEqual(expect.objectContaining({
@@ -1322,7 +1374,7 @@ describe('prepareForConnect', () => {
     expect(setConfigSpy).toHaveBeenCalled();
   });
 
-  it('should not fetch jid if it already had one', async () => {
+  it('should not fetch jid if already present in config', async () => {
     client.config.userId = 'abc123';
     client.config.jid = 'myJid';
 
@@ -1331,6 +1383,33 @@ describe('prepareForConnect', () => {
     expect(client.config).toEqual(expect.objectContaining({
       jid: 'myJid',
       channelId: 'myNotiChannel'
+    }));
+
+    expect(client.hardReconnectRequired).toBeFalsy();
+    expect(setConfigSpy).toHaveBeenCalled();
+  });
+
+  it('should fetch userId if not present in config', async () => {
+    client.config.jid = 'myJid';
+
+    await client['prepareForConnect']();
+    expect(httpSpy).toHaveBeenCalledTimes(2);
+    expect(client.config).toEqual(expect.objectContaining({
+      userId: 'abc123'
+    }));
+
+    expect(client.hardReconnectRequired).toBeFalsy();
+    expect(setConfigSpy).toHaveBeenCalled();
+  });
+
+  it('should not fetch userId if already present in config', async () => {
+    client.config.userId = 'abc123';
+    client.config.jid = 'myJid';
+
+    await client['prepareForConnect']();
+    expect(httpSpy).toHaveBeenCalledTimes(1);
+    expect(client.config).toEqual(expect.objectContaining({
+      userId: 'abc123'
     }));
 
     expect(client.hardReconnectRequired).toBeFalsy();
