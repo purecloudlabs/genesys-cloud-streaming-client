@@ -204,8 +204,8 @@ export class Client extends EventEmitter {
     // make sure we don't stack event handlers. There should only ever be *at most* one handler
     this.removeStanzaBoundEventHandlers();
 
-    this.boundHandleIQResult = this.handleIQResult.bind(this);
-    stanza.on('hjon:iq:result' as any, this.boundHandleIQResult);
+    // this.boundHandleIQResult = this.handleIQResult.bind(this);
+    // stanza.on('hjon:iq:result' as any, this.boundHandleIQResult);
     this.boundHandleSocketError = this.handleSocketError.bind(this);
     stanza.on('hjon:socketerror' as any, this.boundHandleSocketError);
     this.boundHandleSocketReset = this.handleSocketReset.bind(this);
