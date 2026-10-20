@@ -6,6 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...HEAD)
 ### Changed
+* [STREAM-2690](https://inindca.atlassian.net/browse/STREAM-2690) - Update CODEOWNERS to reflect the current team.
 * [STREAM-1051](https://inindca.atlassian.net/browse/STREAM-1051) - Change the number of `maxAttempts` for replacing subscriptions to be `4` (the intial request plus 3 retries).
 
 # [v20.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...HEAD)
