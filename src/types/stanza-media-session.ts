@@ -222,6 +222,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
         this.interruptionStart = undefined;
       } else if (connectionState === 'failed') {
         this._log('info', 'Connection was interrupted and failed to recover', { sessionId, conversationId, sessionType });
+        this.end(JingleReasonCondition.ConnectivityError);
       }
     }
   }
