@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 * [STREAM-1051](https://inindca.atlassian.net/browse/STREAM-1051) - Change the number of `maxAttempts` for replacing subscriptions to be `4` (the intial request plus 3 retries).
 * [STREAM-2586](https://inindca.atlassian.net/browse/STREAM-2586) - Take `429` status codes into account when marking a connection as alertable.
+* [STREAM-2708](https://inindca.atlassian.net/browse/STREAM-2708) - Add `experimentalFeatures` to gate functionality that is currently experimental or in an early state of development.
 
 # [v20.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...HEAD)
 ### Added
