@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import debounce from 'debounce-promise';
 import { AlertableInteractionTypes, IAlertingStatus, IClientOptions, ILeaderStatus, RequestApiOptions, StreamingClientExtension, StreamingClientErrorTypes } from './types/interfaces';
 import { Client } from './client';
@@ -77,19 +77,45 @@ export class AlertingLeaderExtension extends EventEmitter implements StreamingCl
     // STREAM-1204
     // There's a race condition between the backend service knowing about the connection
     // and us marking the connection as alertable. For now, we'll just retry with some delay.
+    // We'll handle a `429` status code a little differently. Because we want this to be in a known state
+    // as soon as possible, we'll maintain our current retry window of 8s. If the `retry-after` value
+    // falls within that 8s, use that value. Otherwise, delay until the end of our retry window and try
+    // one more time.
+    const retryInterval = 500;
     const maxRetries = 16;
+    const maxRetryWindow = 8 * 1000;
+    const initialTime = Date.now();
+    const deadline = initialTime + maxRetryWindow;
     let retryCount = 0;
     const retry = retryPromise(
       () => this.client.http.requestApi(`apps/users/${userId}/connections/${this.connectionId}`, connectionsRequestOptions),
-      () => {
+      (error: any) => {
         retryCount++;
         if (retryCount >= maxRetries) {
           this.client.logger.info('Max retries reached for marking connection as alertable');
           return false;
         }
-        return true;
+
+        const response = error?.response;
+        const status = response?.status || 0;
+        if (status === 429) {
+          const retryAfter = response.headers?.['retry-after'] || response.getResponseHeader?.('retry-after');
+          if (retryAfter) {
+            const currentTime = Date.now();
+            const retryDelay = parseInt(retryAfter, 10) * 1000;
+            if (currentTime + retryDelay < deadline) {
+              return retryDelay;
+            } else {
+              // Try one last time at our deadline.
+              retryCount = maxRetries;
+              return (deadline - currentTime);
+            }
+          }
+        }
+
+        return retryInterval;
       },
-      500,
+      retryInterval,
       this.client.logger
     );
 
