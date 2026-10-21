@@ -9,6 +9,7 @@ import { IMediaSession, IStanzaMediaSessionParams } from './media-session';
 import { SessionTypes } from './interfaces';
 import { Jingle } from 'stanza/protocol/xep0166';
 import Logger from 'genesys-cloud-client-logger';
+import { trim } from 'lodash';
 
 const loggingOverrides = {
   'Discovered new ICE candidate': { skipMessage: true }
@@ -318,7 +319,8 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
 
   _handleDataChannelMessage (event: MessageEvent) {
     try {
-      const message = JSON.parse(event.data);
+      const trimmedData = trim(event.data, '\u0000');
+      const message = JSON.parse(trimmedData);
       this.emit('dataChannelMessage', message);
     } catch (e) {
       this._log('error', 'Failed to parse data channel message', { error: e });
