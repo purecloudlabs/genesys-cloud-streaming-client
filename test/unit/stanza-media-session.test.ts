@@ -691,6 +691,32 @@ describe('StanzaMediaSession', () => {
         expect.assertions(2);
       });
 
+      it('should not throw with extraneous NUL around the data', () => {
+        // This may be a backend bug, but it can shown up when we recover from a disconnect.
+        const NUL = '\u0000';
+
+        const parent = new FakeParent();
+        const session = new StanzaMediaSession({
+          options: { parent } as any,
+          logger: console,
+          sessionType: 'softphone',
+          allowIPv6: true
+        } as any);
+
+        const data = {
+          jsonrpc: 'version2',
+          method: 'message.notifiy',
+          params: { speakers: [] }
+        }
+
+        const logSpy = jest.spyOn(session as any, '_log');
+
+        const event = new MessageEvent('message', { data: JSON.stringify(data) + NUL });
+        session._handleDataChannelMessage(event);
+
+        expect(logSpy).not.toHaveBeenCalledWith('error', expect.anything(), expect.anything());
+      });
+
       it('should handle json parse error', () => {
         const parent = new FakeParent();
         const session = new StanzaMediaSession({
