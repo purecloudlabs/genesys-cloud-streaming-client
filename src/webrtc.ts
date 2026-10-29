@@ -785,15 +785,12 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         from: this.jid,
         media: {
           conversationId: opts.conversationId,
-          sourceCommunicationId: opts.sourceCommunicationId
+          sourceCommunicationId: opts.sourceCommunicationId,
+          // Omit entirely when absent; the consumer distinguishes absent from every value.
+          // Guard on null/undefined (not truthiness) so a value is never silently dropped.
+          ...(opts.recordingConsent != null && { recordingConsent: opts.recordingConsent })
         }
       };
-
-      // Omit entirely when absent; the consumer distinguishes absent from every value.
-      // Guard on null/undefined (not truthiness) so a value is never silently dropped.
-      if (opts.recordingConsent != null) {
-        mediaPresence.media['recordingConsent'] = opts.recordingConsent;
-      }
 
       if (opts.mediaPurpose === SessionTypes.collaborateVideo) {
         Object.assign(mediaPresence.media, {
