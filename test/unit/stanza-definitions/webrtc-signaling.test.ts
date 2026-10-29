@@ -1,6 +1,6 @@
 import { definitions } from '../../../src/stanza-definitions/webrtc-signaling';
 import { RecordingConsent } from '../../../src/webrtc';
-import { createClient } from 'stanza';
+import { createClient, JXT } from 'stanza';
 
 const stanza = createClient({});
 stanza.stanzas.define(definitions);
@@ -67,13 +67,13 @@ describe('upgradeMediaPresenceDefinition', () => {
 
   it('should round-trip recordingConsent when parsing xml', () => {
     const xml = `<presence xmlns="jabber:client" type="upgradeMedia" to="tojid@conference.com" id="someid" from="fromjid@conference.com"><x xmlns="orgspan:mediastream" conversationId="myconversationid" sourceCommunicationId="mysourcecommid" recordingConsent="declined"><mediastream audio="true"/></x></presence>`;
-    const parsed: any = stanza.stanzas.parse(xml, 'presence');
+    const parsed: any = stanza.stanzas.import(JXT.parse(xml));
     expect(parsed.media.recordingConsent).toEqual('declined');
   });
 
   it('should leave recordingConsent undefined when parsing xml without the attribute', () => {
     const xml = `<presence xmlns="jabber:client" type="upgradeMedia" to="tojid@conference.com" id="someid" from="fromjid@conference.com"><x xmlns="orgspan:mediastream" conversationId="myconversationid" sourceCommunicationId="mysourcecommid"><mediastream audio="true"/></x></presence>`;
-    const parsed: any = stanza.stanzas.parse(xml, 'presence');
+    const parsed: any = stanza.stanzas.import(JXT.parse(xml));
     expect(parsed.media.recordingConsent).toBeUndefined();
   });
 });
