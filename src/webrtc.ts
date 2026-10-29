@@ -51,6 +51,14 @@ const ICE_SERVER_REFRESH_PERIOD = 1000 * 60 * 60 * 6; // 6 hours
 
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
+/**
+ * Recording consent sent on the video join presence. Transported as-is from the SDK.
+ *
+ * Wire values are contractual and case-sensitive; keep in sync with the
+ * `RecordingConsent` enum in videobridge-babbler (orgspan:mediastream).
+ */
+export type RecordingConsent = 'consented' | 'declined' | 'notCollected' | 'recordingNotAllowed';
+
 export interface InitRtcSessionOptions {
   stream?: MediaStream;
   provideVideo?: boolean;
@@ -59,6 +67,7 @@ export interface InitRtcSessionOptions {
   jid?: string;
   conversationId?: string;
   sourceCommunicationId?: string;
+  recordingConsent?: RecordingConsent;
   videoGuest?: boolean;
 }
 
@@ -776,7 +785,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         from: this.jid,
         media: {
           conversationId: opts.conversationId,
-          sourceCommunicationId: opts.sourceCommunicationId
+          sourceCommunicationId: opts.sourceCommunicationId,
+          // Omit entirely when absent; the consumer distinguishes absent from every value.
+          // Guard on null/undefined (not truthiness) so a value is never silently dropped.
+          ...(opts.recordingConsent != null && { recordingConsent: opts.recordingConsent })
         }
       };
 

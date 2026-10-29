@@ -134,6 +134,7 @@ const upgradeMediaPresenceDefinition: DefinitionOptions = {
   fields: {
     conversationId: attribute('conversationId'),
     sourceCommunicationId: attribute('sourceCommunicationId'),
+    recordingConsent: attribute('recordingConsent'),
     screenShare: childAttribute(null, 'mediastream', 'screenShare'),
     video: childAttribute(null, 'mediastream', 'video'),
     audio: childAttribute(null, 'mediastream', 'audio'),
