@@ -5,6 +5,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...HEAD)
+### Added
+* [STREAM-1075](https://inindca.atlassian.net/browse/STREAM-1075) - Add diagnostic logging around session-accepts to help debug dual session-accepts (e.g. for acd-screenshare). `GenesysCloudMediaSession.accept()` now logs the accept count and session/signaling state, and warns when called more than once, and `handleGenesysOffer` logs the renegotiate-vs-reinvite decision for offers on an existing session.
+
 ### Changed
 * [STREAM-2690](https://inindca.atlassian.net/browse/STREAM-2690) - Update CODEOWNERS to reflect the current team.
 * [STREAM-1051](https://inindca.atlassian.net/browse/STREAM-1051) - Change the number of `maxAttempts` for replacing subscriptions to be `4` (the intial request plus 3 retries).

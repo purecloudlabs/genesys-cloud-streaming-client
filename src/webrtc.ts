@@ -290,7 +290,21 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     if (existingSession) {
       existingSession.conversationId = params.conversationId;
       // renego
-      if (!iceIsDifferent(existingSession.peerConnection.remoteDescription!.sdp, params.sdp)) {
+      const iceDifferent = iceIsDifferent(existingSession.peerConnection.remoteDescription!.sdp, params.sdp);
+      // Diagnostic logging for dual session-accepts (see STREAM-1075). When an
+      // offer arrives for a session we already have, we either renegotiate
+      // (same ICE -> re-accept the existing session) or treat it as a reinvite
+      // (new ICE -> brand new session). A mis-detected renegotiate here results
+      // in accept() being called again on an already-accepted session.
+      this.logger.info('offer received for existing session', {
+        sessionId: mediaSessionParams.id,
+        conversationId: params.conversationId,
+        sessionType: mediaSessionParams.sessionType,
+        existingSessionState: existingSession.state,
+        iceDifferent,
+        decision: iceDifferent ? 'reinvite' : 'renegotiate'
+      });
+      if (!iceDifferent) {
         return this.handleGenesysRenegotiate(existingSession, params.sdp);
       }
     }
