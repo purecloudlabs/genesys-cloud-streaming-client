@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * [STREAM-2708](https://inindca.atlassian.net/browse/STREAM-2708) - Add `experimentalFeatures` to gate functionality that is currently experimental or in an early state of development.
 * [STREAM-2525](https://inindca.atlassian.net/browse/STREAM-2525) - Trim NUL characters from data channel messages to avoid issues after recovering from a disconnect.
 * [STREAM-2789](https://inindca.atlassian.net/browse/STREAM-2789) - Send recording consent on the video join presence as a `recordingConsent` attribute on the `orgspan:mediastream` `<x>` element.
+* [STREAM-2888](https://inindca.atlassian.net/browse/STREAM-2888) - Call `end` when a session fails so a `terminated` event is emitted; when ending a PeerConnection, close it after 2s regardless of the current state.
 
 # [v20.1.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...HEAD)
 ### Added
