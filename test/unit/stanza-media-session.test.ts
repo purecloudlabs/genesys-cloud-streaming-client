@@ -44,7 +44,7 @@ describe('StanzaMediaSession', () => {
       jest.useRealTimers();
     });
 
-    it('should end the session and call pc.close() because connection state is connecting', () => {
+    it('should end the session and call pc.close()', () => {
       jest.useFakeTimers();
       const parent = new FakeParent();
       const session = new StanzaMediaSession({
@@ -61,59 +61,12 @@ describe('StanzaMediaSession', () => {
       (session.pc.connectionState as any)  = 'connecting';
       const spy = jest.spyOn(session, 'send').mockImplementation();
       session.end('success');
-      jest.runAllTimers();
-
       expect(spy).toHaveBeenCalledWith('session-terminate', reason);
       expect(setTimeout).toHaveBeenCalledTimes(1);
-      expect(session.pc.close).toHaveBeenCalled();
-    });
 
-    it('should end the session - not call pc.close() because connection state is connected', () => {
-      jest.useFakeTimers();
-      const parent = new FakeParent();
-      const session = new StanzaMediaSession({
-        options: { parent } as any,
-        sessionType: 'collaborateVideo',
-        logger: console,
-        allowIPv6: false
-      } as any);
-      const reason = {
-        "reason": {
-          "condition": "success"
-        }
-      };
-      (session.pc.connectionState as any)  = 'connected';
-      const spy = jest.spyOn(session, 'send').mockImplementation();
-      session.end('success');
-      jest.runAllTimers();
-
-      expect(spy).toHaveBeenCalledWith('session-terminate', reason);
-      expect(setTimeout).toHaveBeenCalledTimes(1);
-      expect(session.pc.close).toHaveBeenCalled();
-    });
-
-    it('should end the session - not call pc.close() because connection state is closed', () => {
-      jest.useFakeTimers();
-      const parent = new FakeParent();
-      const session = new StanzaMediaSession({
-        options: { parent } as any,
-        logger: console,
-        sessionType: 'collaborateVideo',
-        allowIPv6: false
-      } as any);
-      const reason = {
-        "reason": {
-          "condition": "success"
-        }
-      };
-      (session.pc.connectionState as any)  = 'closed';
-      const spy = jest.spyOn(session, 'send').mockImplementation();
-      session.end('success');
-      jest.runAllTimers();
-
-      expect(spy).toHaveBeenCalledWith('session-terminate', reason);
-      expect(setTimeout).toHaveBeenCalledTimes(1);
       expect(session.pc.close).not.toHaveBeenCalled();
+      jest.runAllTimers();
+      expect(session.pc.close).toHaveBeenCalled();
     });
   });
 
@@ -238,7 +191,7 @@ describe('StanzaMediaSession', () => {
       expect(spy).toHaveBeenCalledWith('info', expect.stringContaining('Connection was interrupted but was successfully reco'), expect.anything());
     });
 
-    it('should log an interruption failure message', () => {
+    it('should log an interruption failure message and end the session', () => {
       const parent = new FakeParent();
       const session = new StanzaMediaSession({
         options: { parent } as any,
@@ -249,13 +202,15 @@ describe('StanzaMediaSession', () => {
 
       session['interruptionStart'] = new Date();
 
-      const spy = session['_log'] = jest.fn();
+      const logSpy = session['_log'] = jest.fn();
+      const endSpy = session.end = jest.fn();
       session['pc'] = {
         connectionState: 'failed',
       } as any;
 
       session.onConnectionStateChange();
-      expect(spy).toHaveBeenCalledWith('info', expect.stringContaining('Connection was interrupted and failed to recover'), expect.anything());
+      expect(logSpy).toHaveBeenCalledWith('info', expect.stringContaining('Connection was interrupted and failed to recover'), expect.anything());
+      expect(endSpy).toHaveBeenCalled();
     });
   });
 
