@@ -7,6 +7,7 @@ import { NamedAgent } from '../../src/types/named-agent';
 import { StreamingClientErrorTypes, StreamingClientError } from '../../src';
 import { Transport } from 'stanza';
 import { flushPromises } from '../helpers/testing-utils';
+import * as utils from '../../src/utils';
 
 class FakeClient extends EventEmitter {
   connected = true;
@@ -330,6 +331,154 @@ describe('AlertingLeader', () => {
       expect(warnSpy).toHaveBeenCalled();
       axiosMock.restore();
       jest.useRealTimers();
+    });
+
+    it('should retry using the retry-after header if a 429 is returned', async () => {
+      jest.useFakeTimers();
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const markAlertableUrl = `https://api.example.com/api/v2/apps/users/${userId}/connections/${connectionId}`;
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onPatch(markAlertableUrl).replyOnce(429, {}, { 'retry-after': '2' }).onPatch(markAlertableUrl).replyOnce(200, {});
+
+      const resultPromise = alertingLeader['markAsAlertable']();
+
+      await flushPromises();
+      // Make sure the retry didn't happen at the default interval
+      jest.advanceTimersByTime(500);
+      expect(axiosMock.history.patch).toHaveLength(1);
+      await flushPromises();
+      // Advance to the retry-after to make sure the retry happens
+      jest.advanceTimersByTime(1500);
+      expect(axiosMock.history.patch).toHaveLength(2);
+      const result = await resultPromise;
+      expect(result).toBeTruthy();
+      axiosMock.restore();
+      jest.useRealTimers();
+    });
+
+    it('should retry at the deadline if a 429 is returned but the delay would go past the maxRetryWindow', async () => {
+      jest.useFakeTimers('modern');
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const markAlertableUrl = `https://api.example.com/api/v2/apps/users/${userId}/connections/${connectionId}`;
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onPatch(markAlertableUrl).replyOnce(429, {}, { 'retry-after': '11' }).onPatch(markAlertableUrl).replyOnce(200, {});
+
+      const resultPromise = alertingLeader['markAsAlertable']();
+
+      await flushPromises();
+      // Make sure the retry didn't happen before the deadline
+      jest.advanceTimersByTime(7999);
+      expect(axiosMock.history.patch).toHaveLength(1);
+      await flushPromises();
+      // Advance to the deadline to make sure the retry happens then (not later)
+      jest.advanceTimersByTime(1);
+      expect(axiosMock.history.patch).toHaveLength(2);
+      const result = await resultPromise;
+      expect(result).toBeTruthy();
+      axiosMock.restore();
+      jest.useRealTimers();
+    });
+
+    it('should retry with the default inverval if a 429 is returned but no retry-after header is found', async () => {
+      jest.useFakeTimers('modern');
+      const userId = 'abc123';
+      const connectionId = 'connection123';
+      const markAlertableUrl = `https://api.example.com/api/v2/apps/users/${userId}/connections/${connectionId}`;
+      const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+      fakeClient.config.userId = userId;
+      const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+      alertingLeader['connectionId'] = connectionId;
+      const axiosMock = new AxiosMockAdapter(axios);
+      axiosMock.onPatch(markAlertableUrl).replyOnce(429, {}, {}).onPatch(markAlertableUrl).replyOnce(200, {});
+
+      const resultPromise = alertingLeader['markAsAlertable']();
+
+      await flushPromises();
+      // Advance to the deadline to make sure the retry happens then (not later)
+      jest.advanceTimersByTime(500);
+      expect(axiosMock.history.patch).toHaveLength(2);
+      const result = await resultPromise;
+      expect(result).toBeTruthy();
+      axiosMock.restore();
+      jest.useRealTimers();
+    });
+
+    it('should not blow up if there is no response object', async () => {
+      console.log('Hjon: no response');
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '1', promise: Promise.resolve(), cancel: jest.fn() });
+      try {
+        const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+        fakeClient.config.userId = 'abc123';
+        const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+        alertingLeader['connectionId'] = 'connection123';
+
+        await alertingLeader['markAsAlertable']();
+
+        const errFn = spy.mock.calls[0][1] as (error: any) => boolean | number;
+        // Network-level errors (no response) should fall back to the default retry interval
+        expect(errFn({})).toEqual(500);
+        expect(errFn(undefined)).toEqual(500);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('should handle XMLHttpRequest', async () => {
+      console.log('Hjon: xml test');
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '1', promise: Promise.resolve(), cancel: jest.fn() });
+      try {
+        const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+        fakeClient.config.userId = 'abc123';
+        const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+        alertingLeader['connectionId'] = 'connection123';
+
+        await alertingLeader['markAsAlertable']();
+
+        const error = {
+          response: {
+            status: 429,
+            getResponseHeader: () => '3'
+          }
+        };
+        const errFn = spy.mock.calls[0][1] as (error: any) => boolean | number;
+        expect(errFn(error)).toEqual(3000);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('should not blow up if there is no getResponseHeader', async () => {
+      console.log('Hjon: no response');
+      const spy = jest.spyOn(utils as any, 'retryPromise').mockReturnValue({ _id: '1', promise: Promise.resolve(), cancel: jest.fn() });
+      try {
+        const fakeClient = new FakeClient({ apiHost: 'example.com' }) as unknown as Client;
+        fakeClient.config.userId = 'abc123';
+        const alertingLeader = new AlertingLeaderExtension(fakeClient, {} as IClientOptions);
+        alertingLeader['connectionId'] = 'connection123';
+
+        await alertingLeader['markAsAlertable']();
+
+        const error = {
+          response: {
+            status: 429,
+          }
+        };
+        const errFn = spy.mock.calls[0][1] as (error: any) => boolean | number;
+        // Should fallback to the default interval
+        expect(errFn(error)).toEqual(500);
+      } finally {
+        spy.mockRestore();
+      }
     });
   });
 
