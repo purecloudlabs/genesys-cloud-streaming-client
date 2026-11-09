@@ -194,11 +194,15 @@ export class GenesysCloudMediaSession {
         status: 'active'
       };
 
-      await this.sendGenesysWebrtc({
-        jsonrpc: '2.0',
-        params,
-        method: 'info'
-      });
+      try {
+        await this.sendGenesysWebrtc({
+          jsonrpc: '2.0',
+          params,
+          method: 'info'
+        });
+      } catch (error) {
+        this.log('warn', 'Failed to send session-info: active', { error });
+      }
 
       this._setupDataChannel();
     } else if (iceState === 'failed') {
@@ -263,7 +267,7 @@ export class GenesysCloudMediaSession {
   }
 
   // this is for ice candidates we harvest for ourself
-  protected onIceCandidate (e: RTCPeerConnectionIceEvent) {
+  protected async onIceCandidate (e: RTCPeerConnectionIceEvent) {
     const candidateString = e.candidate?.candidate;
     const sdpMid = e.candidate?.sdpMid;
     let sdpStr: string;
@@ -297,14 +301,18 @@ export class GenesysCloudMediaSession {
       this.emit('endOfCandidates');
     }
 
-    return this.sendGenesysWebrtc({
-      jsonrpc: '2.0',
-      method: 'iceCandidate',
-      params: {
-        sessionId: this.id,
-        sdp: sdpStr
-      }
-    });
+    try {
+      await this.sendGenesysWebrtc({
+        jsonrpc: '2.0',
+        method: 'iceCandidate',
+        params: {
+          sessionId: this.id,
+          sdp: sdpStr
+        }
+      });
+    } catch (error) {
+      this.log('warn', 'Failed to send ice candidate to peer', { error });
+    }
   }
 
   onSessionTerminate (reason?: JingleReasonCondition) {
