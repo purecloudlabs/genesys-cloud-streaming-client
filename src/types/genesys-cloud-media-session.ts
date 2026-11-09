@@ -37,6 +37,9 @@ export class GenesysCloudMediaSession {
   state: SessionState = 'pending';
   connectionState: ConnectionState = 'starting';
   privAnswerMode?: 'Auto';
+  /* Tracks how many times accept() has been called so we can detect and log
+   * dual session-accepts (see STREAM-1075). */
+  private _acceptCount = 0;
 
   constructor (private webrtcExtension: WebrtcExtension, params: IGenesysCloudMediaSessionParams) {
     this.id = params.id;
@@ -362,6 +365,31 @@ export class GenesysCloudMediaSession {
   }
 
   async accept () {
+    /* Diagnostic logging for dual session-accepts (see STREAM-1075). Every
+     * session-accept (SDP answer) leaves the client through this method, so
+     * logging the pre-accept state and accept count here surfaces when a
+     * session is being accepted more than once. The `signalingState` tells us
+     * whether the peer connection is already past the point where answering
+     * makes sense (e.g. 'stable' means we have no pending remote offer). */
+    this._acceptCount = (this._acceptCount || 0) + 1;
+
+    if (this._acceptCount > 1 || this.state === 'active') {
+      this.log('warn', 'accept() called on a session that was already accepted; this may result in a dual session-accept', {
+        acceptCount: this._acceptCount,
+        state: this.state,
+        reinvite: this.reinvite,
+        signalingState: this.peerConnection.signalingState,
+        connectionState: this.connectionState
+      });
+    }
+
+    this.log('info', 'accepting session (sending sdp answer)', {
+      acceptCount: this._acceptCount,
+      state: this.state,
+      reinvite: this.reinvite,
+      signalingState: this.peerConnection.signalingState
+    });
+
     this.state = 'active';
     const answer = await this.peerConnection.createAnswer();
     await this.peerConnection.setLocalDescription(answer);
