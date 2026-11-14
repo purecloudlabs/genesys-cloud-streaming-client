@@ -5,7 +5,7 @@ import { SessionOpts } from 'stanza/jingle/Session';
 import { EventEmitter } from 'events';
 import browserama from 'browserama';
 
-import { WebrtcExtension } from '../../src/webrtc';
+import { WebrtcExtension, RecordingConsent } from '../../src/webrtc';
 import * as utils from '../../src/utils';
 import * as statsFormatter from '../../src/stats-formatter';
 import { HttpClient } from '../../src/http-client';
@@ -879,6 +879,85 @@ describe('initiateRtcSession', () => {
         videoGuest: true
       })
     }));
+  });
+
+  it.each<RecordingConsent>([
+    'consented',
+    'declined',
+    'notCollected',
+    'recordingNotAllowed'
+  ])('should send recordingConsent "%s" on the media presence when supplied', async (recordingConsent) => {
+    const opts = {
+      jid: 'room@conference.test.com',
+      mediaPurpose: SessionTypes.collaborateVideo,
+      conversationId: 'test-conversation',
+      sourceCommunicationId: 'test-source',
+      recordingConsent
+    };
+
+    const sendSpy = jest.spyOn(stanzaInstance, 'send');
+
+    await webrtc.initiateRtcSession(opts);
+
+    expect(sendSpy).toHaveBeenCalledWith('presence', expect.objectContaining({
+      media: expect.objectContaining({
+        recordingConsent
+      })
+    }));
+  });
+
+  it('should send recordingConsent on non-video conference joins (listener)', async () => {
+    // consent attaches to every @conference join, not just collaborateVideo
+    const opts = {
+      jid: 'room@conference.test.com',
+      conversationId: 'test-conversation',
+      sourceCommunicationId: 'test-source',
+      recordingConsent: 'consented' as RecordingConsent
+    };
+
+    const sendSpy = jest.spyOn(stanzaInstance, 'send');
+
+    await webrtc.initiateRtcSession(opts);
+
+    expect(sendSpy).toHaveBeenCalledWith('presence', expect.objectContaining({
+      media: expect.objectContaining({
+        recordingConsent: 'consented',
+        listener: true
+      })
+    }));
+  });
+
+  it('should not include recordingConsent on the media presence when not supplied', async () => {
+    const opts = {
+      jid: 'room@conference.test.com',
+      mediaPurpose: SessionTypes.collaborateVideo,
+      conversationId: 'test-conversation',
+      sourceCommunicationId: 'test-source'
+    };
+
+    const sendSpy = jest.spyOn(stanzaInstance, 'send');
+
+    await webrtc.initiateRtcSession(opts);
+
+    const presenceCall = sendSpy.mock.calls.find(([type]) => type === 'presence');
+    expect(presenceCall).toBeDefined();
+    expect((presenceCall![1] as any).media).not.toHaveProperty('recordingConsent');
+  });
+
+  it('should not include recordingConsent on a non-video conference join when not supplied', async () => {
+    const opts = {
+      jid: 'room@conference.test.com',
+      conversationId: 'test-conversation',
+      sourceCommunicationId: 'test-source'
+    };
+
+    const sendSpy = jest.spyOn(stanzaInstance, 'send');
+
+    await webrtc.initiateRtcSession(opts);
+
+    const presenceCall = sendSpy.mock.calls.find(([type]) => type === 'presence');
+    expect(presenceCall).toBeDefined();
+    expect((presenceCall![1] as any).media).not.toHaveProperty('recordingConsent');
   });
 
   it('should handle when stream and params are provided', async () => {

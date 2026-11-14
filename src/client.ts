@@ -98,7 +98,8 @@ export class Client extends EventEmitter {
       appVersion: options.appVersion,
       appId: options.appId,
       logLevel: options.logLevel,
-      customHeaders: options.customHeaders
+      customHeaders: options.customHeaders,
+      experimentalFeatures: options.experimentalFeatures
     };
 
     this.backgroundAssistantMode = this.checkIsBackgroundAssistant();

@@ -51,6 +51,14 @@ const ICE_SERVER_REFRESH_PERIOD = 1000 * 60 * 60 * 6; // 6 hours
 
 type ProposeStanza = ReceivedMessage & { propose: Propose };
 
+/**
+ * Recording consent sent on the video join presence. Transported as-is from the SDK.
+ *
+ * Wire values are contractual and case-sensitive; keep in sync with the
+ * `RecordingConsent` enum in videobridge-babbler (orgspan:mediastream).
+ */
+export type RecordingConsent = 'consented' | 'declined' | 'notCollected' | 'recordingNotAllowed';
+
 export interface InitRtcSessionOptions {
   stream?: MediaStream;
   provideVideo?: boolean;
@@ -59,6 +67,7 @@ export interface InitRtcSessionOptions {
   jid?: string;
   conversationId?: string;
   sourceCommunicationId?: string;
+  recordingConsent?: RecordingConsent;
   videoGuest?: boolean;
 }
 
@@ -290,7 +299,21 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     if (existingSession) {
       existingSession.conversationId = params.conversationId;
       // renego
-      if (!iceIsDifferent(existingSession.peerConnection.remoteDescription!.sdp, params.sdp)) {
+      const iceDifferent = iceIsDifferent(existingSession.peerConnection.remoteDescription!.sdp, params.sdp);
+      // Diagnostic logging for dual session-accepts (see STREAM-1075). When an
+      // offer arrives for a session we already have, we either renegotiate
+      // (same ICE -> re-accept the existing session) or treat it as a reinvite
+      // (new ICE -> brand new session). A mis-detected renegotiate here results
+      // in accept() being called again on an already-accepted session.
+      this.logger.info('offer received for existing session', {
+        sessionId: mediaSessionParams.id,
+        conversationId: params.conversationId,
+        sessionType: mediaSessionParams.sessionType,
+        existingSessionState: existingSession.state,
+        iceDifferent,
+        decision: iceDifferent ? 'reinvite' : 'renegotiate'
+      });
+      if (!iceDifferent) {
         return this.handleGenesysRenegotiate(existingSession, params.sdp);
       }
     }
@@ -776,7 +799,10 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
         from: this.jid,
         media: {
           conversationId: opts.conversationId,
-          sourceCommunicationId: opts.sourceCommunicationId
+          sourceCommunicationId: opts.sourceCommunicationId,
+          // Omit entirely when absent; the consumer distinguishes absent from every value.
+          // Guard on null/undefined (not truthiness) so a value is never silently dropped.
+          ...(opts.recordingConsent != null && { recordingConsent: opts.recordingConsent })
         }
       };
 

@@ -433,6 +433,39 @@ describe('accept()', () => {
     expect(session.peerConnection.setLocalDescription).toHaveBeenCalledWith({ sdp: 'blah', type: 'answer' });
     expect(sendSpy).toHaveBeenCalledWith({ jsonrpc: '2.0', method: 'answer', params: { sdp: 'blah', sessionId: 'sessionId' }});
   });
+
+  it('should log an info message with the accept count and state on the first accept', async () => {
+    const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+    jest.spyOn(session as any, 'sendGenesysWebrtc').mockResolvedValue(null);
+    const logSpy = jest.spyOn(session as any, 'log');
+
+    await session.accept();
+
+    expect(logSpy).toHaveBeenCalledWith('info', 'accepting session (sending sdp answer)', expect.objectContaining({
+      acceptCount: 1,
+      state: 'pending'
+    }));
+    expect(logSpy).not.toHaveBeenCalledWith(
+      'warn',
+      'accept() called on a session that was already accepted; this may result in a dual session-accept',
+      expect.anything()
+    );
+  });
+
+  it('should warn when accept() is called more than once (dual session-accept)', async () => {
+    const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+    jest.spyOn(session as any, 'sendGenesysWebrtc').mockResolvedValue(null);
+    const logSpy = jest.spyOn(session as any, 'log');
+
+    await session.accept();
+    await session.accept();
+
+    expect(logSpy).toHaveBeenCalledWith(
+      'warn',
+      'accept() called on a session that was already accepted; this may result in a dual session-accept',
+      expect.objectContaining({ acceptCount: 2, state: 'active' })
+    );
+  });
 });
 
 describe('mute()', () => {

@@ -9,6 +9,7 @@ import { IMediaSession, IStanzaMediaSessionParams } from './media-session';
 import { SessionTypes } from './interfaces';
 import { Jingle } from 'stanza/protocol/xep0166';
 import Logger from 'genesys-cloud-client-logger';
+import { trim } from 'lodash';
 
 const loggingOverrides = {
   'Discovered new ICE candidate': { skipMessage: true }
@@ -159,11 +160,9 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
       this.send('session-terminate', { reason });
     }
 
-    // After sending session-terminate, wait for the peer connection to die -> if it doesn't, we will manually close it.
+    // Give some time for things to close cleanly on the backend before we close our PeerConnection.
     setTimeout(() => {
-      if (this.pc.connectionState === 'connected' || this.pc.connectionState === 'connecting') {
-        this.pc.close();
-      }
+      this.pc.close();
     }, 2000);
 
     this.parent.emit('terminated', this, reason);
@@ -221,6 +220,7 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
         this.interruptionStart = undefined;
       } else if (connectionState === 'failed') {
         this._log('info', 'Connection was interrupted and failed to recover', { sessionId, conversationId, sessionType });
+        this.end(JingleReasonCondition.ConnectivityError);
       }
     }
   }
@@ -318,7 +318,8 @@ export class StanzaMediaSession extends MediaSession implements IMediaSession {
 
   _handleDataChannelMessage (event: MessageEvent) {
     try {
-      const message = JSON.parse(event.data);
+      const trimmedData = trim(event.data, '\u0000');
+      const message = JSON.parse(trimmedData);
       this.emit('dataChannelMessage', message);
     } catch (e) {
       this._log('error', 'Failed to parse data channel message', { error: e });
