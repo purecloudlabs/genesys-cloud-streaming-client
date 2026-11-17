@@ -69,6 +69,9 @@
     "wildemitter": "^1.2.1",
     "ws": "^8.21.0"
   },
+  "overrides": {
+    "follow-redirects": "^1.16.2"
+  },
   "devDependencies": {
     "@babel/core": "^7.12.0",
     "@babel/plugin-proposal-class-properties": "^7.10.4",
