@@ -149,6 +149,23 @@ describe('peerConnection event listeners', () => {
       });
     });
 
+    it('should log and not reject when sending the candidate fails', async () => {
+      const event = {
+        candidate: {
+          candidate: 'something udp somethingelse 192.168.1.5 typ host',
+          sdpMid: '0',
+          protocol: 'udp'
+        }
+      };
+
+      createSession();
+      const error = { condition: 'timeout' };
+      sendSpy.mockRejectedValue(error);
+
+      await expect(session['onIceCandidate'](event as RTCPeerConnectionIceEvent)).resolves.toBeUndefined();
+      expect(logSpy).toHaveBeenCalledWith('warn', 'Failed to send ice candidate to peer', { error });
+    });
+
     it('should emit endOfCandidates and send message', async () => {
       const event = {
         candidate: null
@@ -198,6 +215,21 @@ describe('peerConnection event listeners', () => {
       const spy = session['sendGenesysWebrtc'] = jest.fn();
       session['onIceStateChange']();
       expect(spy).toHaveBeenCalledWith({ jsonrpc: '2.0', method: 'info', params: { sessionId: 'sessionId', status: 'active' }});
+    });
+
+    it('connected - should log, not reject, and still set up the data channel when the send fails', async () => {
+      const session = new GenesysCloudMediaSession(mockWebrtcExtension, config);
+      (session.peerConnection as any).iceConnectionState = 'connected';
+      (session.peerConnection as any).signalingState = 'stable';
+
+      const error = { condition: 'timeout' };
+      session['sendGenesysWebrtc'] = jest.fn().mockRejectedValue(error);
+      const logSpy = session['log'] = jest.fn();
+      const dataChannelSpy = session['_setupDataChannel'] = jest.fn();
+
+      await expect(session['onIceStateChange']()).resolves.toBeUndefined();
+      expect(logSpy).toHaveBeenCalledWith('warn', 'Failed to send session-info: active', { error });
+      expect(dataChannelSpy).toHaveBeenCalled();
     });
 
     it('failed - should log message', async () => {
