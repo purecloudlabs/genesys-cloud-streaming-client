@@ -1042,7 +1042,7 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     this.setIceServers(iceServers, stanzaInstance);
 
-    const hasStunServers = allServices.services.some((service: ExternalService) => service.type === 'stun');
+    const hasStunServers = iceServers.some((server: ExtendedRTCIceServer) => server.type === 'stun');
     if (!hasStunServers) {
       this.logger.info('No stun servers received, setting iceTransportPolicy to "relay"');
       this.setIceTransportPolicy('relay', stanzaInstance);
