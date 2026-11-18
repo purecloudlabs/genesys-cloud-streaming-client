@@ -1400,6 +1400,29 @@ describe('refreshIceServers', () => {
     ]);
   });
 
+  it('should ignore other services', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const iceTransportPolicySpy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    jest.spyOn(fakeStanza, 'getServices')
+      .mockResolvedValueOnce({
+        services: [
+          { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
+          { port: 234, type: 'stun', host: 'turn.server.com' },
+          { port: 3478, type: 'sfu', host: 'videobridge.server.com' }
+        ]
+      } as any);
+
+    await webrtc.refreshIceServers();
+
+    expect(iceTransportPolicySpy).toHaveBeenCalledWith('all', fakeStanza);
+    expect(fakeStanza.jingle.iceServers).toEqual([
+      { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
+      { type: 'stun', urls: 'stun:turn.server.com:234' }
+    ]);
+  });
+
   it('should retry if getting the servers fails', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);

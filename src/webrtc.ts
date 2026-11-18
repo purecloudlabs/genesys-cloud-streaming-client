@@ -1016,12 +1016,16 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
 
     const allServices = await servicesPromise;
 
-    const iceServers = allServices.services.map((service: ExternalService) => {
+    const iceServices = allServices.services.filter((service: ExternalService) => {
+      return ['turn', 'turns', 'stun', 'stuns'].includes(service.type as string);
+    });
+    const iceServers = iceServices.map((service: ExternalService) => {
       const port = service.port ? `:${service.port}` : '';
       const ice: ExtendedRTCIceServer = {
         type: service.type as string,
         urls: `${service.type}:${service.host}${port}`
       };
+
       if (['turn', 'turns'].includes(service.type as string)) {
         if (service.transport && service.transport !== 'udp') {
           ice.urls += `?transport=${service.transport}`;
