@@ -1356,7 +1356,7 @@ describe('refreshIceServers', () => {
 
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
-    const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+    const iceTransportPolicySpy = jest.spyOn(webrtc, 'setIceTransportPolicy');
     jest.spyOn(fakeStanza, 'getServices')
       .mockResolvedValueOnce({
         services: [
@@ -1368,7 +1368,7 @@ describe('refreshIceServers', () => {
       } as any);
 
     await webrtc.refreshIceServers();
-    expect(spy).toHaveBeenCalledWith('all', fakeStanza);
+    expect(iceTransportPolicySpy).toHaveBeenCalledWith('all', fakeStanza);
 
     expect(fakeStanza.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
@@ -1381,7 +1381,7 @@ describe('refreshIceServers', () => {
   it('should set iceTransportPolicy to relay', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+    const iceTransportPolicySpy = jest.spyOn(webrtc, 'setIceTransportPolicy');
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
 
     jest.spyOn(fakeStanza, 'getServices')
@@ -1395,7 +1395,7 @@ describe('refreshIceServers', () => {
 
     await webrtc.refreshIceServers();
 
-    expect(spy).toHaveBeenCalledWith('relay', fakeStanza);
+    expect(iceTransportPolicySpy).toHaveBeenCalledWith('relay', fakeStanza);
     expect(fakeStanza.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
       { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
