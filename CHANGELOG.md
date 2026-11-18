@@ -5,13 +5,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.2.0...HEAD)
+### Fixed
+* [STREAM-1786](https://inindca.atlassian.net/browse/STREAM-1786) - Catch and log failures (e.g. timeouts) when sending ice candidates and the `session-info: active` message so they no longer surface as unhandled promise rejections.
 
 # [v20.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...v20.2.0)
 ### Added
 * [STREAM-1075](https://inindca.atlassian.net/browse/STREAM-1075) - Add diagnostic logging around session-accepts to help debug dual session-accepts (e.g. for acd-screenshare). `GenesysCloudMediaSession.accept()` now logs the accept count and session/signaling state, and warns when called more than once, and `handleGenesysOffer` logs the renegotiate-vs-reinvite decision for offers on an existing session.
-
-### Fixed
-* [STREAM-1786](https://inindca.atlassian.net/browse/STREAM-1786) - Catch and log failures (e.g. timeouts) when sending ice candidates and the `session-info: active` message so they no longer surface as unhandled promise rejections.
 
 ### Changed
 * [STREAM-2690](https://inindca.atlassian.net/browse/STREAM-2690) - Update CODEOWNERS to reflect the current team.
