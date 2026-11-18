@@ -1000,38 +1000,23 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     }
 
     const server = stanzaInstance.config.server;
-    const turnServersPromise = stanzaInstance.getServices(
-      server as string,
-      'turn',
-      '1'
-    );
-    const stunServersPromise = stanzaInstance.getServices(
-      server as string,
-      'stun',
-      '1'
-    );
-
-    const servicesPromise = new Promise<[Required<ExternalServiceList>, Required<ExternalServiceList>]>((resolve, reject) => {
+    const servicesPromise = new Promise<Required<ExternalServiceList>>((resolve, reject) => {
       setTimeout(() => {
         reject(new Error('Timeout waiting for refresh ice servers to finish'));
       }, ICE_SERVER_TIMEOUT);
 
-      Promise.all([
-        turnServersPromise,
-        stunServersPromise
-      ])
-        .then(([turn, stun]) => {
-          resolve([turn, stun] as [Required<ExternalServiceList>, Required<ExternalServiceList>]);
-        })
+      stanzaInstance.getServices(
+        server as string,
+        undefined,
+        '1'
+      )
+        .then((services) => resolve(services as Required<ExternalServiceList>))
         .catch(reject);
     });
 
-    const [turnServers, stunServers] = await servicesPromise;
+    const allServices = await servicesPromise;
 
-    const iceServers = [
-      ...turnServers.services,
-      ...stunServers.services
-    ].map((service: ExternalService) => {
+    const iceServers = allServices.services.map((service: ExternalService) => {
       const port = service.port ? `:${service.port}` : '';
       const ice: ExtendedRTCIceServer = {
         type: service.type as string,
@@ -1052,7 +1037,9 @@ export class WebrtcExtension extends EventEmitter implements StreamingClientExte
     });
 
     this.setIceServers(iceServers, stanzaInstance);
-    if (!stunServers.services.length) {
+
+    const hasStunServers = allServices.services.some((service: ExternalService) => service.type === 'stun');
+    if (!hasStunServers) {
       this.logger.info('No stun servers received, setting iceTransportPolicy to "relay"');
       this.setIceTransportPolicy('relay', stanzaInstance);
     } else {
