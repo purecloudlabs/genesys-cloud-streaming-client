@@ -5,11 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.2.0...HEAD)
-### Fixed
-* [STREAM-1786](https://inindca.atlassian.net/browse/STREAM-1786) - Catch and log failures (e.g. timeouts) when sending ice candidates and the `session-info: active` message so they no longer surface as unhandled promise rejections.
+### Added
+* [STREAM-2913](https://inindca.atlassian.net/browse/STREAM-2913) - Add black-box integration tests (`npm run test:it`) and AI agent docs (`AGENTS.md`, `ai/`).
 
 ### Changed
 * [STREAM-2961](https://inindca.atlassian.net/browse/STREAM-2961) - Make one external service discovery request and filter on the results rather than making 2 separate requests for STUN and TURN.
+
+### Fixed
+* [STREAM-1786](https://inindca.atlassian.net/browse/STREAM-1786) - Catch and log failures (e.g. timeouts) when sending ice candidates and the `session-info: active` message so they no longer surface as unhandled promise rejections.
 
 # [v20.2.0](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.1.0...v20.2.0)
 ### Added

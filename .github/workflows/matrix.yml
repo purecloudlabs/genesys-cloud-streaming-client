@@ -46,4 +46,4 @@ jobs:
       - name: Install and Cache Dependencies
         uses: ./.github/actions/cached-deps
       - name: Test
-        run: npm run test
+        run: npm run test:ci
