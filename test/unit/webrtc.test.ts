@@ -1353,27 +1353,21 @@ describe('refreshIceServers', () => {
   it('should set jingle iceServers', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-
+    const iceTransportPolicySpy = jest.spyOn(webrtc, 'setIceTransportPolicy');
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
-
-    const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
     jest.spyOn(fakeStanza, 'getServices')
       .mockResolvedValueOnce({
         services: [
           { type: 'turn', host: 'turn.server.com' },
           { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
-          { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' }
-        ]
-      } as any)
-      .mockResolvedValueOnce({
-        services: [
+          { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' },
           { port: 234, type: 'stun', host: 'turn.server.com' }
         ]
       } as any);
 
     await webrtc.refreshIceServers();
-    expect(spy).toHaveBeenCalledWith('all', fakeStanza);
 
+    expect(iceTransportPolicySpy).toHaveBeenCalledWith('all', fakeStanza);
     expect(fakeStanza.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
       { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
@@ -1382,31 +1376,50 @@ describe('refreshIceServers', () => {
     ]);
   });
 
-  it('should set iceTransportPolicy to relay', async () => {
+  it('should set iceTransportPolicy to relay when no stun servers are returned', async () => {
     const client = new Client({});
     const webrtc = new WebrtcExtension(client as any, {} as any);
-    const spy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+    const iceTransportPolicySpy = jest.spyOn(webrtc, 'setIceTransportPolicy');
     const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
-
     jest.spyOn(fakeStanza, 'getServices')
-      .mockReturnValueOnce({
+      .mockResolvedValueOnce({
         services: [
           { type: 'turn', host: 'turn.server.com' },
           { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
           { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' }
         ]
-      } as any)
-      .mockReturnValueOnce({
-        services: []
       } as any);
 
     await webrtc.refreshIceServers();
 
-    expect(spy).toHaveBeenCalledWith('relay', fakeStanza);
+    expect(iceTransportPolicySpy).toHaveBeenCalledWith('relay', fakeStanza);
     expect(fakeStanza.jingle.iceServers).toEqual([
       { type: 'turn', urls: 'turn:turn.server.com' },
       { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
       { type: 'turn', urls: 'turn:turn.server.com:456?transport=tcp', username: 'user2', credential: 'pass2' },
+    ]);
+  });
+
+  it('should ignore other services', async () => {
+    const client = new Client({});
+    const webrtc = new WebrtcExtension(client as any, {} as any);
+    const iceTransportPolicySpy = jest.spyOn(webrtc, 'setIceTransportPolicy');
+    const fakeStanza = webrtc['stanzaInstance'] = getFakeStanzaClient();
+    jest.spyOn(fakeStanza, 'getServices')
+      .mockResolvedValueOnce({
+        services: [
+          { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
+          { port: 234, type: 'stun', host: 'turn.server.com' },
+          { port: 3478, type: 'sfu', host: 'videobridge.server.com' }
+        ]
+      } as any);
+
+    await webrtc.refreshIceServers();
+
+    expect(iceTransportPolicySpy).toHaveBeenCalledWith('all', fakeStanza);
+    expect(fakeStanza.jingle.iceServers).toEqual([
+      { type: 'turn', urls: 'turn:turn.server.com:123', username: 'user1', credential: 'pass1' },
+      { type: 'stun', urls: 'stun:turn.server.com:234' }
     ]);
   });
 
@@ -1419,17 +1432,12 @@ describe('refreshIceServers', () => {
     jest.spyOn(fakeStanza, 'getServices')
       /* signifies the first call */
       .mockRejectedValueOnce(new Error('Failed to fetch servers'))
-      .mockRejectedValueOnce(new Error('Failed to fetch servers'))
       /* signifies the second call */
-      .mockReturnValueOnce({
+      .mockResolvedValueOnce({
         services: [
           { type: 'turn', host: 'turn.server.com' },
           { port: 123, type: 'turn', host: 'turn.server.com', username: 'user1', password: 'pass1' },
-          { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' }
-        ]
-      } as any)
-      .mockReturnValueOnce({
-        services: [
+          { port: 456, type: 'turn', host: 'turn.server.com', username: 'user2', password: 'pass2', transport: 'tcp' },
           { port: 234, type: 'stun', host: 'turn.server.com' }
         ]
       } as any);
@@ -1457,7 +1465,7 @@ describe('refreshIceServers', () => {
       await webrtc.refreshIceServers();
       fail('should have not been able to fetch ice servers');
     } catch (error) {
-      expect(spy).toHaveBeenCalledTimes(3 * 2); // 3 times total but each call calls `getServices` twice
+      expect(spy).toHaveBeenCalledTimes(3);
       /* resets state */
       expect(webrtc['discoRetries']).toBe(0);
       expect(webrtc['refreshIceServersRetryPromise']).toBe(undefined);
@@ -1477,7 +1485,7 @@ describe('refreshIceServers', () => {
 
     const promise = webrtc.refreshIceServers();
 
-    expect(spy).toHaveBeenCalledTimes(1 * 2);
+    expect(spy).toHaveBeenCalledTimes(1);
 
     /* I don't know why these timers & flushes have to work this way... but it is the only combo that works */
     jest.advanceTimersByTime(15000);
@@ -1486,10 +1494,10 @@ describe('refreshIceServers', () => {
     jest.advanceTimersByTime(15000);
     await flush();
 
-    expect(spy).toHaveBeenCalledTimes(2 * 2);
+    expect(spy).toHaveBeenCalledTimes(2);
 
     jest.advanceTimersByTime(15000);
-    expect(spy).toHaveBeenCalledTimes(3 * 2);
+    expect(spy).toHaveBeenCalledTimes(3);
 
     try {
       await promise;
