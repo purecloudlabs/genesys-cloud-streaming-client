@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 # [Unreleased](https://github.com/purecloudlabs/genesys-cloud-streaming-client/compare/v20.2.0...HEAD)
 ### Added
-* [STREAM-2913](https://inindca.atlassian.net/browse/STREAM-2913) - Add black-box integration tests (`npm run test:it`) and AI agent docs (`AGENTS.md`, `ai/`).
+* [STREAM-2913](https://inindca.atlassian.net/browse/STREAM-2913) - Add black-box integration tests (`npm run test:it`, run by `npm run test:ci`) and AI agent docs (`AGENTS.md`, `ai/`).
 
 ### Changed
 * [STREAM-2961](https://inindca.atlassian.net/browse/STREAM-2961) - Make one external service discovery request and filter on the results rather than making 2 separate requests for STUN and TURN.

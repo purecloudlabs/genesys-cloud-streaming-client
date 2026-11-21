@@ -32,7 +32,7 @@ the implementation.
 - Live in `test/integration/**/*.it.test.ts` and run with `npm run test:it`
   (`jest.it.config.js`, which writes its own junit file to
   `test-results/integration`). `npm run test:ci` runs them after lint and the unit tests; `npm test` does not. Name
-  each file for a flow (`connect`, `notifications`).
+  each file for a flow (`connect`, `notifications`, `alerting-leader`).
 - **Black box.** An IT does not look inside the library. It builds a real
   `Client`, drives it through a public method (`connect()`, `disconnect()`,
   `notifications.subscribe()`, `bulkSubscribe()`) or an outside event, and
@@ -122,6 +122,11 @@ describe('Notifications', () => {
   `once(client, 'event')` from the harness. Use `flushPromises` for microtasks.
 - `--runInBand` is required: the `stanza` mock and the axios adapter are
   module-level.
+- **Waiting on background work.** Alerting leader setup runs after `connect()`
+  resolves. Register the `alertingLeaderChanged` listener before `connect()`, then
+  `waitFor(() => ..., 'what you wait for')` from the harness (bounded poll).
+- **Stub every route the flow calls.** Unstubbed routes answer 404, and some flows
+  retry a 404 (marking a connection alertable retries for about 8s).
 - The background `users/me` connectivity check runs on every connect attempt, so
   a test that counts `users/me` requests must account for it.
 
@@ -135,7 +140,7 @@ describe('Notifications', () => {
   connection is the next step if end-to-end coverage is needed.
 - **Reconnect timing, ping timeouts and `ServerMonitor`** depend on long timers
   and are unit-tested with fake timers.
-- **Messenger and alerting leader** have no ITs yet.
+- **Messenger** has no ITs yet.
 
 ---
 

@@ -119,6 +119,34 @@ bulk resubscribe: `PUT` (replace) or `POST` to
 as `pubsub:event` and go to handlers registered for that topic. After a hard
 reconnect the new channel is resubscribed automatically.
 
+## Alerting leader
+
+`AlertingLeaderExtension` (`src/alerting-leader.ts`) lets several clients for one
+user (browser tabs, apps) agree on which one alerts for an incoming interaction.
+It only runs when the caller passes `alertableInteractionTypes` (`voice`). It is
+internal to Genesys apps.
+
+On each new connection (`handleStanzaInstanceChange`), using the stanza
+connection id (`transport.stream.id`) as the connection id:
+
+1. `GET users/alertingleader` early, without waiting. A 400 means the org has no
+   alerting leader, so the client acts as the leader.
+2. Subscribe to `v2.users.<userId>.alertingleader` (internal subscription).
+3. `PATCH apps/users/<userId>/connections/<connectionId>` with `{ alertable: true }`.
+   It retries for up to 8s because the backend may not know the connection yet
+   (STREAM-1204). It honors `retry-after` on a 429 if it fits the window.
+4. `GET users/alertingleader` again (with retry). This cancels the early request.
+
+Status is `{ voice: { alerting, configured, clientType? } }`. `alerting` is true
+when the leader's `connectionId` equals this connection's. The extension emits
+`alertingLeaderChanged` after the GET and after every pushed leader change.
+If setup throws, it fails open: `{ alerting: true, configured: false }`, so users
+don't miss calls.
+
+`claimAlertingLeader()` is debounced (300ms) and does `PUT users/alertingleader`
+with `{ connectionId }`. It rejects with a `generic` `StreamingClientError` when
+the client has no alertable types or the request fails.
+
 ## Where to start for common changes
 
 | Change | Start in |
@@ -127,5 +155,6 @@ reconnect the new channel is resubscribed automatically.
 | An HTTP call or retry rule | `http-client.ts`, caller in `client.ts` or an extension |
 | Topic subscriptions | `notifications.ts` |
 | WebRTC session or ICE behavior | `webrtc.ts`, `types/*-media-session.ts` |
+| Alerting leader | `alerting-leader.ts` |
 | A new stanza | `stanza-definitions/` |
 | A new extension | `types/streaming-client-extension.ts`, then the `extensions` map in `client.ts` |

@@ -41,6 +41,9 @@ export class FakeStanza extends EventEmitter {
   disconnectCalls = 0;
   pings: Array<string | undefined> = [];
   subscribedNodes: string[] = [];
+  /** Unique id of this connection, as the server sees it (`transport.stream.id`). */
+  connectionId = `connection-${globalThis.crypto.randomUUID()}`;
+  transport = { stream: { id: this.connectionId } };
   /** The jingle (WebRTC signaling) plugin the webrtc extension configures. */
   jingle: any = Object.assign(new EventEmitter(), { config: { peerConnectionConfig: {}, iceServers: [] } });
   stanzas = { define: (_definitions: any) => undefined };

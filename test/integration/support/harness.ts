@@ -82,3 +82,14 @@ export function buildClient (api: MockApiServer, authToken: string, overrides: R
 /** Resolve on the next emit of `event`. */
 export const once = <T = any>(emitter: { once: (e: string, cb: (...a: any[]) => void) => any }, event: string): Promise<T> =>
   new Promise(resolve => emitter.once(event, resolve));
+
+/** Poll until `predicate` is true. Fails the test with `message` after `timeoutMs`. */
+export async function waitFor (predicate: () => boolean, message = 'condition', timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) {
+      throw new Error(`Timed out waiting for ${message}`);
+    }
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
