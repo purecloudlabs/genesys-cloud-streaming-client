@@ -33,7 +33,7 @@ jobs:
           caching: 'true'
       - name: Run tests
         id: run-tests
-        run: npm run test
+        run: npm run test:ci
       - name: Upload test report
         if: failure() && steps.run-tests.outcome == 'failure'
         uses: actions/upload-artifact@v4
